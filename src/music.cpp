@@ -28,6 +28,10 @@
 #include "ff7music/music.h"
 #include "winamp/music.h"
 
+CRITICAL_SECTION mutex;
+
+static uint noop() { return 0; }
+
 void music_init()
 {
 	// Add Global Focus flag to DirectSound Secondary Buffers
@@ -46,15 +50,13 @@ void music_init()
 		}
 		else {
 			replace_function(common_externals.midi_init, midi_init);
-			replace_function(common_externals.play_midi, play_midi);
-			replace_function(common_externals.cross_fade_midi, cross_fade_midi);
+			replace_function(common_externals.play_midi, ff7_play_midi);
 			replace_function(common_externals.pause_midi, pause_midi);
 			replace_function(common_externals.restart_midi, restart_midi);
-			replace_function(common_externals.stop_midi, stop_midi);
+			replace_function(common_externals.stop_midi, ff7_stop_midi);
+			replace_function(0x6E0861, noop); // midi_stream_close, called by a sub of midi_volume_trans
 			replace_function(common_externals.midi_status, midi_status);
-			replace_function(common_externals.set_master_midi_volume, set_master_midi_volume);
-			replace_function(common_externals.set_midi_volume, set_midi_volume);
-			replace_function(common_externals.set_midi_volume_trans, set_midi_volume_trans);
+			replace_function(common_externals.set_midi_volume, ff7_set_direct_volume);
 			replace_function(common_externals.set_midi_tempo, set_midi_tempo);
 			replace_function(common_externals.directsound_release, ff7_directsound_release);
 		}
@@ -80,6 +82,12 @@ uint midi_init(uint unknown)
 
 	// enable fade function
 	*ff7_externals.midi_initialized = true;
+
+	// force clear just in case
+	void** midi_data = (void**)0xDBA6D0;
+	*midi_data = nullptr;
+
+	InitializeCriticalSection(&mutex);
 
 	return true;
 }
@@ -117,6 +125,19 @@ char* ff8_midi_name(uint midi)
 	return nullptr;
 }
 
+void play_midi(char* midi_name, uint midi, uint volume)
+{
+	switch (use_external_music)
+	{
+	case FFNX_MUSIC_FF7MUSIC:
+		ff7music_play_music(midi_name, midi);
+		break;
+	case FFNX_MUSIC_WINAMP:
+		winamp_play_music(midi_name, midi, volume);
+		break;
+	}
+}
+
 uint ff8_play_midi(uint midi, uint volume, uint u1, uint u2)
 {
 	info("FF8 midi play %i %i %i %i\n", midi, volume, u1, u2);
@@ -127,45 +148,31 @@ uint ff8_play_midi(uint midi, uint volume, uint u1, uint u2)
 		return 0; // Error
 	}
 
-	switch (use_external_music)
-	{
-	case FFNX_MUSIC_FF7MUSIC:
-		ff7music_set_music_volume(volume);
-		ff7music_play_music(midi_name, midi);
-		break;
-	case FFNX_MUSIC_WINAMP:
-		winamp_set_music_volume(volume);
-		winamp_play_music(midi_name, midi);
-		break;
-	}
+	play_midi(midi_name, midi, volume);
 
 	return 1; // Success
 }
 
-void play_midi(uint midi)
+void ff7_play_midi(uint midi)
 {
-	switch (use_external_music)
-	{
-	case FFNX_MUSIC_FF7MUSIC:
-		ff7music_play_music(common_externals.get_midi_name(midi), midi);
-		break;
-	case FFNX_MUSIC_WINAMP:
-		winamp_play_music(common_externals.get_midi_name(midi), midi);
-		break;
-	}
-}
+	uint current_volume = *((uint*)0xDBA6C8);
+	uint master_volume = *((uint*)0xDBA5F0);
+	uint volume = current_volume * master_volume / 0x64;
+	uint* need_volume_trans = (uint*)0xDBCF14;
+	uint volume_trans_frames = *((uint*)0xDBCDF8);
 
-void cross_fade_midi(uint midi, uint time)
-{
-	switch (use_external_music)
-	{
-	case FFNX_MUSIC_FF7MUSIC:
-		ff7music_cross_fade_music(common_externals.get_midi_name(midi), midi, time);
-		break;
-	case FFNX_MUSIC_WINAMP:
-		winamp_cross_fade_music(common_externals.get_midi_name(midi), midi, time);
-		break;
+	if (trace_all || trace_music) info("Current volume: %i (master: %i)\n", current_volume, master_volume);
+
+	EnterCriticalSection(&mutex);
+
+	play_midi(common_externals.get_midi_name(midi), midi, volume);
+
+	if (*need_volume_trans) {
+		*need_volume_trans = 0;
+		(*((uint(*)(uint, uint))0x6DF8CC))(127, volume_trans_frames);
 	}
+
+	LeaveCriticalSection(&mutex);
 }
 
 void pause_midi()
@@ -207,6 +214,19 @@ void stop_midi()
 	}
 }
 
+uint ff7_stop_midi()
+{
+	if (trace_all || trace_music) info("FF7 stop midi\n");
+
+	EnterCriticalSection(&mutex);
+
+	stop_midi();
+
+	LeaveCriticalSection(&mutex);
+
+	return 0;
+}
+
 uint ff8_stop_midi()
 {
 	if (trace_all || trace_music) info("FF8 stop midi\n");
@@ -236,6 +256,31 @@ uint midi_status()
 	return 0;
 }
 
+void set_direct_volume(uint volume)
+{
+	switch (use_external_music)
+	{
+	case FFNX_MUSIC_FF7MUSIC:
+		break;
+	case FFNX_MUSIC_WINAMP:
+		winamp_set_direct_volume(volume);
+		break;
+	}
+}
+
+uint ff7_set_direct_volume(DWORD volume)
+{
+	if (trace_all || trace_music) info("FF7 set direct volume %i\n", volume & 0xFFFF);
+
+	EnterCriticalSection(&mutex);
+
+	set_direct_volume((volume & 0xFFFF) * 255 / 0xFFFF);
+
+	LeaveCriticalSection(&mutex);
+
+	return 0;
+}
+
 uint ff8_set_direct_volume(int volume)
 {
 	if (trace_all || trace_music) info("FF8 set direct volume %i\n", volume);
@@ -254,55 +299,9 @@ uint ff8_set_direct_volume(int volume)
 		volume = (pow(10, (volume + 2000) / 2000.0f) / 10.0f) * 255.0f;
 	}
 	
-	switch (use_external_music)
-	{
-	case FFNX_MUSIC_FF7MUSIC:
-		break;
-	case FFNX_MUSIC_WINAMP:
-		winamp_set_direct_volume(volume);
-		break;
-	}
+	set_direct_volume(volume);
 
 	return 1; // Success
-}
-
-void set_master_midi_volume(uint volume)
-{
-	switch (use_external_music)
-	{
-	case FFNX_MUSIC_FF7MUSIC:
-		ff7music_set_master_music_volume(volume);
-		break;
-	case FFNX_MUSIC_WINAMP:
-		winamp_set_master_music_volume(volume);
-		break;
-	}
-}
-
-void set_midi_volume(uint volume)
-{
-	switch (use_external_music)
-	{
-	case FFNX_MUSIC_FF7MUSIC:
-		ff7music_set_music_volume(volume);
-		break;
-	case FFNX_MUSIC_WINAMP:
-		winamp_set_music_volume(volume);
-		break;
-	}
-}
-
-void set_midi_volume_trans(uint volume, uint step)
-{
-	switch (use_external_music)
-	{
-	case FFNX_MUSIC_FF7MUSIC:
-		ff7music_set_music_volume_trans(volume, step);
-		break;
-	case FFNX_MUSIC_WINAMP:
-		winamp_set_music_volume_trans(volume, step);
-		break;
-	}
 }
 
 void set_midi_tempo(unsigned char tempo)
