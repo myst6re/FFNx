@@ -36,6 +36,10 @@ void music_init()
 {
 	// Add Global Focus flag to DirectSound Secondary Buffers
 	patch_code_byte(common_externals.directsound_buffer_flags_1 + 0x4, 0x80); // DSBCAPS_GLOBALFOCUS & 0x0000FF00
+	// Force volume transition when 1 < frames < 10
+	patch_code_byte(0x6DF953 + 3, 1);
+	// Force midi cross fade to end volume trans at 0 instead of 15
+	patch_code_byte(0x6DF5B8 + 1, 0);
 
 	if (use_external_music > FFNX_MUSIC_NONE && use_external_music <= FFNX_MUSIC_FF7MUSIC)
 	{
@@ -167,12 +171,12 @@ void ff7_play_midi(uint midi)
 
 	play_midi(common_externals.get_midi_name(midi), midi, volume);
 
+	LeaveCriticalSection(&mutex);
+
 	if (*need_volume_trans) {
 		*need_volume_trans = 0;
 		(*((uint(*)(uint, uint))0x6DF8CC))(127, volume_trans_frames);
 	}
-
-	LeaveCriticalSection(&mutex);
 }
 
 void pause_midi()
@@ -378,7 +382,7 @@ bool needs_resume(uint old_mode, uint new_mode, char* old_midi, char* new_midi)
 	 * BATTLE -> FIELD or WM
 	 * FIELD  -> WM
 	 */
-	return ((new_mode == MODE_WORLDMAP || new_mode == MODE_AFTER_BATTLE) && !is_wm_theme(old_midi) && is_wm_theme(new_midi))
+	return ((new_mode == MODE_WORLDMAP || (!ff8 && new_mode == MODE_FIELD) || new_mode == MODE_AFTER_BATTLE) && !is_wm_theme(old_midi) && is_wm_theme(new_midi))
 		|| ((old_mode == MODE_BATTLE || old_mode == MODE_SWIRL) && (new_mode == MODE_FIELD || new_mode == MODE_AFTER_BATTLE))
 		|| new_mode == MODE_CARDGAME;
 }
