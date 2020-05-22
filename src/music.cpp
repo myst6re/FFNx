@@ -25,6 +25,31 @@
 #include "directmusic.h"
 #include "winamp/music.h"
 
+char* instrument_names[8] = {
+	"concert-tap",
+	"concert-flute",
+	"concert-fiddle",
+	"concert-aguitar",
+	"concert-sax",
+	"concert-piano",
+	"concert-eguitar",
+	"concert-ebass"
+};
+
+uint ff8_choicemusic_init(uint id)
+{
+	info("ff8_choicemusic_init %i\n", id);
+
+	if (id >= 8) {
+		return 0;
+	}
+
+	// DirectMusicPerformance::Init(instrument_names[id])
+	// DirectMusicSegment::SetParam(ConnectToDLS)
+
+	return 0;
+}
+
 void music_init()
 {
 	// Add Global Focus flag to DirectSound Secondary Buffers
@@ -41,6 +66,9 @@ void music_init()
 			replace_function(common_externals.midi_status, midi_status);
 			replace_function(common_externals.set_midi_volume, ff8_set_direct_volume);
 			replace_function(common_externals.remember_midi_playing_time, remember_playing_time);
+			replace_function(0x46E970, ff8_choicemusic_init);
+			replace_function(0x46E970, ff8_choicemusic_get_time);
+			replace_function(0x46E970, ff8_choicemusic_play_at);
 		}
 		else {
 			replace_function(common_externals.midi_init, midi_init);
