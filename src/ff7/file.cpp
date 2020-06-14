@@ -26,6 +26,22 @@
 #include "../log.h"
 #include "../hext.h"
 
+char* langs_2[5] = {
+	"en",
+	"fr",
+	"de",
+	"es",
+	"ja"
+};
+
+char* langs[5] = {
+	"",
+	"f",
+	"g",
+	"s",
+	"j"
+};
+
 int attempt_redirection(char* in, char* out, size_t size, bool wantsSteamPath = false)
 {
 	std::string newIn(in);
@@ -170,16 +186,98 @@ int attempt_redirection(char* in, char* out, size_t size, bool wantsSteamPath = 
 	return -1;
 }
 
+int attempt_other_languages(char* in, char* out, size_t size)
+{
+	if (_access(in, 0) != -1)
+	{
+		strcpy(out, in);
+		return 0;
+	}
+
+	std::string newIn(in);
+
+	std::transform(newIn.begin(), newIn.end(), newIn.begin(), ::tolower);
+
+	std::equal(newIn.begin(), newIn.end(), "_");
+
+	std::string::size_type pos_filename = newIn.rfind('/');
+
+	if (pos_filename == std::string::npos) {
+		pos_filename = newIn.rfind('\\');
+
+		if (pos_filename == std::string::npos) {
+			return -1;
+		}
+	}
+
+	pos_filename += 1;
+
+	std::string::size_type pos_lang = newIn.find('_', pos_filename);
+
+	if (pos_lang == std::string::npos) {
+		char* flevel = "flevel", *chocobo = "chocobo", *condor = "condor";
+		std::string::size_type pos = newIn.find(flevel, pos_filename);
+
+		if (pos == std::string::npos) {
+			pos = newIn.find(chocobo, pos_filename);
+			flevel = chocobo;
+
+			if (pos == std::string::npos) {
+				pos = newIn.find(condor, pos_filename);
+				flevel = condor;
+
+				if (pos == std::string::npos) {
+					return -1;
+				}
+			}
+		}
+
+		strncpy(out, newIn.data(), pos_filename);
+
+		for (int i = 0; i < 5; ++i) {
+			strcpy(out + pos_filename, langs[i]);
+			strcpy(out + pos_filename + strlen(langs[i]), flevel);
+			strcpy(out + pos_filename + strlen(langs[i]) + strlen(flevel), ".lgp");
+
+			if (_access(out, 0) != -1)
+			{
+				return 0;
+			}
+		}
+	}
+
+	pos_lang += 1;
+
+	strncpy(out, newIn.data(), pos_lang);
+
+	for (int i = 0; i < 5; ++i) {
+		strcpy(out + pos_lang, langs_2[i]);
+		strcpy(out + pos_lang + strlen(langs_2[i]), ".lgp");
+
+		if (_access(out, 0) != -1)
+		{
+			return 0;
+		}
+	}
+
+	return -1;
+}
+
 FILE *open_lgp_file(char *filename, uint mode)
 {
 	char _filename[260]{ 0 };
-	if(trace_all || trace_files) trace("opening lgp file %s\n", filename);
+	if(trace_all || trace_files) trace("opening lgp file %s (mode: %i)\n", filename, mode);
 
 	int redirect_status = attempt_redirection(filename, _filename, sizeof(_filename));
 
 	if (redirect_status == -1)
 	{
-		strcpy(_filename, filename);
+		int status = attempt_other_languages(filename, _filename, sizeof(_filename));
+
+		if (status == -1)
+		{
+			strcpy(_filename, filename);
+		}
 	}
 
 	return fopen(_filename, "rb");
