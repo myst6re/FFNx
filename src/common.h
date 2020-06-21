@@ -215,8 +215,9 @@ struct common_externals
 	uint directsound_buffer_flags_1;
 	uint (*play_sfx)(uint);
 	uint play_sfx_on_channel;
-	uint (*set_sfx_volume)(uint, uint);
+	uint (*set_sfx_volume_on_channel)(uint, uint);
 	uint *master_sfx_volume;
+	uint *dsound_volume_table;
 };
 
 // heap allocation wrappers
