@@ -20,6 +20,8 @@
 
 #include <windows.h>
 #include <DSound.h>
+#include <mmreg.h>
+#include <msacm.h>
 extern "C" {
 	#include <vgmstream.h>
 }
@@ -32,6 +34,58 @@ uint sfx_volumes[5];
 ff7_field_sfx_state sfx_buffers[4];
 uint real_volume;
 int channel = 0;
+/* 
+uint acm_stream_size(HACMSTREAM has, DWORD cbInput, DWORD fdwSize)
+{
+	DWORD outputBytes;
+
+	if (((uint(*)(MMRESULT))0x6E68F1)(acmStreamSize(has, cbInput, &outputBytes, fdwSize))) {
+		return outputBytes;
+	}
+
+	return 0;
+}
+
+uint acm_stream_size_0(HACMSTREAM has, DWORD cbInput)
+{
+	return acm_stream_size(has, cbInput, 0);
+}
+
+uint acm_stream_size_1(HACMSTREAM has, DWORD cbInput)
+{
+	return acm_stream_size(has, cbInput, 1);
+}
+
+uint acm_stream_open(LPHACMSTREAM phas, LPWAVEFORMATEX pwfxSrc, LPWAVEFORMATEX pwfxDst, uint async)
+{
+	return ((uint(*)(MMRESULT))0x6E68F1)(acmStreamOpen(phas, nullptr, pwfxSrc, pwfxDst, nullptr, 0, 0, async ? ACM_STREAMOPENF_ASYNC : 0));
+}
+
+uint acm_stream_convert(HACMSTREAM has, LPACMSTREAMHEADER pash, bool blockAlign)
+{
+	return ((uint(*)(MMRESULT))0x6E68F1)(acmStreamConvert(has, pash, blockAlign ? ACM_STREAMCONVERTF_BLOCKALIGN : 0));
+}
+
+uint acm_stream_prepare_header(HACMSTREAM has, LPACMSTREAMHEADER pash, LPBYTE pbSrc, DWORD cbSrcLength, LPBYTE pbDst, DWORD cbDstLength)
+{
+	pash->cbStruct = 0x54;
+	pash->pbSrc = pbSrc;
+	pash->cbSrcLength = cbSrcLength;
+	pash->pbDst = pbDst;
+	pash->cbDstLength = cbDstLength;
+
+	return ((uint(*)(MMRESULT))0x6E68F1)(acmStreamPrepareHeader(has, pash, 0));
+}
+
+uint acm_stream_unprepare_header(HACMSTREAM has, LPACMSTREAMHEADER pash)
+{
+	return ((uint(*)(MMRESULT))0x6E68F1)(acmStreamUnprepareHeader(has, pash, 0));
+}
+
+uint acm_stream_close(HACMSTREAM has)
+{
+	return ((uint(*)(MMRESULT))0x6E68F1)(acmStreamClose(has, 0));
+}*/
 
 void sound_stop(uint buffer)
 {
@@ -103,28 +157,6 @@ void sfx_play_2(int sound_id, int panning, int volume, int frequency)
 void sfx_play_3(int sound_id)
 {
 	info("play sfx #%i\n", sound_id);
-}
-
-int sfx_play_battle_specific(IDirectSoundBuffer* buffer, uint flags)
-{
-	if (buffer == nullptr) {
-		return 0;
-	}
-
-	unsigned char volume = 127 * (*common_externals.master_sfx_volume) / 100;
-	info("sfx_play_battle_specific %i\n", volume);
-
-	buffer->SetVolume(common_externals.dsound_volume_table[volume]);
-
-	HRESULT res = buffer->Play(0, 0, flags);
-
-	if (DSERR_BUFFERLOST == res) {
-		res = buffer->Restore();
-
-		return -1;
-	}
-
-	return res == DS_OK;
 }
 
 bool sfx_fill_buffer_external(uint sound_id, IDirectSoundBuffer** sound_buffer)
@@ -292,8 +324,10 @@ void sfx_init()
 
 	// External SFX
 	if (!ff8) {
-		replace_function(0x6E2573, sfx_fill_buffer);
-		replace_call(0x6E1E86 + 0x105, sfx_fill_buffer_partial);
+		//replace_function(ff7_externals.sfx_fill_buffer_from_audio_dat, sfx_fill_buffer);
+		//replace_call(0x6E1E86 + 0x105, sfx_fill_buffer_partial);
+
+		//replace_function(0x6E7212, acm_stream_size);
 	}
 
 	// SFX Patches
@@ -310,8 +344,8 @@ void sfx_init()
 		// On resume music after a battle
 		replace_call(ff7_externals.field_initialize_variables + 0xEB, sfx_operation_resume_music);
 		// Fix volume on specific SFX
-		replace_call(0x6E580F + 0xA2, sfx_play_battle_specific);
-		replace_call(0x6E580F + 0xF2, sfx_play_battle_specific);
+		replace_call(ff7_externals.sfx_play_summon + 0xA2, sfx_play_battle_specific);
+		replace_call(ff7_externals.sfx_play_summon + 0xF2, sfx_play_battle_specific);
 
 		//replace_function(common_externals.play_sfx_on_channel, sfx_play_on_channel);
 		//replace_call(0x5BBA92 + 0x93, sfx_leviathan);
@@ -326,6 +360,8 @@ void sfx_init()
 		// Leviathan fix
 		patch_code_byte(0x5B1B7F + 1, 0x29);
 		patch_code_byte(0x5B1B8D + 1, 0x2A);
+		// Omnislash fix
+		replace_call(0x46BA75, sfx_fix_omnislash_sound_loading);
 
 		/* Set sound volume on channel changes
 		 * When this sub is called, it set two fields of sfx_state,
@@ -484,4 +520,36 @@ void sfx_fix_volume_values(char* log)
 			sfx_state[i].u1 = 0; // Back to the correct value
 		}
 	}
+}
+
+int sfx_play_battle_specific(IDirectSoundBuffer* buffer, uint flags)
+{
+	if (buffer == nullptr) {
+		return 0;
+	}
+
+	// Added by FFNx: set buffer volume according to master_sfx_volume
+	unsigned char volume = 127 * (*common_externals.master_sfx_volume) / 100;
+
+	buffer->SetVolume(common_externals.dsound_volume_table[volume]);
+
+	// Original behavior
+	HRESULT res = buffer->Play(0, 0, flags);
+
+	if (DSERR_BUFFERLOST == res) {
+		res = buffer->Restore();
+
+		return -1;
+	}
+
+	return res == DS_OK;
+}
+
+uint sfx_fix_omnislash_sound_loading(int sound_id, int dsound_buffer)
+{
+	// Added by FFNx: Load sound 0x188
+	((uint(*)(int, int))ff7_externals.sfx_fill_buffer_from_audio_dat)(0x188, dsound_buffer);
+
+	// Original call (load sound 0x285)
+	return ((uint(*)(int, int))ff7_externals.sfx_fill_buffer_from_audio_dat)(sound_id, dsound_buffer);
 }

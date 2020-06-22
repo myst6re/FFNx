@@ -71,3 +71,4 @@ ff7_externals.update_gamepad_status =         0x41F7E8;
 ff7_externals.gamepad_status = (struct ff7_gamepad_status*)0x9B0678;
 ff7_externals.call_menu_sound_slider_loop_sfx_down = 0x10AC;
 ff7_externals.call_menu_sound_slider_loop_sfx_up = 0x10E1;
+ff7_externals.sfx_play_summon =               0x6E580F;

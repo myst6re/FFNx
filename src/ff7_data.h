@@ -314,6 +314,7 @@ void ff7_find_externals()
 	common_externals.set_sfx_volume_on_channel = (uint(*)(uint, uint))get_relative_call(ff7_externals.sound_operation, 0x3B3);
 	common_externals.dsound_volume_table = (uint*)get_absolute_value(uint(common_externals.set_sfx_volume_on_channel), 0xCC);
 	common_externals.play_sfx = (uint(*)(uint))get_relative_call(ff7_externals.sound_operation, 0x703);
+	ff7_externals.sfx_fill_buffer_from_audio_dat = get_relative_call(uint(common_externals.play_sfx), 0x4D);
 	ff7_externals.sound_states = (ff7_field_sfx_state*)get_absolute_value(common_externals.play_sfx_on_channel, 0x28);
 	common_externals.master_sfx_volume = (uint*)get_absolute_value(common_externals.play_sfx_on_channel, 0x342);
 
@@ -328,6 +329,7 @@ void ff7_find_externals()
 	ff7_externals.execute_opcode_table = (uint*)get_absolute_value(ff7_externals.execute_opcode, 0x10D);
 	ff7_externals.opcode_akao2 = ff7_externals.execute_opcode_table[0xDA];
 	ff7_externals.opcode_akao = ff7_externals.execute_opcode_table[0xF2];
+	ff7_externals.opcode_gameover = ff7_externals.execute_opcode_table[0xFF];
 }
 
 void ff7_data()
