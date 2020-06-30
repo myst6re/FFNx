@@ -289,7 +289,7 @@ uint opcode_gameover_music_fix()
 {
 	const uint stop_sounds = 0xF1;
 	((uint(*)(uint, uint, uint, uint, uint, uint))ff7_externals.sound_operation)(stop_sounds, 0, 0, 0, 0, 0);
-	const uint play_music = 0x14, sound_id = 0x3A;
-	((uint(*)(uint, uint, uint, uint, uint, uint))ff7_externals.sound_operation)(play_music, sound_id, 0, 0, 0, 0);
+	const uint play_music = 0x14, midi_id = 0x3A;
+	((uint(*)(uint, uint, uint, uint, uint, uint))ff7_externals.sound_operation)(play_music, midi_id, 0, 0, 0, 0);
 	return ((uint(*)())ff7_externals.opcode_gameover)();
 }
