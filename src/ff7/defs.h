@@ -73,3 +73,6 @@ struct battle_hrc_header *read_battle_hrc(uint use_file_context, struct file_con
 struct polygon_data *load_p_file(struct file_context *file_context, uint create_lists, char *filename);
 void destroy_tex_header(struct ff7_tex_header *tex_header);
 struct ff7_tex_header *load_tex_file(struct file_context *file_context, char *filename);
+
+// SFX
+void sfx_init2();

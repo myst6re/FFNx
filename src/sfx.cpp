@@ -20,6 +20,10 @@
 
 #include <windows.h>
 #include <DSound.h>
+#include <process.h>
+extern "C" {
+	#include <vgmstream.h>
+}
 
 #include "sfx.h"
 #include "patch.h"
@@ -29,11 +33,300 @@
 uint sfx_volumes[5];
 ff7_field_sfx_state sfx_buffers[4];
 uint real_volume;
+int channel = 0;
+
+HANDLE sfx_render_handle = nullptr;
+unsigned sfx_render_thread_id;
+bool sfx_stop_thread = false;
+const DWORD sfx_thread_sleep_ms = 33;
+
+void sound_stop(uint buffer)
+{
+	info("dsound_stop %i\n", buffer);
+
+	uint* toto = (uint*)0xFFFFFFFF;
+	*toto = 1;
+}
+
+void stop_dsound(IDirectSoundBuffer* buffer)
+{
+	info("dsound_stop %x\n", buffer);
+	if (buffer) {
+		buffer->Stop();
+	}
+}
+
+void release_dsound(IDirectSoundBuffer* buffer)
+{
+	info("dsound_release %x\n", buffer);
+	if (buffer) {
+		buffer->Release();
+	}
+}
+
+uint start_dsound(IDirectSoundBuffer* buffer, uint flags)
+{
+	info("dsound_start %x\n", buffer);
+
+	if (!buffer) {
+		return 0;
+	}
+
+	HRESULT res = buffer->Play(0, 0, flags);
+
+	if (DSERR_BUFFERLOST == res) {
+		res = buffer->Restore();
+
+		return -1;
+	}
+
+	return res == DS_OK;
+}
+
+void tifa_roulette(uint sound_id)
+{
+	((void(*)(uint))0x430D0A)(sound_id);
+	replace_function(0x6E7080, sound_stop);
+}
+
+void sfx_play_on_channel(unsigned char panning, int sound_id, int channel)
+{
+	info("play sfx #%i (channel: %i, panning: %i)\n", sound_id, channel, panning);
+}
+
+void sfx_leviathan(unsigned char panning, int sound_id, unsigned char zz1)
+{
+	info("play leviathan #%i (zz1: %i, panning: %i)\n", sound_id, zz1, panning);
+
+	if (zz1) {
+		((void(*)(unsigned char, int, int))common_externals.play_sfx_on_channel)(panning, sound_id, channel + 1);
+		channel = (channel + 1) % 3;
+		//(void(*)(unsigned char, int, unsigned char))(0x5BBBAC)(panning, sound_id, zz1);
+	}
+}
+
+void sfx_play_on_channels(int panning, int sound_id_channel_1, int sound_id_channel_2, int sound_id_channel_3, int sound_id_channel_4)
+{
+	info("play sfx #%i #%i #%i #%i (panning: %i)\n", sound_id_channel_1, sound_id_channel_2, sound_id_channel_3, sound_id_channel_4, panning);
+}
+
+void sfx_play_2(int sound_id, int panning, int volume, int frequency)
+{
+	info("play sfx #%i (panning: %i, volume: %i, frequency: %i)\n", sound_id, panning, volume, frequency);
+}
+
+void sfx_play_3(int sound_id)
+{
+	info("play sfx #%i\n", sound_id);
+}
+
+int sfx_file_name(uint sound_id, char* filename)
+{
+	char* sound_dir = (char*)0xDC3398;
+	return sprintf(filename, "%s/sound-%d.%s", sound_dir, sound_id, external_music_ext);
+}
+
+VGMSTREAM* sfx_vgmstream_init(uint sound_id)
+{
+	char filename[MAX_PATH];
+	sfx_file_name(sound_id, filename);
+
+	info("sfx_vgmstream_init %s\n", filename);
+
+	if (_access(filename, 0) != 0) {
+		return nullptr;
+	}
+
+	return init_vgmstream(filename);
+}
+
+bool sfx_fill_buffer_external(uint sound_id, IDirectSoundBuffer** sound_buffer)
+{
+	info("sfx_fill_buffer_external %i\n", sound_id);
+
+	VGMSTREAM* stream = sfx_vgmstream_init(sound_id);
+
+	if (stream == nullptr) {
+		return false;
+	}
+
+	trace("sfx_fill_buffer_external %i %i\n", stream->num_samples, stream->channels);
+
+	sample_t* sample_buffer = (sample_t*)driver_malloc(stream->num_samples * sizeof(sample_t) * stream->channels);
+
+	if (sample_buffer == nullptr) {
+		return false;
+	}
+
+	render_vgmstream(sample_buffer, stream->num_samples, stream);
+
+	close_vgmstream(stream);
+
+	DSBUFFERDESC1 sbdesc = DSBUFFERDESC1();
+	WAVEFORMATEX sound_format;
+
+	sound_format.cbSize = 0;
+	sound_format.wBitsPerSample = sizeof(sample_t) * 8;
+	sound_format.nChannels = stream->channels;
+	sound_format.nSamplesPerSec = stream->sample_rate;
+	sound_format.nBlockAlign = sound_format.nChannels * sound_format.wBitsPerSample / 8;
+	sound_format.nAvgBytesPerSec = sound_format.nSamplesPerSec * sound_format.nBlockAlign;
+	sound_format.wFormatTag = WAVE_FORMAT_PCM;
+
+	sbdesc.dwSize = sizeof(sbdesc);
+	sbdesc.lpwfxFormat = &sound_format;
+	sbdesc.dwFlags = DSBCAPS_STATIC | DSBCAPS_CTRLVOLUME | DSBCAPS_CTRLFREQUENCY
+		| DSBCAPS_CTRLPAN | DSBCAPS_GETCURRENTPOSITION2
+		| DSBCAPS_TRUEPLAYPOSITION | DSBCAPS_GLOBALFOCUS;
+	sbdesc.dwReserved = 0;
+	sbdesc.dwBufferBytes = stream->num_samples * sound_format.nBlockAlign;
+
+	if (!*common_externals.directsound)
+	{
+		error("SFX No directsound device\n");
+		driver_free(sample_buffer);
+
+		return false;
+	}
+
+	if ((*common_externals.directsound)->CreateSoundBuffer((LPCDSBUFFERDESC)&sbdesc, sound_buffer, 0))
+	{
+		error("SFX couldn't create sound buffer (%i, %i)\n", sound_format.nChannels, sound_format.nSamplesPerSec);
+		driver_free(sample_buffer);
+
+		return false;
+	}
+
+	LPVOID ptr1, ptr2;
+	DWORD bytes1, bytes2;
+
+	if ((*sound_buffer)->Lock(0, sbdesc.dwBufferBytes, &ptr1, &bytes1, &ptr2, &bytes2, 0)) {
+		error("SFX couldn't lock sound buffer\n");
+		driver_free(sample_buffer);
+		return false;
+	}
+
+	memcpy(ptr1, sample_buffer, bytes1);
+	memcpy(ptr2, (char*)sample_buffer + bytes1, bytes2);
+
+	if ((*sound_buffer)->Unlock(ptr1, bytes1, ptr2, bytes2)) {
+		error("SFX couldn't unlock sound buffer\n");
+		driver_free(sample_buffer);
+		return false;
+	}
+
+	driver_free(sample_buffer);
+
+	return true;
+}
+
+unsigned __stdcall sfx_render_thread(void* parameter)
+{
+	while (!sfx_stop_thread)
+	{
+		Sleep(sfx_thread_sleep_ms);
+
+	}
+
+	_endthreadex(0);
+
+	return 0;
+}
+
+bool sfx_fill_buffer_external_async(uint sound_id)
+{
+	VGMSTREAM* stream = sfx_vgmstream_init(sound_id);
+
+	if (stream == nullptr) {
+		return false;
+	}
+
+	sfx_render_handle = (HANDLE)_beginthreadex(nullptr, 0, &sfx_render_thread, nullptr, 0, &sfx_render_thread_id);
+
+	return true;
+}
+
+bool sfx_fill_buffer(uint sound_id, IDirectSoundBuffer** buffer)
+{
+	trace("sfx_fill_buffer_1_A %i %X\n", sound_id, buffer);
+
+	sound_id -= 1;
+	IDirectSoundBuffer** dsound_buffers = (IDirectSoundBuffer**)0xDBD068;
+	uint static_sound_loaded = *((uint*)dsound_buffers - 2);
+
+	trace("sfx_fill_buffer_1_B %X %i %X\n", *dsound_buffers, static_sound_loaded, (uint*)dsound_buffers - 2);
+
+	if (sound_id < 0 || sound_id > 750 || !static_sound_loaded) {
+		return false;
+	}
+
+	trace("sfx_fill_buffer_1_C %X %X\n", &dsound_buffers[sound_id], dsound_buffers[sound_id]);
+
+	if (dsound_buffers[sound_id] != nullptr) {
+		return true;
+	}
+
+	if (buffer == nullptr) {
+		buffer = dsound_buffers + sound_id;
+	}
+
+	uint* sound_structure = (uint*)0xDBDDC4 + 7 * sound_id;
+	// { uint size, uint pos, ... unknown }, sizeof = 0x1C
+	uint pos = sound_structure[1];
+	trace("sfx_fill_buffer_1_D %X %i\n", buffer, pos);
+
+	for (int i = 0; i < 21; ++i) {
+		trace("sound_structure %X: %i\n", sound_structure + i, sound_structure[i]);
+	}
+
+	if (sound_structure[0] == 0) {
+		return false;
+	}
+
+	if (sfx_fill_buffer_external(sound_id, buffer)) {
+		return true;
+	}
+
+	uint fd_audiodat = *(uint*)0xDC338C;
+
+	// seek (SEEK_SET)
+	((void(*)(int, long))0x68289A)(fd_audiodat, pos);
+	// open and create sound buffer
+	*buffer = ((IDirectSoundBuffer * (*)(uint*, int))0x6E26A2)(sound_structure, fd_audiodat);
+
+	return *buffer != nullptr;
+}
+
+bool sfx_fill_buffer_async(uint sound_id, void* sound_structure)
+{
+	info("sfx_fill_buffer_2 %i %i\n", sound_id, sound_structure);
+
+	if (sfx_fill_buffer_external_async(sound_id - 1)) {
+		return false;
+	}
+
+	return ((uint(*)(uint, void*))0x6E3643)(sound_id, sound_structure);
+}
+
+void effect_sound_play(int sound_id, int panning, int volume, int frequency)
+{
+	info("play sfx #%i (panning: %i, volume: %i, frequency: %i)\n", sound_id, panning, volume, frequency);
+	((void(*)(int, int, int, int))0x6E55E9)(sound_id, panning, volume, frequency);
+}
 
 void sfx_init()
 {
 	// Add Global Focus flag to DirectSound Secondary Buffers
 	patch_code_byte(common_externals.directsound_buffer_flags_1 + 0x4, 0x80); // DSBCAPS_GLOBALFOCUS & 0x0000FF00
+
+	// External SFX
+	if (!ff8) {
+		//replace_function(ff7_externals.sfx_fill_buffer_from_audio_dat, sfx_fill_buffer);
+		//replace_call(0x6E1E86 + 0x105, sfx_fill_buffer_async);
+
+		//replace_function(0x6E7212, acm_stream_size_source);
+		sfx_init2();
+	}
 
 	// SFX Patches
 	if (!ff8) {
@@ -51,6 +344,19 @@ void sfx_init()
 		// Fix volume on specific SFX
 		replace_call(ff7_externals.sfx_play_summon + 0xA2, sfx_play_battle_specific);
 		replace_call(ff7_externals.sfx_play_summon + 0xF2, sfx_play_battle_specific);
+
+		//replace_function(common_externals.play_sfx_on_channel, sfx_play_on_channel);
+		//replace_call(0x5BBA92 + 0x93, sfx_leviathan);
+		//replace_function(0x6E1E86, sfx_play_on_channels);
+		//replace_function(0x6E55E9, sfx_play_2);
+		//replace_function(0x6E580F, sfx_play_3);
+		replace_function(0x6E7080, stop_dsound);
+		replace_function(0x6E7015, start_dsound);
+		replace_function(0x6E6E86, release_dsound);
+		replace_call(0x6E5CD9, effect_sound_play);
+		patch_code_byte(0x5A4457 + 3, 0x6C);
+
+		//replace_call(0x7640AA + 0x56C, tifa_roulette);
 
 		// Leviathan fix
 		patch_code_byte(ff7_externals.battle_summon_leviathan_loop + 0x3FA + 1, 0x29);
