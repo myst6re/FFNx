@@ -938,6 +938,7 @@ struct ff8_externals
 	uint32_t volume_music_update;
 	uint32_t music_load;
 	uint32_t play_wav;
+	char* mdi_cd_drive;
 };
 
 void ff8gl_field_78(struct ff8_polygon_set *polygon_set, struct ff8_game_obj *game_object);

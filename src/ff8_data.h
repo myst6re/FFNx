@@ -307,6 +307,8 @@ void ff8_find_externals()
 
 	common_externals.midi_status = get_relative_call(ff8_externals.sm_battle_sound, 0x14);
 
+	ff8_externals.mdi_cd_drive = (char*)0x1CD222C;
+
 	// Pause/Resume functions
 	ff8_externals.sub_500900 = get_relative_call(ff8_externals.sub_47CCB0, 0x98D);
 	ff8_externals.sub_501B60 = get_relative_call(ff8_externals.sub_500900, -0x2A2);

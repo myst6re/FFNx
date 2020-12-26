@@ -483,16 +483,17 @@ int ff8_toggle_battle_worldmap(int param)
 	return ret;
 }
 
+char dataDrive[8];
+
 uint32_t ff8_retry_configured_drive(char* filename, uint8_t* data)
 {
 	int32_t res = ff8_externals.sm_pc_read(filename, data);
+	ff8_externals.mdi_cd_drive = ff8_externals.disk_data_path;
+
+	trace("%s: %s\n", __func__, ff8_externals.mdi_cd_drive);
 
 	if (!res) {
-		char dataDrive[8];
 		char modifiedFilename[MAX_PATH];
-
-		ff8_externals.reg_get_data_drive(dataDrive, 4);
-		dataDrive[7] = '\0'; // For safety
 
 		if (trace_files || trace_all) trace("%s: filename=%s, dataDrive=%s, diskDataPath=%s\n", __func__, filename, dataDrive, ff8_externals.disk_data_path);
 
@@ -508,6 +509,7 @@ uint32_t ff8_retry_configured_drive(char* filename, uint8_t* data)
 					if (res) {
 						strncpy(ff8_externals.disk_data_path, dataDrive, 260);
 						strncat(ff8_externals.disk_data_path, "\\", 260);
+						ff8_externals.mdi_cd_drive = ff8_externals.disk_data_path;
 
 						if (trace_files || trace_all) trace("%s: diskDataPath changed %s\n", __func__, ff8_externals.disk_data_path);
 					}
@@ -633,6 +635,12 @@ void ff8_init_hooks(struct game_obj *_game_object)
 	patch_code_byte(ff8_externals.sub_52F300 + 0x5FD, 0); // if (intro_step >= 0) ...
 
 	if (!steam_edition) {
+		ff8_externals.reg_get_data_drive(dataDrive, 4);
+		dataDrive[7] = '\0'; // For safety
+
+		ff8_externals.mdi_cd_drive = dataDrive; // Force Drive to play Eyes On Me
+		patch_code_dword(0x46C8D9, MCI_OPEN_TYPE | MCI_OPEN_ELEMENT); // Use mdi_cd_drive field on MCI_OPEN
+
 		// Look again with the DataDrive specified in the register
 		replace_call(ff8_externals.get_disk_number + 0x6E, ff8_retry_configured_drive);
 		replace_call(ff8_externals.cdcheck_sub_52F9E0 + 0x15E, ff8_retry_configured_drive);
