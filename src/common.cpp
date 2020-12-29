@@ -2119,6 +2119,11 @@ uint32_t get_version()
 		info("Auto-detected version: FF8 1.2 Japanese\n");
 		return VERSION_FF8_12_JP;
 	}
+	else if (version_check1 == 0x29E7103C && version_check2 == 0x998D894E)
+	{
+		info("Auto-detected version: FF8 Remaster multi\n");
+		return VERSION_FF8_REMASTER_EFIGS;
+	}
 
 	return 0;
 }
@@ -2278,6 +2283,14 @@ __declspec(dllexport) void *new_dll_graphics_driver(void *game_object)
 	return ret;
 }
 
+int toto = 0;
+
+/*
+void toto(void* self)
+{
+	info("%s: %X\n", __func__, *((int*)0x1178EDA4));
+}*/
+
 BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 {
 	if (fdwReason == DLL_PROCESS_ATTACH)
@@ -2303,7 +2316,48 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 		SetThreadExecutionState(ES_CONTINUOUS | ES_DISPLAY_REQUIRED | ES_SYSTEM_REQUIRED);
 
 		info("FFNx driver version " VERSION "\n");
+		info("toto\n");
+		/* info("%X\n", *((int*)0x55AC07));
+		info("%X\n", *((int*)0x55ADB7)); */
+		info("DllMain: %X\n", (int*)DllMain);
+		info("toto: %d\n", toto);
+		char eax_dll[MAX_PATH];
+		GetSystemDirectoryA(eax_dll, sizeof(eax_dll));
+		strcat(eax_dll, R"(\DSOUND.dll)");
+		info("toto: %s\n", eax_dll);
+
+		HMODULE hEaxDll = LoadLibraryA(eax_dll);
+		info("toto: %X\n", (int)hEaxDll);
+		FARPROC procEaxDSoundCreate = GetProcAddress((HMODULE)hEaxDll, "DirectSoundCreate");
+		info("toto: %X\n", (int)procEaxDSoundCreate);
+		return TRUE;
+		info("end of exe: %X\n", *((int*)0x767910));
 		version = get_version();
+
+		int* ptr = (int*)DllMain;
+
+		while (ptr) {
+
+			if (*ptr == 0xCCCCCCCC && *(ptr - 1) == 0xCCCCCCCC && *(ptr - 2) == 0xCCCCCCCC) {
+				info("A: %X %X, %X %X %X %X %X\n", ptr, ptr - 1, *ptr, *(ptr - 1), *(ptr - 2), *(ptr - 3), *(ptr - 4));
+				break;
+			}
+
+			ptr -= 1;
+		}
+		info("nope\n");
+
+		ptr = (int*)DllMain;
+
+		while (1) {
+
+			if (*ptr == 0xCCCCCCCC && *(ptr + 1) == 0xCCCCCCCC && *(ptr + 2) == 0xCCCCCCCC) {
+				info("B: %X\n", ptr);
+				break;
+			}
+
+			ptr += 1;
+		}
 
 		if (version >= VERSION_FF8_12_US)
 		{
@@ -2353,6 +2407,8 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 		CHAR dllName[1024];
 		GetModuleFileNameA((HMODULE)hinstDLL, dllName, sizeof(dllName));
 		_strlwr(dllName);
+
+		return TRUE;
 
 		if (!ff8)
 		{
@@ -2448,7 +2504,12 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 			case VERSION_FF8_12_JP:
 				ff8_externals.start = 0x0; // TODO
 				break;
+			case VERSION_FF8_REMASTER_EFIGS:
+				ff8_externals.start = 0x55ADB7; // TODO
+				break;
 			}
+
+			//replace_function(0x10072170, toto);
 
 			common_externals.winmain = get_relative_call(ff8_externals.start, 0xDB);
 			common_externals.create_window = get_relative_call(common_externals.winmain, 0x114);
@@ -2482,6 +2543,9 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 				case VERSION_FF8_12_JP:
 					mciSendCommandA = 0x2CA3DC8;
 					break;
+				case VERSION_FF8_REMASTER_EFIGS:
+					mciSendCommandA = 0xB69388; // TODO
+					break;
 				}
 
 				patch_code_dword(mciSendCommandA, (DWORD)dotemuMciSendCommandA);
@@ -2490,6 +2554,9 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 
 		// Apply hext patching
 		hextPatcher.applyAll();
+	}
+	else if (fdwReason == DLL_PROCESS_DETACH) {
+		info("toto2: %d\n", toto);
 	}
 
 	return TRUE;
@@ -2795,7 +2862,7 @@ __declspec(dllexport) HRESULT __stdcall EAXDirectSoundCreate(LPGUID guid, LPLPDI
 {
 	typedef HRESULT(FAR PASCAL* LPEAXDIRECTSOUNDCREATE)(LPGUID, LPLPDIRECTSOUND, IUnknown FAR*);
 
-	char eax_dll[260];
+	char eax_dll[MAX_PATH];
 	GetSystemDirectoryA(eax_dll, sizeof(eax_dll));
 	strcat(eax_dll, R"(\eax.dll)");
 
@@ -2803,6 +2870,47 @@ __declspec(dllexport) HRESULT __stdcall EAXDirectSoundCreate(LPGUID guid, LPLPDI
 	FARPROC procEaxDSoundCreate = GetProcAddress((HMODULE)hEaxDll, "EAXDirectSoundCreate");
 
 	return ((LPEAXDIRECTSOUNDCREATE)procEaxDSoundCreate)(guid, directsound, unk);
+}
+
+// FF8 Remaster Compatibility
+__declspec(dllexport) HRESULT __stdcall DirectSoundCreateRemaster(LPCGUID guid, LPLPDIRECTSOUND directsound, LPUNKNOWN unk)
+{
+	typedef HRESULT(*LPEAXDIRECTSOUNDCREATE)(LPCGUID, LPLPDIRECTSOUND, LPUNKNOWN);
+	toto = (int)directsound + 1;
+
+	return 1;
+	/* info("DirectSoundCreateRemaster\n");
+	info("DirectSoundCreateRemaster: %X\n", int(directsound));
+	info("DirectSoundCreateRemaster: %X\n", int(unk));
+	info("DirectSoundCreateRemaster: %X\n", int(guid)); */
+
+	char eax_dll[MAX_PATH];
+	GetSystemDirectoryA(eax_dll, sizeof(eax_dll));
+	strcat(eax_dll, R"(\DSOUND.dll)");
+	//info("DirectSoundCreateRemaster: %s\n", eax_dll);
+
+	HMODULE hEaxDll = LoadLibraryA(eax_dll);
+	//info("DirectSoundCreateRemaster: %X\n", int(hEaxDll));
+	FARPROC procEaxDSoundCreate = GetProcAddress((HMODULE)hEaxDll, "DirectSoundCreate");
+	//info("DirectSoundCreateRemaster: %X\n", int(procEaxDSoundCreate));
+
+	return ((LPEAXDIRECTSOUNDCREATE)procEaxDSoundCreate)(guid, directsound, unk);
+}
+
+// FF8 Remaster Compatibility
+__declspec(dllexport) HRESULT __stdcall DirectInput8CreateRemaster(HINSTANCE hinst, DWORD dwVersion, const IID& riidltf, LPVOID* ppvOut, LPUNKNOWN punkOuter)
+{
+	toto = 2;
+	typedef HRESULT(*LPDIRECTINPUT8CREATE)(HINSTANCE, DWORD, const IID&, LPVOID*, LPUNKNOWN);
+
+	char eax_dll[MAX_PATH];
+	GetSystemDirectoryA(eax_dll, sizeof(eax_dll));
+	strcat(eax_dll, R"(\dinput8.dll)");
+
+	HMODULE hEaxDll = LoadLibraryA(eax_dll);
+	FARPROC procEaxDSoundCreate = GetProcAddress((HMODULE)hEaxDll, "DirectInput8Create");
+
+	return ((LPDIRECTINPUT8CREATE)procEaxDSoundCreate)(hinst, dwVersion, riidltf, ppvOut, punkOuter);
 }
 
 void ffnx_inject_driver(struct game_obj* game_object)

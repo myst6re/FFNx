@@ -283,6 +283,9 @@ void read_cfg()
 	case VERSION_FF8_12_JP:
 		hext_patching_path += "/jp";
 		break;
+	case VERSION_FF8_REMASTER_EFIGS:
+		hext_patching_path += "/remaster_efigs";
+		break;
 	}
 
 	//OVERRIDE PATH

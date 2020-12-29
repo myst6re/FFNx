@@ -522,6 +522,13 @@ uint32_t ff8_retry_configured_drive(char* filename, uint8_t* data)
 	return res;
 }
 
+int toto(int a1, int speed, int enabled)
+{
+	trace("%s: a1=%d, speed=%d, enabled=%d\n", __func__, a1, speed, enabled);
+
+	return 0;
+}
+
 void ff8_init_hooks(struct game_obj *_game_object)
 {
 	struct ff8_game_obj *game_object = (struct ff8_game_obj *)_game_object;
@@ -640,6 +647,8 @@ void ff8_init_hooks(struct game_obj *_game_object)
 		replace_call(ff8_externals.get_disk_number + 0x6E, ff8_retry_configured_drive);
 		replace_call(ff8_externals.cdcheck_sub_52F9E0 + 0x15E, ff8_retry_configured_drive);
 	}
+
+	replace_function(0x4A2310, toto);
 }
 
 struct ff8_gfx_driver *ff8_load_driver(void* _game_object)

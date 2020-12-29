@@ -42,6 +42,7 @@
 #define VERSION_FF8_12_US_EIDOS    15
 #define VERSION_FF8_12_US_EIDOS_NV 16
 #define VERSION_FF8_12_JP          17
+#define VERSION_FF8_REMASTER_EFIGS 18
 
 #define NV_VERSION (!(version & 1))
 
