@@ -2913,6 +2913,20 @@ __declspec(dllexport) HRESULT __stdcall DirectInput8CreateRemaster(HINSTANCE hin
 	return ((LPDIRECTINPUT8CREATE)procEaxDSoundCreate)(hinst, dwVersion, riidltf, ppvOut, punkOuter);
 }
 
+__declspec(dllexport) HRESULT __stdcall DirectInputCreateA(HINSTANCE hinst, DWORD dwVersion, LPDIRECTINPUTA* ppDI, LPUNKNOWN punkOuter)
+{
+	typedef HRESULT(*LPDIRECTINPUTCREATE)(HINSTANCE, DWORD, LPDIRECTINPUTA*, LPUNKNOWN);
+
+	char path_dll[MAX_PATH];
+	GetSystemDirectoryA(path_dll, sizeof(path_dll));
+	strcat(path_dll, R"(\dinput.dll)");
+
+	HMODULE hDinputDll = LoadLibraryA(path_dll);
+	FARPROC procDirectInputCreate = GetProcAddress((HMODULE)hDinputDll, "DirectInputCreateA");
+
+	return ((LPDIRECTINPUTCREATE)procDirectInputCreate)(hinst, dwVersion, ppDI, punkOuter);
+}
+
 void ffnx_inject_driver(struct game_obj* game_object)
 {
 	VOBJ(game_obj, game_object, game_object);

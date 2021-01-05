@@ -522,7 +522,7 @@ uint32_t ff8_retry_configured_drive(char* filename, uint8_t* data)
 	return res;
 }
 
-int toto(int a1, int speed, int enabled)
+int toto(int *a1, int speed, int enabled)
 {
 	trace("%s: a1=%d, speed=%d, enabled=%d\n", __func__, a1, speed, enabled);
 

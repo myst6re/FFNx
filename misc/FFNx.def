@@ -24,7 +24,8 @@ EXPORTS
 ; Required by FF8 2000 injection. Ordinal 5 is required in order to inject as eax.dll
 EAXDirectSoundCreate @5
 ; DirectSoundCreate=DirectSoundCreateRemaster @1
-; DirectInput8Create=DirectInput8CreateRemaster
+DirectInput8Create=DirectInput8CreateRemaster
+DirectInputCreateA
 ; Required for the Steam driver injection
 dotemuRegOpenKeyExA
 dotemuRegCloseKey
