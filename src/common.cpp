@@ -655,7 +655,13 @@ int common_create_window(HINSTANCE hInstance, struct game_obj* game_object)
 				sfx_init();
 				voice_init();
 				if (enable_ffmpeg_videos)
+				{
 					movie_init();
+				}
+				if (ff8)
+				{
+					vram_init();
+				}
 
 				// enable verbose logging for FFMpeg
 				av_log_set_level(AV_LOG_VERBOSE);

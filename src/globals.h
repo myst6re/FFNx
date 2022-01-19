@@ -45,6 +45,7 @@ extern const GUID IID_ICodecAPI = { 0x901db4c7, 0x31ce, 0x41a2, 0x85,0xdc, 0x8f,
 #include "ff7.h"
 #include "ff7/defs.h"
 #include "ff8.h"
+#include "ff8/vram.h"
 
 #define FFNX_API __declspec(dllexport)
 
