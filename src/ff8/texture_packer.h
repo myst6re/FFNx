@@ -1,3 +1,4 @@
+#pragma once
 
 #include <string>
 #include <map>
@@ -36,6 +37,7 @@ private:
     }
     class Texture {
     public:
+        Texture();
         Texture(
             const std::string &name,
             int x, int y, int w, int h,

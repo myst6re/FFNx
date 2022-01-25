@@ -363,7 +363,7 @@ public:
     uint32_t createTexture(char* filename, uint32_t* width, uint32_t* height, uint32_t* mipCount, bool isSrgb = true);
     bgfx::TextureHandle createTextureHandle(char* filename, uint32_t* width, uint32_t* height, uint32_t* mipCount, bool isSrgb = true);
     uint32_t createTextureLibPng(char* filename, uint32_t* width, uint32_t* height, bool isSrgb = true);
-    bool saveTexture(char* filename, uint32_t width, uint32_t height, void* data);
+    bool saveTexture(const char* filename, uint32_t width, uint32_t height, void* data);
     void deleteTexture(uint16_t texId);
     void useTexture(uint16_t texId, uint32_t slot = 0);
     uint32_t blitTexture(uint32_t x, uint32_t y, uint32_t width, uint32_t height);

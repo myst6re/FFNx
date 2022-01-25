@@ -1,5 +1,7 @@
 
 #include "texture_packer.h"
+#include "../renderer.h"
+#include "../patch.h"
 
 #include <png.h>
 
@@ -39,60 +41,44 @@ void TexturePacker::copyTexture(int sourceX, int sourceY, int targetX, int targe
 
 void TexturePacker::fill(int x, int y, int w, int h, uint8_t r, uint8_t g, uint8_t b, Depth depth)
 {
+    ffnx_trace("%s x=%d y=%d w=%d h=%d rgb=(%X, %X, %X)\n", __func__, x, y, w, h, r, g, b);
 
+    const uint16_t color = (r >> 3) | (32 * ((g >> 3) | (32 * (b >> 3))));
+    uint16_t *psxvram_buffer_pointer = (uint16_t *)vram_seek(x, y);
+
+    for (int i = 0; i < h; ++i)
+    {
+        if (w != 0)
+        {
+            std::fill_n(psxvram_buffer_pointer, w, color);
+        }
+
+        psxvram_buffer_pointer += _w;
+    }
 }
 
 std::string TexturePacker::textureNameFromInfos(int x, int y, int w, int h, Depth depth)
 {
-
+    return "";
 }
 
 bool TexturePacker::saveVram(const char *fileName)
 {
-    int y;
-
-    FILE *fp = fopen(fileName, "wb");
-    if(fp == nullptr) {
-        return false;
-    }
-
-    png_struct *png = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
-    if (png == nullptr) {
-        return false;
-    }
-
-    png_info *info = png_create_info_struct(png);
-    if (info == nullptr) {
-        return false;
-    }
-
-    if (setjmp(png_jmpbuf(png))) {
-        return false;
-    }
-
-    png_init_io(png, fp);
-
-    png_set_IHDR(
-        png,
-        info,
-        _w, _h,
-        8,
-        PNG_COLOR_TYPE_RGBA,
-        PNG_INTERLACE_NONE,
-        PNG_COMPRESSION_TYPE_DEFAULT,
-        PNG_FILTER_TYPE_DEFAULT
-    );
-    png_write_info(png, info);
-
     uint32_t *vram = new uint32_t[_w * _h];
+    ffnx_trace("%s 1\n", __func__);
     vramToR8G8B8(vram);
+    ffnx_trace("%s 2\n", __func__);
 
-    png_write_image(png, (uint8_t **)&vram);
-    png_write_end(png, nullptr);
+    bool ret = newRenderer.saveTexture(
+        fileName,
+        _w,
+        _h,
+        vram
+    );
 
-    fclose(fp);
+    delete[] vram;
 
-    png_destroy_write_struct(&png, &info);
+    return ret;
 }
 
 void TexturePacker::vramToR8G8B8(uint32_t *output)
@@ -104,6 +90,20 @@ void TexturePacker::vramToR8G8B8(uint32_t *output)
             *output = fromR5G5B5Color(*vram);
 
             ++output;
+            ++vram;
         }
     }
+}
+
+TexturePacker::Texture::Texture() :
+    _x(0), _y(0), _w(0), _h(0), _depth(R5B5G5)
+{
+}
+
+TexturePacker::Texture::Texture(
+    const std::string &name,
+    int x, int y, int w, int h,
+    TexturePacker::Depth depth
+) : _name(name), _x(x), _y(y), _w(w), _h(h), _depth(depth)
+{
 }

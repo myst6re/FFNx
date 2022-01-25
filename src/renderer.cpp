@@ -1448,7 +1448,7 @@ uint32_t Renderer::createTextureLibPng(char* filename, uint32_t* width, uint32_t
     return ret.idx;
 }
 
-bool Renderer::saveTexture(char* filename, uint32_t width, uint32_t height, void* data)
+bool Renderer::saveTexture(const char* filename, uint32_t width, uint32_t height, void* data)
 {
     if (trace_all || trace_renderer) ffnx_trace("Renderer::%s: %ux%u with filename %s\n", __func__, width, height, filename);
 
