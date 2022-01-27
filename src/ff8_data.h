@@ -99,8 +99,8 @@ void ff8_find_externals()
 
 	ff8_set_main_loop(MODE_BATTLE, ff8_externals.battle_main_loop);
 
-	ff8_externals.sub_47CF60 = get_absolute_value(ff8_externals.main_loop, 0x340);
-	ff8_externals.sub_47CCB0 = get_relative_call(ff8_externals.sub_47CF60, 0x1B3);
+	ff8_externals.cardgame_mainloop = get_absolute_value(ff8_externals.main_loop, 0x340);
+	ff8_externals.sub_47CCB0 = get_relative_call(ff8_externals.cardgame_mainloop, 0x1B3);
 	ff8_externals.sub_534640 = get_relative_call(ff8_externals.sub_47CCB0, 0xF1);
 	ff8_externals.sub_4972A0 = get_relative_call(ff8_externals.sub_534640, 0x51);
 	ff8_externals.load_fonts = get_relative_call(ff8_externals.sub_4972A0, 0x16);
@@ -172,6 +172,16 @@ void ff8_find_externals()
 	common_externals.assert_free = (void* (*)(void*, const char*, uint32_t))get_relative_call(common_externals.destroy_tex_header, 0x21);
 	common_externals.get_game_object = (game_obj* (*)())get_relative_call((uint32_t)common_externals.destroy_tex, 0x6);
 
+
+	ffnx_trace(
+		"%s: common_externals.load_tex_file %X\n"
+		"common_externals.create_tex_header %X\n"
+		"common_externals.get_game_object %X\n", __func__,
+		common_externals.load_tex_file,
+		common_externals.create_tex_header,
+		common_externals.get_game_object
+	);
+
 	ff8_externals.dd_d3d_start = get_relative_call(ff8_externals.pubintro_init, 0x75);
 	ff8_externals.create_d3d_gfx_driver = get_relative_call(ff8_externals.dd_d3d_start, 0x88);
 	ff8_externals.d3d_init = get_absolute_value(ff8_externals.create_d3d_gfx_driver, 0x1B);
@@ -194,7 +204,7 @@ void ff8_find_externals()
 
 	ff8_externals.sub_559910 = get_relative_call(ff8_externals.swirl_main_loop, 0x1A);
 
-	ff8_externals.swirl_sub_56D1D0 = get_relative_call(ff8_externals.sub_47CF60, 0x285);
+	ff8_externals.swirl_sub_56D1D0 = get_relative_call(ff8_externals.cardgame_mainloop, 0x285);
 	ff8_externals.swirl_sub_56D390 = get_relative_call(ff8_externals.swirl_sub_56D1D0, 0x2A);
 	ff8_externals.swirl_texture1 = (ff8_graphics_object **)get_absolute_value(ff8_externals.swirl_sub_56D1D0, 0x1);
 
@@ -231,6 +241,19 @@ void ff8_find_externals()
 
 	ff8_externals.psx_texture_pages = (struc_51 *)get_absolute_value(ff8_externals.sub_464BD0, 0x10);
 
+	ffnx_trace(
+		"%s: ff8_externals.open_lzs_image %X\n"
+		"ff8_externals.psxvram_buffer %X\n"
+		"ff8_externals.upload_psx_vram %X\n"
+		"ff8_externals.menu_viewport: %X\n"
+		"ff8_externals.psx_texture_pages: %X\n", __func__,
+		ff8_externals.open_lzs_image,
+		ff8_externals.psxvram_buffer,
+		ff8_externals.upload_psx_vram,
+		ff8_externals.menu_viewport,
+		ff8_externals.psx_texture_pages
+	);
+
 	ff8_externals.read_field_data = get_relative_call(ff8_externals.sub_471F70, 0x23A);
 	ff8_externals.upload_mim_file = get_relative_call(ff8_externals.read_field_data, 0x729);
 	ff8_externals.field_filename = (char *)get_absolute_value(ff8_externals.read_field_data, 0xF0);
@@ -245,6 +268,17 @@ void ff8_find_externals()
 	ff8_externals.worldmap_sub_53F310 = get_relative_call(ff8_externals.worldmap_enter_main, 0xA7);
 
 	ff8_externals.wm_upload_psx_vram = get_relative_call(ff8_externals.load_field_models, 0xB72);
+
+	ffnx_trace(
+		"%s: ff8_externals.wm_upload_psx_vram %X\n"
+		"ff8_externals.worldmap_main_loop %X\n"
+		"ff8_externals.worldmap_enter_main %X\n"
+		"ff8_externals.sub_4653B0 + 0xA5: %X\n", __func__,
+		ff8_externals.wm_upload_psx_vram,
+		ff8_externals.worldmap_main_loop,
+		ff8_externals.worldmap_enter_main,
+		ff8_externals.sub_4653B0 + 0xA5
+	);
 
 	ff8_externals.check_active_window = get_relative_call(ff8_externals.pubintro_main_loop, 0x4);
 	ff8_externals.sub_467D10 = get_relative_call(ff8_externals.check_active_window, 0x16);

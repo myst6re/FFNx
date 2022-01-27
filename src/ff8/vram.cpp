@@ -995,6 +995,8 @@ int op_on_psxvram_sub_4675B0_parent_call2(int *a1, int a2, int a3)
     return ret;
 }
 
+bool is_foo = true;
+
 void op_on_psxvram_sub_4675B0(int8_t *vram, int vram_w_2048, char *target, int target_w, signed int w, int h, int bpp)
 {
     int dword_B7DB44 = *((int *)0xB7DB44);
@@ -1032,7 +1034,11 @@ void op_on_psxvram_sub_4675B0(int8_t *vram, int vram_w_2048, char *target, int t
                 for (int j = 0; j < w; ++j)
                 {
                     int16_t color = *vram16;
-                    *target16 = color & 0x3E0 | ((color & 0x1F) << 10) | (color >> 10) & 0x1F;
+                    if (is_foo) {
+                        *target16 = 0x00 & 0x3E0 | ((0xFF & 0x1F) << 10) | (0x00 >> 10) & 0x1F;
+                    } else {
+                        *target16 = color & 0x3E0 | ((color & 0x1F) << 10) | (color >> 10) & 0x1F;
+                    }
                     vram16 += 1;
                     target16 += 1;
                 }
@@ -1080,6 +1086,8 @@ void op_on_psxvram_sub_4675B0(int8_t *vram, int vram_w_2048, char *target, int t
             vram += vram_w_2048 - w / 2;
         }
     }
+
+    is_foo = false;
 }
 
 void op_on_psxvram_sub_4677C0(uint8_t *a1, int a2, int16_t *a3, int a4, int a5, int a6, int bpp, int a8)

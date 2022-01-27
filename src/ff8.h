@@ -175,9 +175,9 @@ struct ff8_file_fs
 
 struct ff8_file
 {
-	int field_0;
+	int is_open;
 	char* filename;
-	int field_8;
+	int fd;
 	struct ff8_file_context field_C;
 	int field_20;
 	int field_24;
@@ -410,8 +410,8 @@ struct texture_page
 	uint32_t width;
 	uint32_t height;
 	uint32_t color_key;
-	uint32_t u;
-	uint32_t v;
+	float u;
+	float v;
 	uint32_t field_20;
 	struct ff8_graphics_object *tri_gfxobj;
 	struct ff8_graphics_object *quad_gfxobj;
@@ -787,7 +787,7 @@ struct ff8_externals
 	uint32_t nvidia_hack2;
 	struct sprite_viewport *menu_viewport;
 	uint32_t main_loop;
-	uint32_t sub_47CF60;
+	uint32_t cardgame_mainloop;
 	uint32_t sub_47CCB0;
 	uint32_t sub_534640;
 	uint32_t sub_4972A0;
