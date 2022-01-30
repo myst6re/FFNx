@@ -13,7 +13,7 @@ public:
     TexturePacker(uint8_t *vram, int w, int h, Depth depth = R5B5G5);
     void setTexture(const std::string &name, const uint8_t *texture, int x, int y, int w, int h, Depth depth = R5B5G5);
     void getTexture(uint8_t *texture, int x, int y, int w, int h, Depth depth = R5B5G5);
-    void copyTexture(int sourceX, int sourceY, int targetX, int targetY, int w, int h, Depth depth = R5B5G5);
+    void copyTexture(int sourceX, int sourceY, int targetX, int targetY, int w, int h);
     void fill(int x, int y, int w, int h, uint8_t r, uint8_t g, uint8_t b, Depth depth = R5B5G5);
 
     std::string textureNameFromInfos(int x, int y, int w, int h, Depth depth);

@@ -31,17 +31,38 @@ void TexturePacker::setTexture(const std::string &name, const uint8_t *texture, 
 
 void TexturePacker::getTexture(uint8_t *texture, int x, int y, int w, int h, Depth depth)
 {
+    ffnx_trace("TexturePacker::%s x=%d y=%d w=%d h=%d\n", __func__, x, y, w, h);
 
+    uint8_t *psxvram_buffer_pointer = vram_seek(x, y);
+
+    for (int i = 0; i < h; ++i)
+    {
+        memcpy(texture, psxvram_buffer_pointer, w * int(depth));
+
+        texture += w * int(depth);
+        psxvram_buffer_pointer += _w * _depth;
+    }
 }
 
-void TexturePacker::copyTexture(int sourceX, int sourceY, int targetX, int targetY, int w, int h, Depth depth)
+void TexturePacker::copyTexture(int sourceX, int sourceY, int targetX, int targetY, int w, int h)
 {
+    ffnx_trace("TexturePacker::%s sourceX=%d sourceY=%d targetX=%d targetY=%d w=%d h=%d\n", __func__, sourceX, sourceY, targetX, targetY, w, h);
 
+    uint8_t *source = vram_seek(sourceX, sourceY);
+    uint8_t *target = vram_seek(targetX, targetY);
+
+    for (int i = 0; i < h; ++i)
+    {
+        memcpy(target, source, w * int(_depth));
+
+        target += _w * _depth;
+        source += _w * _depth;
+    }
 }
 
 void TexturePacker::fill(int x, int y, int w, int h, uint8_t r, uint8_t g, uint8_t b, Depth depth)
 {
-    ffnx_trace("%s x=%d y=%d w=%d h=%d rgb=(%X, %X, %X)\n", __func__, x, y, w, h, r, g, b);
+    ffnx_trace("TexturePacker::%s x=%d y=%d w=%d h=%d rgb=(%X, %X, %X)\n", __func__, x, y, w, h, r, g, b);
 
     const uint16_t color = (r >> 3) | (32 * ((g >> 3) | (32 * (b >> 3))));
     uint16_t *psxvram_buffer_pointer = (uint16_t *)vram_seek(x, y);
