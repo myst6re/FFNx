@@ -10,9 +10,9 @@ TexturePacker::TexturePacker(uint8_t *vram, int w, int h, Depth depth) :
 {
 }
 
-void TexturePacker::setTexture(const std::string &name, const uint8_t *texture, int x, int y, int w, int h, Depth depth)
+void TexturePacker::setTexture(const char *name, const uint8_t *texture, int x, int y, int w, int h, Depth depth)
 {
-    ffnx_trace("TexturePacker::%s x=%d y=%d w=%d h=%d\n", __func__, x, y, w, h);
+    ffnx_trace("TexturePacker::%s %s x=%d y=%d w=%d h=%d\n", __func__, name, x, y, w, h);
 
     _textures[name] = Texture(name, x, y, w, h, depth);
 
@@ -31,22 +31,75 @@ void TexturePacker::setTexture(const std::string &name, const uint8_t *texture, 
     }
 }
 
-void TexturePacker::getTexture(uint8_t *texture, int x, int y, int w, int h, Depth depth)
+void TexturePacker::getTexture(uint8_t *target, int x, int y, int w, int h, Depth depth)
 {
     ffnx_trace("TexturePacker::%s x=%d y=%d w=%d h=%d\n", __func__, x, y, w, h);
 
     uint8_t *psxvram_buffer_pointer = vram_seek(x, y);
-    const int vramLineWidth = _depth * _w;
-    const int lineWidth = depth == Indexed4Bit
-        ? w / 2
-        : int(depth) * w;
+    const int vramLineWidth = depth == Indexed4Bit
+        ? _w / 2
+        : int(_depth) * _w;
+    const int lineWidth = int(depth) * w;
 
     for (int i = 0; i < h; ++i)
     {
-        memcpy(texture, psxvram_buffer_pointer, lineWidth);
+        memcpy(target, psxvram_buffer_pointer, lineWidth);
 
-        texture += lineWidth;
+        target += lineWidth;
         psxvram_buffer_pointer += vramLineWidth;
+    }
+}
+
+void TexturePacker::getTextureColors(uint8_t *target, int x, int y, int w, int h, Depth depth)
+{
+    uint8_t *psxvram_buffer_pointer = vram_seek(x, y);
+    const int vramLineWidth = _depth * _w;
+    const int lineWidth = int(depth) * w;
+
+    ffnx_trace("TexturePacker::%s x=%d y=%d w=%d h=%d depth=%d vramLineWidth=%d lineWidth=%d\n", __func__, x, y, w, h, int(depth), vramLineWidth, lineWidth);
+
+    if (depth == Indexed4Bit) {
+        for (int i = 0; i < h; ++i)
+        {
+            for (int j = 0; j < w / 2; ++j)
+            {
+                *target = *psxvram_buffer_pointer & 0xF;
+                *(target + 1) = (*psxvram_buffer_pointer >> 4) & 0xF;
+
+                psxvram_buffer_pointer += 1;
+                target += 2;
+            }
+
+            psxvram_buffer_pointer += vramLineWidth - w / 2;
+        }
+    } else if (depth == R5B5G5) {
+
+        for (int i = 0; i < h; ++i)
+        {
+            uint16_t *vram16 = (uint16_t *)psxvram_buffer_pointer;
+            uint16_t *target16 = (uint16_t *)target;
+
+            for (int j = 0; j < w; ++j)
+            {
+                uint16_t color = *vram16;
+                // Convert color
+                *target16 = color & 0x3E0 | ((color & 0x1F) << 10) | (color >> 10) & 0x1F;
+
+                vram16 += 1;
+                target16 += 1;
+            }
+
+            psxvram_buffer_pointer += vramLineWidth;
+            target += lineWidth;
+        }
+    } else {
+        for (int i = 0; i < h; ++i)
+        {
+            memcpy(target, psxvram_buffer_pointer, lineWidth);
+
+            target += lineWidth;
+            psxvram_buffer_pointer += vramLineWidth;
+        }
     }
 }
 

@@ -402,6 +402,18 @@ struct ff8_texture_set
 	uint32_t field_9C;
 };
 
+struct struc_color_texture {
+    uint32_t field_0;
+    uint8_t r;
+    uint8_t g;
+    uint8_t b;
+    uint8_t _padding;
+    int16_t x;
+    int16_t y;
+    int16_t w;
+    int16_t h;
+};
+
 struct texture_page
 {
 	uint32_t field_0;
