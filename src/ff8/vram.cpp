@@ -312,8 +312,7 @@ void ff8_fill_vram2(int a1)
     int16_t y = *(int16_t *)(a1 + 10);
     int16_t w = *(int16_t *)(a1 + 12);
     int16_t h = *(int16_t *)(a1 + 14);
-
-    int16_t color = (r >> 3) | (4 * (g & 0xF8 | (32 * (b & 0xF8))));
+    uint16_t color = (r >> 3) | (4 * (g & 0xF8 | (32 * (b & 0xF8))));
 
     if (x >= 640 && y >= 240 && x + w <= VRAM_WIDTH && y + h <= VRAM_HEIGHT)
     {
@@ -618,7 +617,7 @@ retn
 
     for (; cur <= max; ++cur)
     {
-        int8_t color = *(int8_t *)(
+        uint8_t color = *(uint8_t *)(
             *psxvram_current_texture_ptr + (
                 (x2 + (y & 0xFF00000)) / VRAM_WIDTH
             )
@@ -626,7 +625,7 @@ retn
 
         if (color != 0)
         {
-            *cur = color;
+            *cur = uint16_t(color);
         }
 
         x2 += w2;
@@ -645,7 +644,7 @@ void ff8_vram_op_add_indexed8(uint16_t *pointer, int x1, int w1, int x2, int w2,
 
     for (; cur < max; ++cur)
     {
-        int16_t color = *(uint8_t *)(
+        uint8_t color = *(uint8_t *)(
             *psxvram_current_texture_ptr + (
                 (x2 + (y & 0xFF00000)) / VRAM_WIDTH
             )
@@ -653,7 +652,7 @@ void ff8_vram_op_add_indexed8(uint16_t *pointer, int x1, int w1, int x2, int w2,
 
         if (color != 0)
         {
-            *cur = color_add(color, *cur);
+            *cur = color_add(uint16_t(color), *cur);
         }
 
         x2 += w2;
@@ -672,8 +671,7 @@ void ff8_vram_op_sub_indexed8(uint16_t *pointer, int x1, int w1, int x2, int w2,
 
     for (; cur <= max; ++cur)
     {
-        // FIXME: why int8_t cast???
-        uint16_t color = *(int8_t *)(
+        uint8_t color = *(uint8_t *)(
             *psxvram_current_texture_ptr + (
                 (x2 + (y & 0xFF00000)) / VRAM_WIDTH
             )
@@ -681,21 +679,24 @@ void ff8_vram_op_sub_indexed8(uint16_t *pointer, int x1, int w1, int x2, int w2,
 
         if (color != 0)
         {
-            *cur = color_sub(*cur, color);
+            *cur = color_sub(*cur, uint16_t(color));
         }
 
         x2 += w2;
         y += h;
     }
 }
-/*
+
 void ff8_test14(int y, int h)
 {
     ffnx_trace("%s y=%d h=%d\n", __func__, y, h);
 
-    uint16_t *psxvram_buffer_pointer = (uint16_t *)(psxvram_buffer + VRAM_DEPTH * VRAM_WIDTH * y);
-    int *v5 = &dword_1CA9F88;
-    int *v6 = &dword_1CA9FB0;
+    uint16_t *psxvram_buffer_pointer = (uint16_t *)vram_seek(0, y);
+    int *v5 = (int *)0x1CA9F88;
+    int *v6 = (int *)0x1CA9FB0;
+    int *dword_1CA9FA8 = (int *)0x1CA9FA8;
+    int *dword_1CACEE0 = (int *)0x1CACEE0;
+    int *dword_1CA9FD8 = (int *)0x1CA9FD8;
 
     for (int i = 0; i < h; ++i)
     {
@@ -709,64 +710,31 @@ void ff8_test14(int y, int h)
         int v8 = *v5 >> 16;
         size_t size = (*v6 >> 16) - v8;
 
-        if (size > 0)
-        {
-            std::fill_n(psxvram_buffer_pointer + 2 * v8, 4 * size, dword_1CA9FA8);
-        }
+        std::fill_n(psxvram_buffer_pointer + 2 * v8, 4 * size, dword_1CA9FA8);
 
         psxvram_buffer_pointer += VRAM_WIDTH;
-        dword_1CA9F88 += dword_1CACEE0;
-        dword_1CA9FB0 += dword_1CA9FD8;
+        *v5 += dword_1CACEE0;
+        *v6 += dword_1CA9FD8;
     }
-} */
+}
 
-void ff8_test15(int a1)
+void ff8_fill_vram3(int a1)
 {
     ffnx_trace("%s %d\n", __func__, a1);
-/*
-    int result = *(uint8_t *)(a1 + 4) >> 3;
-    int v2 = ((result | (4 * (*(int8_t *)(a1 + 5) & 0xF8 | (32 * (*(int8_t *)(a1 + 6) & 0xF8))))) << 16) | result | (4 * (*(int8_t *)(a1 + 5) & 0xF8 | (32 * (*(int8_t *)(a1 + 6) & 0xF8))));
-    int16_t v3 = *(int16_t *)(a1 + 8);
 
-    if (v3 >= 0)
+    uint8_t r = *(uint8_t *)(a1 + 4);
+    uint8_t g = *(uint8_t *)(a1 + 5);
+    uint8_t b = *(uint8_t *)(a1 + 6);
+    int16_t x = *(int16_t *)(a1 + 8);
+    int16_t y = *(int16_t *)(a1 + 10);
+    int16_t w = *(int16_t *)(a1 + 12);
+    int16_t h = *(int16_t *)(a1 + 14);
+    uint16_t color = (r >> 3) | (4 * (g & 0xF8 | (32 * (b & 0xF8))));
+
+    if (x >= 0 && y >= 0 && x + w <= VRAM_WIDTH && y + h <= VRAM_HEIGHT)
     {
-        int16_t v4 = *(int16_t *)(a1 + 10);
-
-        if (v4 >= 0)
-        {
-            int16_t v5 = *(int16_t *)(a1 + 12);
-
-            if (v3 + v5 <= 1024 && v4 + *(int16_t *)(a1 + 14) <= 512)
-            {
-                int16_t *psxvram_buffer_pointer = (int16_t *)(2 * (v3 + (v4 << 10)) + 28603632);// psxvram_buffer
-                int v10 = *(int16_t *)(a1 + 14);
-
-                if (v10)
-                {
-                    int v7 = v5 / 2;
-                    int16_t v8 = v5 & 1;
-
-                    do
-                    {
-                        int16_t *psxvram_buffer_pointer_copy = psxvram_buffer_pointer;
-
-                        if (v7)
-                        {
-                            memset32(psxvram_buffer_pointer, v2, v7);
-                            psxvram_buffer_pointer_copy = &psxvram_buffer_pointer[2 * v7];
-                        }
-                        if (v8) {
-                            *psxvram_buffer_pointer_copy = v2;
-                        }
-
-                        psxvram_buffer_pointer += 1024;
-                        --v10;
-                    }
-                    while (v10);
-                }
-            }
-        }
-    } */
+        texturePacker.fill(x, y, w, h, r, g, b);
+    }
 }
 /*
 void ff8_test16(int a1, int a2, int a3, int a4, int a5, int a6, int a7)
@@ -867,7 +835,7 @@ void ff8_test21(int offset, int8_t rgba[4], int size)
             else
             {
                 rgba[2] = 255 * (color & 0x1F) / 0x1F;
-                int v6 = (138547333 * (uint64_t)(255 * ((color >> 5) & 0x1F))) >> 32;
+                int v6 = (0x8421085 * (uint64_t)(255 * ((color >> 5) & 0x1F))) >> 32;
                 rgba[1] = (v6 + ((255 * ((color >> 5) & 0x1F) - v6) >> 1)) >> 4;
                 rgba[0] = 255 * ((color >> 10) & 0x1F) / 0x1F;
             }
@@ -1257,7 +1225,7 @@ void vram_init()
     //replace_function(0x464F60, ff8_test18);
     /* replace_function(0x4653A0, ff8_test19);
     replace_function(0x465710, ff8_test20); */
-    // replace_function(0x466EE0, ff8_test15);
+    // replace_function(0x466EE0, ff8_fill_vram3);
 
     // GPU read
     /* replace_function(0x467360, ff8_test21);

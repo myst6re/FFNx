@@ -12,13 +12,15 @@ TexturePacker::TexturePacker(uint8_t *vram, int w, int h, Depth depth) :
 
 void TexturePacker::setTexture(const std::string &name, const uint8_t *texture, int x, int y, int w, int h, Depth depth)
 {
+    ffnx_trace("TexturePacker::%s x=%d y=%d w=%d h=%d\n", __func__, x, y, w, h);
+
     _textures[name] = Texture(name, x, y, w, h, depth);
 
     uint8_t *vram = vram_seek(x, y);
-    int vramLineWidth = _depth * _w;
-    int lineWidth = depth == R5B5G5 || depth == Indexed8Bit
-        ? depth * w
-        : w / 2;
+    const int vramLineWidth = _depth * _w;
+    const int lineWidth = depth == Indexed4Bit
+        ? w / 2
+        : int(depth) * w;
 
     for (int i = 0; i < h; ++i)
     {
@@ -34,13 +36,17 @@ void TexturePacker::getTexture(uint8_t *texture, int x, int y, int w, int h, Dep
     ffnx_trace("TexturePacker::%s x=%d y=%d w=%d h=%d\n", __func__, x, y, w, h);
 
     uint8_t *psxvram_buffer_pointer = vram_seek(x, y);
+    const int vramLineWidth = _depth * _w;
+    const int lineWidth = depth == Indexed4Bit
+        ? w / 2
+        : int(depth) * w;
 
     for (int i = 0; i < h; ++i)
     {
-        memcpy(texture, psxvram_buffer_pointer, w * int(depth));
+        memcpy(texture, psxvram_buffer_pointer, lineWidth);
 
-        texture += w * int(depth);
-        psxvram_buffer_pointer += _w * _depth;
+        texture += lineWidth;
+        psxvram_buffer_pointer += vramLineWidth;
     }
 }
 
@@ -69,10 +75,7 @@ void TexturePacker::fill(int x, int y, int w, int h, uint8_t r, uint8_t g, uint8
 
     for (int i = 0; i < h; ++i)
     {
-        if (w != 0)
-        {
-            std::fill_n(psxvram_buffer_pointer, w, color);
-        }
+        std::fill_n(psxvram_buffer_pointer, w, color);
 
         psxvram_buffer_pointer += _w;
     }
