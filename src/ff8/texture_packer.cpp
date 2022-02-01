@@ -14,7 +14,7 @@ void TexturePacker::setTexture(const char *name, const uint8_t *texture, int x, 
 {
     ffnx_trace("TexturePacker::%s %s x=%d y=%d w=%d h=%d\n", __func__, name, x, y, w, h);
 
-    _textures[name] = Texture(name, x, y, w, h, depth);
+    setTextureName(name, x, y, w, h, depth);
 
     uint8_t *vram = vram_seek(x, y);
     const int vramLineWidth = _depth * _w;
@@ -31,9 +31,11 @@ void TexturePacker::setTexture(const char *name, const uint8_t *texture, int x, 
     }
 }
 
-void TexturePacker::getTexture(uint8_t *target, int x, int y, int w, int h, Depth depth)
+void TexturePacker::getTexture(uint8_t *target, int x, int y, int w, int h, Depth depth) const
 {
     ffnx_trace("TexturePacker::%s x=%d y=%d w=%d h=%d\n", __func__, x, y, w, h);
+
+    std::string textureName = textureNameFromInfos(x, y, w, h);
 
     uint8_t *psxvram_buffer_pointer = vram_seek(x, y);
     const int vramLineWidth = depth == Indexed4Bit
@@ -50,15 +52,18 @@ void TexturePacker::getTexture(uint8_t *target, int x, int y, int w, int h, Dept
     }
 }
 
-void TexturePacker::getTextureColors(uint8_t *target, int x, int y, int w, int h, Depth depth)
+void TexturePacker::getTextureColors(uint8_t *target, int x, int y, int w, int h, Depth depth) const
 {
+    std::string textureName = textureNameFromInfos(x, y, w, h);
+
     uint8_t *psxvram_buffer_pointer = vram_seek(x, y);
     const int vramLineWidth = _depth * _w;
     const int lineWidth = int(depth) * w;
 
     ffnx_trace("TexturePacker::%s x=%d y=%d w=%d h=%d depth=%d vramLineWidth=%d lineWidth=%d\n", __func__, x, y, w, h, int(depth), vramLineWidth, lineWidth);
 
-    if (depth == Indexed4Bit) {
+    if (depth == Indexed4Bit)
+    {
         for (int i = 0; i < h; ++i)
         {
             for (int j = 0; j < w / 2; ++j)
@@ -72,7 +77,9 @@ void TexturePacker::getTextureColors(uint8_t *target, int x, int y, int w, int h
 
             psxvram_buffer_pointer += vramLineWidth - w / 2;
         }
-    } else if (depth == R5B5G5) {
+    }
+    else if (depth == R5B5G5)
+    {
 
         for (int i = 0; i < h; ++i)
         {
@@ -92,7 +99,9 @@ void TexturePacker::getTextureColors(uint8_t *target, int x, int y, int w, int h
             psxvram_buffer_pointer += vramLineWidth;
             target += lineWidth;
         }
-    } else {
+    }
+    else
+    {
         for (int i = 0; i < h; ++i)
         {
             memcpy(target, psxvram_buffer_pointer, lineWidth);
@@ -134,12 +143,51 @@ void TexturePacker::fill(int x, int y, int w, int h, uint8_t r, uint8_t g, uint8
     }
 }
 
-std::string TexturePacker::textureNameFromInfos(int x, int y, int w, int h, Depth depth)
+void TexturePacker::setTextureName(const char *name, int x, int y, int w, int h, Depth depth)
 {
+    // FIXME: optimize with better lookup and cache
+    std::list<Texture>::const_iterator it = _textures.begin();
+
+    while (it != _textures.end())
+    {
+        const Texture &texture = *it;
+
+        if (texture.intersect(x, y, w, h))
+        {
+            ffnx_trace("%s: texture deleted %s\n", __func__, texture.name().c_str());
+
+            _textures.erase(it);
+        }
+
+        ++it;
+    }
+
+    _textures.push_back(Texture(name, x, y, w, h, depth));
+}
+
+std::string TexturePacker::textureNameFromInfos(int x, int y, int w, int h) const
+{
+    // FIXME: optimize with better lookup and cache
+    std::list<Texture>::const_iterator it = _textures.begin();
+
+    while (it != _textures.end())
+    {
+        const Texture &texture = *it;
+
+        if (texture.intersect(x, y, w, h))
+        {
+            ffnx_trace("%s: texture found %s\n", __func__, texture.name().c_str());
+
+            return texture.name();
+        }
+
+        ++it;
+    }
+
     return "";
 }
 
-bool TexturePacker::saveVram(const char *fileName)
+bool TexturePacker::saveVram(const char *fileName) const
 {
     uint32_t *vram = new uint32_t[_w * _h];
     ffnx_trace("%s 1\n", __func__);
@@ -158,12 +206,14 @@ bool TexturePacker::saveVram(const char *fileName)
     return ret;
 }
 
-void TexturePacker::vramToR8G8B8(uint32_t *output)
+void TexturePacker::vramToR8G8B8(uint32_t *output) const
 {
     uint16_t *vram = (uint16_t *)_vram;
 
-    for (int y = 0; y < _h; ++y) {
-        for (int x = 0; x < _w; ++x) {
+    for (int y = 0; y < _h; ++y)
+    {
+        for (int x = 0; x < _w; ++x)
+        {
             *output = fromR5G5B5Color(*vram);
 
             ++output;
@@ -178,9 +228,41 @@ TexturePacker::Texture::Texture() :
 }
 
 TexturePacker::Texture::Texture(
-    const std::string &name,
+    const char *name,
     int x, int y, int w, int h,
     TexturePacker::Depth depth
 ) : _name(name), _x(x), _y(y), _w(w), _h(h), _depth(depth)
 {
+}
+
+bool TexturePacker::Texture::contains(int x, int y, int w, int h) const
+{
+    int x2 = x + w,
+        y2 = y + h,
+        _x2 = _x + _w,
+        _y2 = _y + _h;
+
+    return x >= _x && x < _x2 && y >= _y && y < _y2
+        && x2 > _x && x2 <= _x2 && y2 > _y && y2 <= _y2;
+}
+
+bool TexturePacker::Texture::intersect(int x, int y, int w, int h) const
+{
+    int x2 = x + w,
+        y2 = y + h,
+        _x2 = _x + _w,
+        _y2 = _y + _h;
+
+    return (x >= _x && x < _x2 || _x >= x && _x < x2)
+        && (y >= _y && y < _y2 || _y >= y && _y < y2);
+}
+
+bool TexturePacker::Texture::match(int x, int y, int w, int h) const
+{
+    return _x == x && _y == y && _w == w && _h == h;
+}
+
+bool TexturePacker::Texture::operator==(const Texture &other) const
+{
+    return match(other._x, other._y, other._w, other._h);
 }

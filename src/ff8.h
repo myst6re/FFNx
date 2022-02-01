@@ -457,7 +457,7 @@ struct struc_50
 	uint32_t vram_width;
 	uint32_t vram_height;
 	uint32_t vram_palette_data;
-	uint32_t field_448;
+	uint32_t vram_palette_pos; // 24-bit | 6-bit
 };
 
 struct struc_51

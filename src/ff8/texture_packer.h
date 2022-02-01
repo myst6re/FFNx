@@ -23,7 +23,7 @@
 #pragma once
 
 #include <string>
-#include <map>
+#include <list>
 
 class TexturePacker {
 public:
@@ -34,20 +34,21 @@ public:
     };
     TexturePacker(uint8_t *vram, int w, int h, Depth depth = R5B5G5);
     void setTexture(const char *name, const uint8_t *texture, int x, int y, int w, int h, Depth depth = R5B5G5);
-    void getTexture(uint8_t *target, int x, int y, int w, int h, Depth depth = R5B5G5);
-    void getTextureColors(uint8_t *target, int x, int y, int w, int h, Depth depth = R5B5G5);
+    void getTexture(uint8_t *target, int x, int y, int w, int h, Depth depth = R5B5G5) const;
+    void getTextureColors(uint8_t *target, int x, int y, int w, int h, Depth depth = R5B5G5) const;
     void copyTexture(int sourceX, int sourceY, int targetX, int targetY, int w, int h);
     void fill(int x, int y, int w, int h, uint8_t r, uint8_t g, uint8_t b, Depth depth = R5B5G5);
 
-    std::string textureNameFromInfos(int x, int y, int w, int h, Depth depth);
+    std::string textureNameFromInfos(int x, int y, int w, int h) const;
 
-    bool saveVram(const char *fileName);
+    bool saveVram(const char *fileName) const;
 private:
+    void setTextureName(const char *name, int x, int y, int w, int h, Depth depth);
     inline uint8_t *vram_seek(int x, int y) const {
         return _vram + _depth * (x + y * _w);
     }
 
-    void vramToR8G8B8(uint32_t *output);
+    void vramToR8G8B8(uint32_t *output) const;
     static inline uint32_t fromR5G5B5Color(uint16_t color) {
         uint8_t r = color & 31,
                 g = (color >> 5) & 31,
@@ -62,10 +63,20 @@ private:
     public:
         Texture();
         Texture(
-            const std::string &name,
+            const char *name,
             int x, int y, int w, int h,
             TexturePacker::Depth depth
         );
+        inline const std::string &name() const {
+            return _name;
+        }
+        bool contains(int x, int y, int w, int h) const;
+        bool intersect(int x, int y, int w, int h) const;
+        bool match(int x, int y, int w, int h) const;
+        bool operator==(const Texture &other) const;
+        bool operator!=(const Texture &other) const {
+            return ! (*this == other);
+        }
     private:
         std::string _name;
         int _x, _y;
@@ -76,5 +87,5 @@ private:
     uint8_t *_vram;
     int _w, _h;
     Depth _depth;
-    std::map<std::string, Texture> _textures;
+    std::list<Texture> _textures;
 };

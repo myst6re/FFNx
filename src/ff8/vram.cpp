@@ -246,6 +246,8 @@ int ff8_upload_vram(int16_t *pos_and_size, uint8_t *texture_buffer)
         first_toto = true;
     } */
 
+    *nextTextureName = '\0';
+
     return 1;
 }
 
@@ -893,93 +895,82 @@ void read_vram_to_buffer1(uint8_t *vram, int vram_w_2048, uint8_t *target, int t
     is_foo = false;
 }
 
-void read_vram_to_buffer2(uint8_t *a1, int a2, int16_t *a3, int a4, int a5, int a6, int bpp, int a8)
+void read_vram_to_buffer_with_palette(uint8_t *vram, int vram_w_2048, uint8_t *target, int target_w, int w, int h, int bpp, uint8_t *vram_palette)
 {
-    ffnx_trace("%s\n", __func__);
     /*
-    char v9 = dword_1CA86C0 + 3;
+    ffnx_trace("%s\n", __func__);
+
+    int *color_shift = (int *)0x1CA86C0;
+
+    char color_shift2 = *color_shift + 3;
 
     if (bpp == 1)
     {
-        for (int i = 0; i < a6; ++i)
+        for (int i = 0; i < h; ++i)
         {
-            uint8_t *v12 = a1;
-            uint8_t *v13 = a3;
+            uint8_t *v12 = vram;
+            uint8_t *v13 = target;
 
-            for (int j = 0; j < a5; ++j)
+            for (int j = 0; j < w; ++j)
             {
-                uint16_t v14 = *(int16_t *)(a8 + 2 * *v12);
-                int v15 = ((v14 & 0x1F) + (((int)v14 >> 5) & 0x1F) + (((int)v14 >> 10) & 0x1F)) >> v9;
+                uint16_t v14 = *(int16_t *)(vram_palette + 2 * *v12);
+                uint16_t v15 = ((v14 & 0x1F) + (((int)v14 >> 5) & 0x1F) + (((int)v14 >> 10) & 0x1F)) >> color_shift2;
+                *v13 = (v15 > 15 ? 15 : v15) << 12;
 
-                if (v15 > 15)
-                {
-                    LOWORD(v15) = 15;
-                }
-
-                *v13 = (int16_t)v15 << 12;
                 ++v12;
                 ++v13;
             }
 
-            a3 = (int16_t *)((char *)a3 + a4);
-            a1 += a2;
+            target += target_w;
+            vram += vram_w_2048;
         }
     }
     else if (bpp == 2)
     {
-        uint8_t *v11 = a1;
-
-        for (int i = 0; i < a6; ++i)
+        for (int i = 0; i < h; ++i)
         {
-            for (int j = 0; j < a5; ++j)
+            uint16_t *vram16 = (uint16_t *)vram;
+
+            for (int j = 0; j < w; ++j)
             {
-                int v21 = ((*(int16_t *)v11 & 0x1F)
-                    + (((int)*(uint16_t *)v11 >> 5) & 0x1F)
-                    + (((int)*(uint16_t *)v11 >> 10) & 0x1F)) >> v9;
-                if (v21 > 15) {
-                    LOWORD(v21) = 15;
-                }
-                *(int16_t *)&v11[(char *)a3 - (char *)a1] = (int16_t)v21 << 12;
-                v11 += 2;
+                uint16_t color = ((*vram16 & 0x1F) + ((*vram16 >> 5) & 0x1F) + ((*vram16 >> 10) & 0x1F)) >> color_shift2;
+                vram16[target - vram] = (color > 15 ? 15 : color) << 12;
+                vram16++;
             }
 
-            v11 = &a1[a2];
-            a3 = (int16_t *)((char *)a3 + a4);
-            a1 += a2;
+            target += target_w;
+            vram += vram_w_2048;
         }
     }
     else if (bpp == 0)
     {
-        result = a5 / 2;
-        int v22 = a2 - result;
+        int v22 = vram_w_2048 - w / 2;
 
-        for (int i = 0; i < a6; ++i)
+        for (int i = 0; i < h; ++i)
         {
-            for (int j = 0; j < result; ++j)
+            for (int j = 0; j < w / 2; ++j)
             {
-                unsigned int v17 = *a1;
-                int v18 = ((*(int16_t *)(a8 + 2 * (v17 & 0xF)) & 0x1F)
-                    + (((int)*(uint16_t *)(a8 + 2 * (v17 & 0xF)) >> 5) & 0x1F)
-                    + (((int)*(uint16_t *)(a8 + 2 * (v17 & 0xF)) >> 10) & 0x1F)) >> v9;
+                unsigned int v17 = *vram;
+                int v18 = ((*(int16_t *)(vram_palette + 2 * (v17 & 0xF)) & 0x1F)
+                    + (((int)*(uint16_t *)(vram_palette + 2 * (v17 & 0xF)) >> 5) & 0x1F)
+                    + (((int)*(uint16_t *)(vram_palette + 2 * (v17 & 0xF)) >> 10) & 0x1F)) >> color_shift2;
                 if (v18 > 15) {
                     LOWORD(v18) = 15;
                 }
-                uint16_t v19 = *(int16_t *)(a8 + 2 * (v17 >> 4));
-                *a3 = (int16_t)v18 << 12;
-                int v20 = ((v19 & 0x1F) + (((int)v19 >> 5) & 0x1F) + (((int)v19 >> 10) & 0x1F)) >> v9;
+                uint16_t v19 = *(int16_t *)(vram_palette + 2 * (v17 >> 4));
+                *target = (int16_t)v18 << 12;
+                int v20 = ((v19 & 0x1F) + (((int)v19 >> 5) & 0x1F) + (((int)v19 >> 10) & 0x1F)) >> color_shift2;
                 if (v20 > 15) {
                     LOWORD(v20) = 15;
                 }
-                a3[1] = (int16_t)v20 << 12;
-                a3 += 2;
-                ++a1;
+                target[1] = (int16_t)v20 << 12;
+                target += 4;
+                ++vram;
             }
 
-            a1 += v22;
+            vram += v22;
         }
-    }
-
-    return result; */
+    } */
 }
 
 void read_vram_to_buffer3(int8_t *vram_buffer_point, int8_t *target_buffer, int w, int h, int bpp, int8_t *vram_palette)
@@ -1047,11 +1038,7 @@ uint32_t ff8_credits_open_texture(char *fileName, char *buffer)
     // {name}.lzs
     strncpy(nextTextureName, strrchr(fileName, '\\') + 1, MAX_PATH);
 
-    uint32_t ret = ((uint32_t(*)(char*,char*))0x52CED0)(fileName, buffer);
-
-    *nextTextureName = '\0';
-
-    return ret;
+    return ((uint32_t(*)(char*,char*))0x52CED0)(fileName, buffer);
 }
 
 void vram_init()
@@ -1101,6 +1088,6 @@ void vram_init()
     replace_call(0x464D75, op_on_psxvram_sub_4675B0_parent_call2);
 
     replace_function(0x4675B0, read_vram_to_buffer1);
-    replace_function(0x4677C0, read_vram_to_buffer2);
+    replace_function(0x4677C0, read_vram_to_buffer_with_palette);
     replace_function(0x467A00, read_vram_to_buffer3);
 }
