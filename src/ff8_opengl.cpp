@@ -651,6 +651,8 @@ void ff8_init_hooks(struct game_obj *_game_object)
 
 struct ff8_gfx_driver *ff8_load_driver(void* _game_object)
 {
+	ff8_game_obj *game_obj = (ff8_game_obj *)_game_object;
+
 	struct ff8_gfx_driver *ret = (ff8_gfx_driver *)external_calloc(1, sizeof(*ret));
 
 	ret->init = common_init;

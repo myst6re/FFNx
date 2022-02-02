@@ -452,6 +452,12 @@ void ff8_find_externals()
 	common_externals.previous_field_id = (WORD*)get_absolute_value(ff8_externals.sub_470250, 0x13); // 0x1CE4880
 	common_externals.update_entities_call = common_externals.update_field_entities + 0x657; // 0x52A647
 
+	ff8_externals.display_texture_1 = get_relative_call(ff8_externals.field_main_loop, 0x166);
+	ff8_externals.display_texture_2 = get_relative_call(ff8_externals.display_texture_1, 0x5);
+	ff8_externals.ssigpu_callbacks_1 = (uint32_t *)get_absolute_value(ff8_externals.display_texture_2, 0x21E);
+	ffnx_warning("0x%X\n", ff8_externals.ssigpu_callbacks_1);
+	// get_relative_call(ff8_externals.ssigpu_callbacks_1[116], 0x13);
+
 	// Required by Steam edition
 	switch (version)
 	{

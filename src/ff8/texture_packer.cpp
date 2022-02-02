@@ -5,12 +5,12 @@
 
 #include <png.h>
 
-TexturePacker::TexturePacker(uint8_t *vram, int w, int h, Depth depth) :
+TexturePacker::TexturePacker(uint8_t *vram, int w, int h, PsDepth depth) :
     _vram(vram), _w(w), _h(h), _depth(depth)
 {
 }
 
-void TexturePacker::setTexture(const char *name, const uint8_t *texture, int x, int y, int w, int h, Depth depth)
+void TexturePacker::setTexture(const char *name, const uint8_t *texture, int x, int y, int w, int h, PsDepth depth)
 {
     ffnx_trace("TexturePacker::%s %s x=%d y=%d w=%d h=%d\n", __func__, name, x, y, w, h);
 
@@ -31,7 +31,7 @@ void TexturePacker::setTexture(const char *name, const uint8_t *texture, int x, 
     }
 }
 
-void TexturePacker::getTexture(uint8_t *target, int x, int y, int w, int h, Depth depth) const
+void TexturePacker::getTexture(uint8_t *target, int x, int y, int w, int h, PsDepth depth) const
 {
     ffnx_trace("TexturePacker::%s x=%d y=%d w=%d h=%d\n", __func__, x, y, w, h);
 
@@ -52,7 +52,7 @@ void TexturePacker::getTexture(uint8_t *target, int x, int y, int w, int h, Dept
     }
 }
 
-void TexturePacker::getTextureColors(uint8_t *target, int x, int y, int w, int h, Depth depth) const
+void TexturePacker::getTexture(uint8_t *target, int x, int y, int w, int h, PsDepth depth, ColorFormat targetFormat) const
 {
     std::string textureName = textureNameFromInfos(x, y, w, h);
 
@@ -64,51 +64,153 @@ void TexturePacker::getTextureColors(uint8_t *target, int x, int y, int w, int h
 
     if (depth == Indexed4Bit)
     {
-        for (int i = 0; i < h; ++i)
+        if (targetFormat == Format8Bit)
         {
-            for (int j = 0; j < w / 2; ++j)
+            for (int i = 0; i < h; ++i)
             {
-                *target = *psxvram_buffer_pointer & 0xF;
-                *(target + 1) = (*psxvram_buffer_pointer >> 4) & 0xF;
+                for (int j = 0; j < w / 2; ++j)
+                {
+                    *target = *psxvram_buffer_pointer & 0xF;
+                    *(target + 1) = (*psxvram_buffer_pointer >> 4) & 0xF;
 
-                psxvram_buffer_pointer += 1;
-                target += 2;
+                    psxvram_buffer_pointer += 1;
+                    target += 2;
+                }
+
+                psxvram_buffer_pointer += vramLineWidth - w / 2;
             }
-
-            psxvram_buffer_pointer += vramLineWidth - w / 2;
+        }
+        else
+        {
+            ffnx_error("TexturePacker::%s Cannot convert from Indexed4Bit to format %d\n", __func__, targetFormat);
         }
     }
-    else if (depth == R5B5G5)
+    else if (depth == R5G5B5)
     {
-
-        for (int i = 0; i < h; ++i)
+        if (targetFormat == FormatR5G5B5)
         {
-            uint16_t *vram16 = (uint16_t *)psxvram_buffer_pointer;
-            uint16_t *target16 = (uint16_t *)target;
-
-            for (int j = 0; j < w; ++j)
+            for (int i = 0; i < h; ++i)
             {
-                uint16_t color = *vram16;
-                // Convert color
-                *target16 = color & 0x3E0 | ((color & 0x1F) << 10) | (color >> 10) & 0x1F;
+                uint16_t *vram16 = (uint16_t *)psxvram_buffer_pointer;
+                uint16_t *target16 = (uint16_t *)target;
 
-                vram16 += 1;
-                target16 += 1;
+                for (int j = 0; j < w; ++j)
+                {
+                    uint16_t color = *vram16;
+                    // Convert color
+                    *target16 = color & 0x3E0 | ((color & 0x1F) << 10) | (color >> 10) & 0x1F;
+
+                    vram16 += 1;
+                    target16 += 1;
+                }
+
+                psxvram_buffer_pointer += vramLineWidth;
+                target += lineWidth;
+            }
+        }
+        else if (targetFormat == FormatR5G5B5Hack)
+        {
+            for (int i = 0; i < h; ++i)
+            {
+                uint32_t *vram32 = (uint32_t *)psxvram_buffer_pointer;
+                uint16_t *target16 = (uint16_t *)target;
+
+                for (int j = 0; j < w / 2; ++j)
+                {
+                    uint32_t color = *vram32;
+                    // Change one color / 2
+                    *((uint32_t *)target16 + 1) = (color >> 10) & 0x1F001F | (2 * (color & 0x3E003E0 | ((color & 0xFFFF001F) << 10)));
+
+                    vram32 += 1;
+                    target16 += 1;
+                }
+
+                if ((w & 1) != 0) {
+                    uint16_t color = *(int16_t *)vram32;
+                    *target16 = (color >> 10) & 0x1F | (2 * ((color << 10) | color & 0x3E0));
+                }
+
+                psxvram_buffer_pointer += vramLineWidth;
+                target += lineWidth;
+            }
+        }
+        else
+        {
+            ffnx_error("TexturePacker::%s Cannot convert from R5G5B5 to format %d\n", __func__, targetFormat);
+        }
+    }
+    else if (depth == Indexed8Bit)
+    {
+        if (targetFormat == Format8Bit)
+        {
+            for (int i = 0; i < h; ++i)
+            {
+                memcpy(target, psxvram_buffer_pointer, lineWidth);
+
+                target += lineWidth;
+                psxvram_buffer_pointer += vramLineWidth;
+            }
+        }
+        else
+        {
+            ffnx_error("TexturePacker::%s Cannot convert from Indexed8Bit to format %d\n", __func__, targetFormat);
+        }
+    }
+}
+
+void TexturePacker::getColors(uint8_t *target, int x, int y, int size, ColorFormat targetFormat) const
+{
+    // std::string textureName = textureNameFromInfos(x, y, w, h);
+
+    uint16_t *psxvram_buffer_pointer = (uint16_t *)vram_seek(x, y);
+
+    ffnx_trace("TexturePacker::%s x=%d y=%d size=%d\n", __func__, x, y, size);
+    bool has_weird_color = false;
+
+    if (targetFormat == FormatR8G8B8A8)
+    {
+        for (int i = 0; i < size; ++i)
+        {
+            uint16_t color = *psxvram_buffer_pointer;
+
+            if (color != 0)
+            {
+                target[3] = 0x7F;
+
+                if (color == 0x8000)
+                {
+                    target[2] = 0x00;
+                    target[1] = 0x00;
+                    target[0] = 0x00; // Eight
+                    has_weird_color = true;
+                }
+                else
+                {
+                    target[2] = 0xFF * (color & 0x1F) / 0x1F;
+                    target[1] = 0xFF * ((color >> 5) & 0x1F) / 0x1F;
+                    target[0] = 0xFF * ((color >> 10) & 0x1F) / 0x1F;
+                }
+            }
+            else
+            {
+                target[3] = 0x00;
+                target[2] = 0x00;
+                target[1] = 0x00;
+                target[0] = 0x01;
             }
 
-            psxvram_buffer_pointer += vramLineWidth;
-            target += lineWidth;
+            target += 4;
+            psxvram_buffer_pointer++;
         }
     }
     else
     {
-        for (int i = 0; i < h; ++i)
-        {
-            memcpy(target, psxvram_buffer_pointer, lineWidth);
+        ffnx_error("TexturePacker::%s Cannot convert to format %d\n", __func__, targetFormat);
+    }
 
-            target += lineWidth;
-            psxvram_buffer_pointer += vramLineWidth;
-        }
+    if (has_weird_color)
+    {
+        ffnx_warning("TexturePacker::%s weird color detected\n", __func__);
     }
 }
 
@@ -128,7 +230,7 @@ void TexturePacker::copyTexture(int sourceX, int sourceY, int targetX, int targe
     }
 }
 
-void TexturePacker::fill(int x, int y, int w, int h, uint8_t r, uint8_t g, uint8_t b, Depth depth)
+void TexturePacker::fill(int x, int y, int w, int h, uint8_t r, uint8_t g, uint8_t b, PsDepth depth)
 {
     ffnx_trace("TexturePacker::%s x=%d y=%d w=%d h=%d rgb=(%X, %X, %X)\n", __func__, x, y, w, h, r, g, b);
 
@@ -143,7 +245,7 @@ void TexturePacker::fill(int x, int y, int w, int h, uint8_t r, uint8_t g, uint8
     }
 }
 
-void TexturePacker::setTextureName(const char *name, int x, int y, int w, int h, Depth depth)
+void TexturePacker::setTextureName(const char *name, int x, int y, int w, int h, PsDepth depth)
 {
     // FIXME: optimize with better lookup and cache
     std::list<Texture>::const_iterator it = _textures.begin();
@@ -223,14 +325,14 @@ void TexturePacker::vramToR8G8B8(uint32_t *output) const
 }
 
 TexturePacker::Texture::Texture() :
-    _x(0), _y(0), _w(0), _h(0), _depth(R5B5G5)
+    _x(0), _y(0), _w(0), _h(0), _depth(R5G5B5)
 {
 }
 
 TexturePacker::Texture::Texture(
     const char *name,
     int x, int y, int w, int h,
-    TexturePacker::Depth depth
+    TexturePacker::PsDepth depth
 ) : _name(name), _x(x), _y(y), _w(w), _h(h), _depth(depth)
 {
 }
