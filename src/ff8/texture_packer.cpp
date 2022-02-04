@@ -5,10 +5,10 @@
 
 #include <png.h>
 
-TexturePacker::TexturePacker(uint8_t *vram, int w, int h) :
-    _vram(vram), _w(w), _h(h)
+TexturePacker::TexturePacker(uint8_t *vram) :
+    _vram(vram)
 {
-    memset(_vramTextureIds, 0, _w * _h);
+    memset(_vramTextureIds, INVALID_TEXTURE, VRAM_WIDTH * VRAM_HEIGHT);
 }
 
 void TexturePacker::setTexture(const char *name, const uint8_t *source, int x, int y, int w, int h)
@@ -17,18 +17,27 @@ void TexturePacker::setTexture(const char *name, const uint8_t *source, int x, i
 
     bool hasNamedTexture = name != nullptr && *name != '\0';
     uint8_t *vram = vram_seek(x, y);
-    const int vramLineWidth = VRAM_DEPTH * _w;
+    const int vramLineWidth = VRAM_DEPTH * VRAM_WIDTH;
     const int lineWidth = int(R5G5B5) * w;
-    Texture tex(name, x, y, w, h);
-    TextureId textureId = (vram - _vram) / VRAM_DEPTH;
+    Texture tex;
+    TextureId textureId = INVALID_TEXTURE;
 
-    _textures[textureId] = tex;
+    if (hasNamedTexture)
+    {
+        tex = Texture(name, x, y, w, h);
+
+        if (tex.createImage())
+        {
+            textureId = (vram - _vram) / VRAM_DEPTH;
+            _textures[textureId] = tex;
+        }
+    }
 
     for (int i = 0; i < h; ++i)
     {
         memcpy(vram, source, lineWidth);
 
-        if (hasNamedTexture)
+        if (textureId != INVALID_TEXTURE)
         {
             const int vramPosition = (vram - _vram) / VRAM_DEPTH;
 
@@ -36,8 +45,9 @@ void TexturePacker::setTexture(const char *name, const uint8_t *source, int x, i
             {
                 TextureId previousTextureId = _vramTextureIds[vramPosition + j];
 
-                if (previousTextureId != 0 && _textures.contains(previousTextureId))
+                if (previousTextureId != INVALID_TEXTURE && _textures.contains(previousTextureId))
                 {
+                    _textures[previousTextureId].destroyImage();
                     _textures.erase(previousTextureId);
                 }
 
@@ -55,7 +65,7 @@ void TexturePacker::getRect(uint8_t *target, int x, int y, int w, int h) const
     ffnx_trace("TexturePacker::%s x=%d y=%d w=%d h=%d\n", __func__, x, y, w, h);
 
     uint8_t *vram = vram_seek(x, y);
-    const int vramLineWidth = VRAM_DEPTH * _w;
+    const int vramLineWidth = VRAM_DEPTH * VRAM_WIDTH;
     const int lineWidth = VRAM_DEPTH * w;
 
     for (int i = 0; i < h; ++i)
@@ -77,6 +87,27 @@ void TexturePacker::getRect(uint8_t *target, int x, int y, int w, int h) const
         target += lineWidth;
         vram += vramLineWidth;
     }
+}
+
+uint8_t TexturePacker::getCurrentScale() const
+{
+    // TODO cache this value, and update only on texture upload
+    std::map<TextureId, Texture>::const_iterator it = _textures.begin();
+    uint8_t maxScale = 1;
+
+    for (const std::pair<TextureId, Texture> &pair: _textures)
+    {
+        const Texture &tex = pair.second;
+        const uint8_t texScale = tex.scale();
+
+        if (texScale > maxScale) {
+            maxScale = texScale;
+        }
+    }
+
+    ffnx_trace("TexturePacker::%s scale=%d\n", __func__, maxScale);
+
+    return maxScale;
 }
 
 void TexturePacker::scaledRect(uint8_t *sourceAndTarget, int w, int h, ColorFormat format, int scale)
@@ -153,11 +184,11 @@ void TexturePacker::scaledRect(uint8_t *sourceAndTarget, int w, int h, ColorForm
     }
 }
 
-void TexturePacker::getRect(uint8_t *buffer, int x, int y, int w, int h, PsDepth depth, ColorFormat targetFormat, int scale) const
+void TexturePacker::getRect(uint8_t *buffer, int x, int y, int w, int h, PsDepth depth, ColorFormat targetFormat, uint8_t scale) const
 {
     uint8_t *target = buffer;
     uint8_t *psxvram_buffer_pointer = vram_seek(x, y);
-    const int vramLineWidth = VRAM_DEPTH * _w;
+    const int vramLineWidth = VRAM_DEPTH * VRAM_WIDTH;
     const int lineWidth = int(depth) * w;
 
     ffnx_trace("TexturePacker::%s x=%d y=%d w=%d h=%d depth=%d vramLineWidth=%d lineWidth=%d\n", __func__, x, y, w, h, int(depth), vramLineWidth, lineWidth);
@@ -361,8 +392,8 @@ void TexturePacker::copyRect(int sourceX, int sourceY, int targetX, int targetY,
     {
         memcpy(target, source, w * int(VRAM_DEPTH));
 
-        target += _w * VRAM_DEPTH;
-        source += _w * VRAM_DEPTH;
+        target += VRAM_WIDTH * VRAM_DEPTH;
+        source += VRAM_WIDTH * VRAM_DEPTH;
     }
 }
 
@@ -377,21 +408,21 @@ void TexturePacker::fillRect(int x, int y, int w, int h, uint8_t r, uint8_t g, u
     {
         std::fill_n(psxvram_buffer_pointer, w, color);
 
-        psxvram_buffer_pointer += _w;
+        psxvram_buffer_pointer += VRAM_WIDTH;
     }
 }
 
 bool TexturePacker::saveVram(const char *fileName) const
 {
-    uint32_t *vram = new uint32_t[_w * _h];
+    uint32_t *vram = new uint32_t[VRAM_WIDTH * VRAM_HEIGHT];
     ffnx_trace("%s 1\n", __func__);
     vramToR8G8B8(vram);
     ffnx_trace("%s 2\n", __func__);
 
     bool ret = newRenderer.saveTexture(
         fileName,
-        _w,
-        _h,
+        VRAM_WIDTH,
+        VRAM_HEIGHT,
         vram
     );
 
@@ -404,9 +435,9 @@ void TexturePacker::vramToR8G8B8(uint32_t *output) const
 {
     uint16_t *vram = (uint16_t *)_vram;
 
-    for (int y = 0; y < _h; ++y)
+    for (int y = 0; y < VRAM_HEIGHT; ++y)
     {
-        for (int x = 0; x < _w; ++x)
+        for (int x = 0; x < VRAM_WIDTH; ++x)
         {
             *output = fromR5G5B5Color(*vram);
 
@@ -417,15 +448,48 @@ void TexturePacker::vramToR8G8B8(uint32_t *output) const
 }
 
 TexturePacker::Texture::Texture() :
-    _x(0), _y(0), _w(0), _h(0)
+    _image(nullptr), _name(""), _x(0), _y(0), _w(0), _h(0)
 {
 }
 
 TexturePacker::Texture::Texture(
     const char *name,
     int x, int y, int w, int h
-) : _name(name), _x(x), _y(y), _w(w), _h(h)
+) : _image(nullptr), _name(name), _x(x), _y(y), _w(w), _h(h)
 {
+}
+
+bool TexturePacker::Texture::createImage()
+{
+    char filename[MAX_PATH];
+
+    if(trace_all || trace_loaders) ffnx_trace("texture file name (VRAM): %s\n", _name.c_str());
+
+    for (int idx = 0; idx < mod_ext.size(); idx++)
+	{
+        _snprintf(filename, sizeof(filename), "%s/%s/%s.%s", basedir, mod_path.c_str(), _name.c_str(), mod_ext[idx].c_str());
+        _image = newRenderer.createImageContainer(filename);
+
+        if (_image != nullptr)
+        {
+            if (trace_all || trace_loaders) ffnx_trace("Using texture: %s\n", filename);
+
+            return true;
+        }
+        else if (trace_all || trace_loaders)
+        {
+            ffnx_warning("Texture does not exist, skipping: %s\n", filename);
+        }
+    }
+
+    return false;
+}
+
+void TexturePacker::Texture::destroyImage()
+{
+    if (_image != nullptr) {
+        bimg::imageFree(_image);
+    }
 }
 
 bool TexturePacker::Texture::contains(int x, int y, int w, int h) const
@@ -458,4 +522,31 @@ bool TexturePacker::Texture::match(int x, int y, int w, int h) const
 bool TexturePacker::Texture::operator==(const Texture &other) const
 {
     return match(other._x, other._y, other._w, other._h);
+}
+
+uint8_t TexturePacker::Texture::scale() const
+{
+    if (_image == nullptr) {
+        return 1;
+    }
+
+    if (_image->m_width < _w || _image->m_height < _h) {
+        return 1;
+    }
+
+    if (_image->m_width % _w != 0 || _image->m_height % _h != 0) {
+        return 1;
+    }
+
+    int scaleW = _image->m_width / _w, scaleH = _image->m_height / _h;
+
+    if (scaleW != scaleH) {
+        return 1;
+    }
+
+    if (scaleW > MAX_SCALE) {
+        return MAX_SCALE;
+    }
+
+    return scaleW;
 }

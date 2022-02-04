@@ -1193,16 +1193,14 @@ uint32_t Renderer::createTexture(char* filename, uint32_t* width, uint32_t* heig
     return handle.idx;
 }
 
-bgfx::TextureHandle Renderer::createTextureHandle(char* filename, uint32_t* width, uint32_t* height, uint32_t* mipCount, bool isSrgb)
+bimg::ImageContainer* Renderer::createImageContainer(const char* filename)
 {
-    bgfx::TextureHandle ret = BGFX_INVALID_HANDLE;
-
     FILE* file = fopen(filename, "rb");
+    bimg::ImageContainer* img = nullptr;
 
     if (file)
     {
         size_t filesize = 0;
-        bimg::ImageContainer* img = nullptr;
         char* buffer = nullptr;
 
         fseek(file, 0, SEEK_END);
@@ -1217,14 +1215,26 @@ bgfx::TextureHandle Renderer::createTextureHandle(char* filename, uint32_t* widt
 
         fclose(file);
 
-        // ==================================
-
         if (buffer != nullptr)
         {
             img = bimg::imageParse(&defaultAllocator, buffer, filesize + 1);
 
             driver_free(buffer);
         }
+    }
+
+    return img;
+}
+
+bgfx::TextureHandle Renderer::createTextureHandle(char* filename, uint32_t* width, uint32_t* height, uint32_t* mipCount, bool isSrgb)
+{
+    bgfx::TextureHandle ret = BGFX_INVALID_HANDLE;
+
+    FILE* file = fopen(filename, "rb");
+
+    if (file)
+    {
+        bimg::ImageContainer* img = createImageContainer(filename);
 
         if (img != nullptr)
         {

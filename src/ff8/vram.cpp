@@ -36,7 +36,7 @@ char *psxvram_buffer = (char *)0x1B474F0; // Size: sizeof(int) * 58106 -> 232424
 char **psxvram_current_clut_ptr = ((char **)0x1CA8680);
 char **psxvram_current_texture_ptr = ((char **)0x1CA86A8);
 
-TexturePacker texturePacker((uint8_t *)psxvram_buffer, VRAM_WIDTH, VRAM_HEIGHT);
+TexturePacker texturePacker((uint8_t *)psxvram_buffer);
 
 inline char *vram_seek(int x, int y)
 {
@@ -762,10 +762,12 @@ int op_on_psxvram_sub_4675B0_parent_call1(int a1, int structure, int x, int y, i
     next_psxvram_x = (x >> (2 - bpp)) + ((rel_pos & 0xF) << 6);
     next_psxvram_y = y + (((rel_pos >> 4) & 1) << 8);
 
-    w *= 2;
-    h *= 2;
+    next_scale = texturePacker.getCurrentScale();
 
-    next_scale = 2;
+    if (next_scale > 1) {
+        w *= next_scale;
+        h *= next_scale;
+    }
 
     int ret = ((int(*)(int, int, int, int, int, int, int, int, int, uint8_t *))0x464F60)(a1, structure, x, y, w, h, bpp, rel_pos, a9, target);
 
@@ -784,7 +786,7 @@ int op_on_psxvram_sub_4675B0_parent_call2(texture_page *tex_page, int rel_pos, i
     next_psxvram_x = (tex_page->x >> (2 - tex_page->color_key)) + ((rel_pos & 0xF) << 6);
     next_psxvram_y = tex_page->y + (((rel_pos >> 4) & 1) << 8);
 
-    next_scale = 2;
+    next_scale = texturePacker.getCurrentScale();
 
     int ret = ((int(*)(texture_page *, int, int))0x4653A0)(tex_page, rel_pos, a3);
 

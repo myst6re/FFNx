@@ -24,12 +24,15 @@
 
 #include <string>
 #include <map>
+#include <bimg/bimg.h>
 
 typedef uint32_t TextureId;
 
 #define VRAM_WIDTH 1024
 #define VRAM_HEIGHT 512
 #define VRAM_DEPTH int(TexturePacker::R5G5B5)
+#define INVALID_TEXTURE 0xFFFFFFFF
+#define MAX_SCALE 10
 
 class TexturePacker {
 public:
@@ -46,10 +49,11 @@ public:
         FormatAlphaShift,
         FormatAlphaHeightHack,
     };
-    TexturePacker(uint8_t *vram, int w, int h);
+    TexturePacker(uint8_t *vram);
     void setTexture(const char *name, const uint8_t *texture, int x, int y, int w, int h);
     void getRect(uint8_t *target, int x, int y, int w, int h) const;
-    void getRect(uint8_t *target, int x, int y, int w, int h, PsDepth sourceDepth, ColorFormat targetFormat, int scale = 1) const;
+    uint8_t getCurrentScale() const;
+    void getRect(uint8_t *target, int x, int y, int w, int h, PsDepth sourceDepth, ColorFormat targetFormat, uint8_t scale = 1) const;
     void getColors(uint8_t *target, int x, int y, int size, ColorFormat targetFormat, uint8_t colorShift = 0) const;
     void copyRect(int sourceX, int sourceY, int targetX, int targetY, int w, int h);
     void fillRect(int x, int y, int w, int h, uint8_t r, uint8_t g, uint8_t b, PsDepth depth = R5G5B5);
@@ -58,7 +62,7 @@ public:
 private:
     static void scaledRect(uint8_t *sourceAndTarget, int w, int h, ColorFormat format, int scale);
     inline uint8_t *vram_seek(int x, int y) const {
-        return _vram + VRAM_DEPTH * (x + y * _w);
+        return _vram + VRAM_DEPTH * (x + y * VRAM_WIDTH);
     }
 
     void vramToR8G8B8(uint32_t *output) const;
@@ -82,6 +86,21 @@ private:
         inline const std::string &name() const {
             return _name;
         }
+        inline int x() const {
+            return _x;
+        }
+        inline int y() const {
+            return _y;
+        }
+        inline int w() const {
+            return _w;
+        }
+        inline int h() const {
+            return _h;
+        }
+        uint8_t scale() const;
+        bool createImage();
+        void destroyImage();
         bool contains(int x, int y, int w, int h) const;
         bool intersect(int x, int y, int w, int h) const;
         bool match(int x, int y, int w, int h) const;
@@ -90,13 +109,13 @@ private:
             return ! (*this == other);
         }
     private:
+        bimg::ImageContainer *_image;
         std::string _name;
         int _x, _y;
         int _w, _h;
     };
 
-    uint8_t *_vram; // uint16_t[1024 * 512]
+    uint8_t *_vram; // uint16_t[VRAM_WIDTH * VRAM_HEIGHT] aka uint8_t[VRAM_WIDTH * VRAM_HEIGHT * VRAM_DEPTH]
     TextureId _vramTextureIds[VRAM_WIDTH * VRAM_HEIGHT];
-    int _w, _h;
     std::map<TextureId, Texture> _textures;
 };
