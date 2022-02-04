@@ -29,10 +29,6 @@ char nextTextureName[MAX_PATH] = "";
 int next_psxvram_x = -1;
 int next_psxvram_y = -1;
 
-#define VRAM_DEPTH 2
-#define VRAM_WIDTH 1024
-#define VRAM_HEIGHT 512
-
 #define VRAM_SEEK(pointer, x, y) \
     (pointer + VRAM_DEPTH * (x + y * VRAM_WIDTH))
 
@@ -184,7 +180,7 @@ void ff8_vram_point_to_texture(int16_t pos_x6y10)
 }
 
 // Not used?
-void ff8_download_vram(uint16_t* param)
+void ff8_copy_vram2(uint16_t* param)
 {
     int vram_x = param[4] & 0x3FF;
     int vram_y = param[5] & 0x1FF;
@@ -216,7 +212,7 @@ void ff8_download_vram(uint16_t* param)
         h = 512 - y;
     }
 
-    texturePacker.copyTexture(vram_x, vram_y, x, y, w, h);
+    texturePacker.copyRect(vram_x, vram_y, x, y, w, h);
 
     ff8_externals.sub_464850(x, y, x + w - 1, h + y - 1);
 }
@@ -260,7 +256,7 @@ void ff8_copy_vram(int16_t* pos_and_size, int x, int y)
 
     ffnx_trace("%s vram_x=%d vram_y=%d w=%d h=%d, x=%d y=%d\n", __func__, vram_x, vram_y, w, h, x, y);
 
-    texturePacker.copyTexture(vram_x, vram_y, x, y, w, h);
+    texturePacker.copyRect(vram_x, vram_y, x, y, w, h);
 
     ff8_externals.sub_464850(x, y, w + x - 1, h + y - 1);
 }
@@ -274,7 +270,7 @@ void ff8_download_vram_to_buffer(int16_t* pos_and_size, uint8_t* target_buffer)
 
     ffnx_trace("%s x=%d y=%d w=%d h=%d buffer=0x%X\n", __func__, x, y, w, h, target_buffer);
 
-    texturePacker.getTexture(target_buffer, x, y, w, h);
+    texturePacker.getRect(target_buffer, x, y, w, h);
 }
 
 int ff8_fill_vram(int16_t* pos_and_size, unsigned char b, unsigned char g, unsigned char r)
@@ -294,7 +290,7 @@ int ff8_fill_vram(int16_t* pos_and_size, unsigned char b, unsigned char g, unsig
         *ff8_psxvram_buffer_was_initialized = 1;
     }
 
-    texturePacker.fill(x, y, w, h, r, g, b);
+    texturePacker.fillRect(x, y, w, h, r, g, b);
 
     ff8_externals.sub_464850(x, y, w + x - 1, h + y - 1);
 
@@ -314,7 +310,7 @@ void ff8_fill_vram2(struc_color_texture *color_texture)
 
     if (x >= 640 && y >= 240 && x + w <= VRAM_WIDTH && y + h <= VRAM_HEIGHT)
     {
-        texturePacker.fill(x, y, w, h, color_texture->r, color_texture->g, color_texture->b);
+        texturePacker.fillRect(x, y, w, h, color_texture->r, color_texture->g, color_texture->b);
     }
 }
 
@@ -330,7 +326,7 @@ void ff8_fill_vram3(struc_color_texture *color_texture)
 
     if (x >= 0 && y >= 0 && x + w <= VRAM_WIDTH && y + h <= VRAM_HEIGHT)
     {
-        texturePacker.fill(x, y, w, h, color_texture->r, color_texture->g, color_texture->b);
+        texturePacker.fillRect(x, y, w, h, color_texture->r, color_texture->g, color_texture->b);
     }
 }
 
@@ -744,64 +740,39 @@ void ff8_gpu_read_palette(int clut, uint8_t rgba[4], int size)
     texturePacker.getColors(rgba, x, y, size, TexturePacker::FormatR8G8B8A8);
 }
 
-void ff8_gpu_read_battle_transition(int clut, uint8_t rgba[4], int size)
+void ff8_gpu_read_palette_alpha(int clut, uint8_t rgba[4], int size)
 {
     const int x = 16 * (clut & 0x3F);
     const int y = (uint16_t(clut) >> 6) & 0x1FF;
+    int is_alpha_shift = *((int *)0x1CCFA58);
+    int shift_value = *((int *)0x1CA86C0);
 
-    ffnx_trace("%s x=%d y=%d size=%d\n", __func__, x, y, size);
+    ffnx_trace("%s x=%d y=%d size=%d is_alpha_shift=%d shift_value=%d\n", __func__, x, y, size, is_alpha_shift, shift_value);
 
-    uint16_t *psxvram_buffer_pointer = (uint16_t *)vram_seek(x, y);
-    int *dword_1CCFA58 = (int *)0x1CCFA58;
-    int *dword_1CA86C0 = (int *)0x1CA86C0;
-
-    for (int i = 0; i < size; ++i)
-    {
-        uint16_t color = *psxvram_buffer_pointer;
-        uint8_t r = (color >> 10) & 0x1F;
-        uint8_t g = (color >> 5) & 0x1F;
-        uint8_t b = color & 0x1F;
-
-        if (*dword_1CCFA58)
-        {
-            uint32_t alpha = (r + g + b) << (1 - *dword_1CA86C0);
-
-            rgba[0] = 0x00;
-            rgba[1] = 0x00;
-            rgba[2] = 0x00;
-            rgba[3] = alpha > 0xFF ? 0xFF : alpha;
-        }
-        else if (r >= 8 || g >= 8 || b >= 8)
-        {
-            rgba[0] = 0x08; // Eight
-            rgba[1] = 0x00;
-            rgba[2] = 0x00;
-            rgba[3] = 0xFF;
-        }
-        else
-        {
-            rgba[0] = 0x00;
-            rgba[1] = 0x00;
-            rgba[2] = 0x00;
-            rgba[3] = 0x00;
-        }
-
-        rgba = (uint8_t *)rgba + 4;
-        psxvram_buffer_pointer++;
-    }
+    TexturePacker::ColorFormat format = is_alpha_shift ? TexturePacker::FormatAlphaShift : TexturePacker::FormatAlphaHeightHack;
+    texturePacker.getColors(rgba, x, y, size, format, shift_value);
 }
 
-int op_on_psxvram_sub_4675B0_parent_call1(int a1, int structure, int x, int y, int w, int h, int bpp, int rel_pos, int a9, char *target)
+int next_scale = 1;
+
+int op_on_psxvram_sub_4675B0_parent_call1(int a1, int structure, int x, int y, int w, int h, int bpp, int rel_pos, int a9, uint8_t *target)
 {
     ffnx_trace("%s: x=%d y=%d w=%d h=%d bpp=%d rel_pos=(%d, %d) a9=%d target=%X\n", __func__, x, y, w, h, bpp, rel_pos & 0xF, rel_pos >> 4, a9, target);
 
     next_psxvram_x = (x >> (2 - bpp)) + ((rel_pos & 0xF) << 6);
     next_psxvram_y = y + (((rel_pos >> 4) & 1) << 8);
 
-    int ret = ((int(*)(int, int, int, int, int, int, int, int, int, char *))0x464F60)(a1, structure, x, y, w, h, bpp, rel_pos, a9, target);
+    w *= 2;
+    h *= 2;
+
+    next_scale = 2;
+
+    int ret = ((int(*)(int, int, int, int, int, int, int, int, int, uint8_t *))0x464F60)(a1, structure, x, y, w, h, bpp, rel_pos, a9, target);
 
     next_psxvram_x = -1;
     next_psxvram_y = -1;
+
+    next_scale = 1;
 
     return ret;
 }
@@ -813,10 +784,14 @@ int op_on_psxvram_sub_4675B0_parent_call2(texture_page *tex_page, int rel_pos, i
     next_psxvram_x = (tex_page->x >> (2 - tex_page->color_key)) + ((rel_pos & 0xF) << 6);
     next_psxvram_y = tex_page->y + (((rel_pos >> 4) & 1) << 8);
 
+    next_scale = 2;
+
     int ret = ((int(*)(texture_page *, int, int))0x4653A0)(tex_page, rel_pos, a3);
 
     next_psxvram_x = -1;
     next_psxvram_y = -1;
+
+    next_scale = 1;
 
     return ret;
 }
@@ -837,28 +812,27 @@ void read_vram_to_buffer1(uint8_t *vram, int vram_w_2048, uint8_t *target, int t
         return;
     }
 
-    TexturePacker::ColorFormat colorFormat;
+    TexturePacker::ColorFormat color_format;
 
     if (bpp == 2 && dword_B7DB44 > 0)
     {
-        colorFormat = TexturePacker::FormatR5G5B5Hack;
+        color_format = TexturePacker::FormatR5G5B5Hack;
     }
     else
     {
-        colorFormat = bpp == 2 ? TexturePacker::FormatR5G5B5 : TexturePacker::Format8Bit;
+        color_format = bpp == 2 ? TexturePacker::FormatR5G5B5 : TexturePacker::Format8Bit;
     }
 
     // FIXME: cat we ignore target_w? it is taken from tex header and should be always w * depth or something like this
-    texturePacker.getTexture(target, next_psxvram_x, next_psxvram_y, w, h, TexturePacker::PsDepth(bpp), colorFormat);
+    texturePacker.getRect(target, next_psxvram_x, next_psxvram_y, w / next_scale, h / next_scale, TexturePacker::PsDepth(bpp), color_format, next_scale);
 
     is_foo = false;
 }
 
 void read_vram_to_buffer_with_palette(uint8_t *vram, int vram_w_2048, uint8_t *target, int target_w, int w, int h, int bpp, uint8_t *vram_palette)
 {
-    /*
     ffnx_trace("%s\n", __func__);
-
+    /*
     int *color_shift = (int *)0x1CA86C0;
 
     char color_shift2 = *color_shift + 3;
@@ -1013,7 +987,7 @@ void vram_init()
     /* replace_call(0x45B460 + 0x26, ff8_intercept_store_vram); */
     // replace_function(0x45B910, ff8_vram_point_to_texture);
     // replace_function(0x45B950, ff8_ssigpu_set_t_page);
-    replace_function(0x45BAF0, ff8_download_vram);
+    replace_function(0x45BAF0, ff8_copy_vram2);
     replace_function(0x45BD20, ff8_upload_vram);
     replace_function(0x45BDC0, ff8_copy_vram);
     replace_function(0x45BE60, ff8_download_vram_to_buffer);
@@ -1030,13 +1004,13 @@ void vram_init()
     replace_function(0x463880, ff8_vram_op_sub16b);
     replace_function(0x463970, ff8_vram_op_set_indexed8);
     replace_function(0x4639E0, ff8_vram_op_add_indexed8);
-    replace_function(0x463AC0, ff8_vram_op_sub_indexed8); */
+    replace_function(0x463AC0, ff8_vram_op_sub_indexed8);
 
-    /* replace_function(0x463D40, ff8_vram_op_related); */
+    replace_function(0x463D40, ff8_vram_op_related); */
 
     // GPU read
-    //replace_function(0x467360, ff8_gpu_read_palette);
-    //replace_function(0x467460, ff8_gpu_read_battle_transition);
+    replace_function(0x467360, ff8_gpu_read_palette);
+    replace_function(0x467460, ff8_gpu_read_palette_alpha);
 
     replace_call(0x464C13, op_on_psxvram_sub_4675B0_parent_call1);
     replace_call(0x464CAD, op_on_psxvram_sub_4675B0_parent_call1);

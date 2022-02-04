@@ -23,7 +23,13 @@
 #pragma once
 
 #include <string>
-#include <list>
+#include <map>
+
+typedef uint32_t TextureId;
+
+#define VRAM_WIDTH 1024
+#define VRAM_HEIGHT 512
+#define VRAM_DEPTH int(TexturePacker::R5G5B5)
 
 class TexturePacker {
 public:
@@ -36,23 +42,23 @@ public:
         Format8Bit,
         FormatR5G5B5,
         FormatR5G5B5Hack,
-        FormatR8G8B8A8
+        FormatR8G8B8A8,
+        FormatAlphaShift,
+        FormatAlphaHeightHack,
     };
-    TexturePacker(uint8_t *vram, int w, int h, PsDepth depth = R5G5B5);
-    void setTexture(const char *name, const uint8_t *texture, int x, int y, int w, int h, PsDepth depth = R5G5B5);
-    void getTexture(uint8_t *target, int x, int y, int w, int h, PsDepth depth = R5G5B5) const;
-    void getTexture(uint8_t *target, int x, int y, int w, int h, PsDepth sourceDepth, ColorFormat targetFormat) const;
-    void getColors(uint8_t *target, int x, int y, int size, ColorFormat targetFormat) const;
-    void copyTexture(int sourceX, int sourceY, int targetX, int targetY, int w, int h);
-    void fill(int x, int y, int w, int h, uint8_t r, uint8_t g, uint8_t b, PsDepth depth = R5G5B5);
-
-    std::string textureNameFromInfos(int x, int y, int w, int h) const;
+    TexturePacker(uint8_t *vram, int w, int h);
+    void setTexture(const char *name, const uint8_t *texture, int x, int y, int w, int h);
+    void getRect(uint8_t *target, int x, int y, int w, int h) const;
+    void getRect(uint8_t *target, int x, int y, int w, int h, PsDepth sourceDepth, ColorFormat targetFormat, int scale = 1) const;
+    void getColors(uint8_t *target, int x, int y, int size, ColorFormat targetFormat, uint8_t colorShift = 0) const;
+    void copyRect(int sourceX, int sourceY, int targetX, int targetY, int w, int h);
+    void fillRect(int x, int y, int w, int h, uint8_t r, uint8_t g, uint8_t b, PsDepth depth = R5G5B5);
 
     bool saveVram(const char *fileName) const;
 private:
-    void setTextureName(const char *name, int x, int y, int w, int h, PsDepth depth);
+    static void scaledRect(uint8_t *sourceAndTarget, int w, int h, ColorFormat format, int scale);
     inline uint8_t *vram_seek(int x, int y) const {
-        return _vram + _depth * (x + y * _w);
+        return _vram + VRAM_DEPTH * (x + y * _w);
     }
 
     void vramToR8G8B8(uint32_t *output) const;
@@ -71,8 +77,7 @@ private:
         Texture();
         Texture(
             const char *name,
-            int x, int y, int w, int h,
-            TexturePacker::PsDepth depth
+            int x, int y, int w, int h
         );
         inline const std::string &name() const {
             return _name;
@@ -88,11 +93,10 @@ private:
         std::string _name;
         int _x, _y;
         int _w, _h;
-        TexturePacker::PsDepth _depth;
     };
 
-    uint8_t *_vram;
+    uint8_t *_vram; // uint16_t[1024 * 512]
+    TextureId _vramTextureIds[VRAM_WIDTH * VRAM_HEIGHT];
     int _w, _h;
-    PsDepth _depth;
-    std::list<Texture> _textures;
+    std::map<TextureId, Texture> _textures;
 };
