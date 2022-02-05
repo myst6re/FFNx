@@ -826,7 +826,7 @@ void read_vram_to_buffer1(uint8_t *vram, int vram_w_2048, uint8_t *target, int t
     }
 
     // FIXME: cat we ignore target_w? it is taken from tex header and should be always w * depth or something like this
-    texturePacker.getRect(target, next_psxvram_x, next_psxvram_y, w / next_scale, h / next_scale, TexturePacker::PsDepth(bpp), color_format, next_scale);
+    texturePacker.getRect(target, next_psxvram_x, next_psxvram_y, w / next_scale, h / next_scale, color_format, next_scale);
 
     is_foo = false;
 }

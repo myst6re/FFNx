@@ -52,8 +52,10 @@ public:
     TexturePacker(uint8_t *vram);
     void setTexture(const char *name, const uint8_t *texture, int x, int y, int w, int h);
     void getRect(uint8_t *target, int x, int y, int w, int h) const;
-    uint8_t getCurrentScale() const;
-    void getRect(uint8_t *target, int x, int y, int w, int h, PsDepth sourceDepth, ColorFormat targetFormat, uint8_t scale = 1) const;
+    inline uint8_t getMaxScale() const {
+        return _maxScaleCached;
+    }
+    void getRect(uint8_t *target, int x, int y, int w, int h, ColorFormat targetFormat, uint8_t scale = 1) const;
     void getColors(uint8_t *target, int x, int y, int size, ColorFormat targetFormat, uint8_t colorShift = 0) const;
     void copyRect(int sourceX, int sourceY, int targetX, int targetY, int w, int h);
     void fillRect(int x, int y, int w, int h, uint8_t r, uint8_t g, uint8_t b, PsDepth depth = R5G5B5);
@@ -64,6 +66,8 @@ private:
     inline uint8_t *vram_seek(int x, int y) const {
         return _vram + VRAM_DEPTH * (x + y * VRAM_WIDTH);
     }
+    void updateMaxScale();
+    void drawTextures(uint8_t *target, int x, int y, int w, int h, ColorFormat targetFormat, uint8_t scale) const;
 
     void vramToR8G8B8(uint32_t *output) const;
     static inline uint32_t fromR5G5B5Color(uint16_t color) {
@@ -118,4 +122,5 @@ private:
     uint8_t *_vram; // uint16_t[VRAM_WIDTH * VRAM_HEIGHT] aka uint8_t[VRAM_WIDTH * VRAM_HEIGHT * VRAM_DEPTH]
     TextureId _vramTextureIds[VRAM_WIDTH * VRAM_HEIGHT];
     std::map<TextureId, Texture> _textures;
+    uint8_t _maxScaleCached;
 };
