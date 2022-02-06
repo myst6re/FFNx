@@ -23,32 +23,30 @@
 
 #include "../ff8.h"
 #include "../patch.h"
-#include "texture_packer.h"
 
 char nextTextureName[MAX_PATH] = "";
 int next_psxvram_x = -1;
 int next_psxvram_y = -1;
+int next_scale = 1;
 
 #define VRAM_SEEK(pointer, x, y) \
     (pointer + VRAM_DEPTH * (x + y * VRAM_WIDTH))
 
-char *psxvram_buffer = (char *)0x1B474F0; // Size: sizeof(int) * 58106 -> 232424
-char **psxvram_current_clut_ptr = ((char **)0x1CA8680);
-char **psxvram_current_texture_ptr = ((char **)0x1CA86A8);
+uint8_t *psxvram_buffer = (uint8_t *)0x1B474F0; // Size: sizeof(int) * 58106 -> 232424
+uint8_t **psxvram_current_clut_ptr = ((uint8_t **)0x1CA8680);
+uint8_t **psxvram_current_texture_ptr = ((uint8_t **)0x1CA86A8);
 
-TexturePacker texturePacker((uint8_t *)psxvram_buffer);
-
-inline char *vram_seek(int x, int y)
+inline uint8_t *vram_seek(int x, int y)
 {
     return VRAM_SEEK(psxvram_buffer, x, y);
 }
 
-inline char *vram_current_texture_seek(int x, int y)
+inline uint8_t *vram_current_texture_seek(int x, int y)
 {
     return VRAM_SEEK(*psxvram_current_texture_ptr, x, y);
 }
 
-inline char *vram_current_clut_seek(int x, int y)
+inline uint8_t *vram_current_clut_seek(int x, int y)
 {
     return VRAM_SEEK(*psxvram_current_clut_ptr, x, y);
 }
@@ -286,7 +284,7 @@ int ff8_fill_vram(int16_t* pos_and_size, unsigned char b, unsigned char g, unsig
 
     if (! *ff8_psxvram_buffer_was_initialized)
     {
-        ((void(*)(char*))0x464210)(psxvram_buffer);
+        ((void(*)(uint8_t*))0x464210)(psxvram_buffer);
         *ff8_psxvram_buffer_was_initialized = 1;
     }
 
@@ -753,8 +751,6 @@ void ff8_gpu_read_palette_alpha(int clut, uint8_t rgba[4], int size)
     texturePacker.getColors(rgba, x, y, size, format, shift_value);
 }
 
-int next_scale = 1;
-
 int op_on_psxvram_sub_4675B0_parent_call1(int a1, int structure, int x, int y, int w, int h, int bpp, int rel_pos, int a9, uint8_t *target)
 {
     ffnx_trace("%s: x=%d y=%d w=%d h=%d bpp=%d rel_pos=(%d, %d) a9=%d target=%X\n", __func__, x, y, w, h, bpp, rel_pos & 0xF, rel_pos >> 4, a9, target);
@@ -762,7 +758,7 @@ int op_on_psxvram_sub_4675B0_parent_call1(int a1, int structure, int x, int y, i
     next_psxvram_x = (x >> (2 - bpp)) + ((rel_pos & 0xF) << 6);
     next_psxvram_y = y + (((rel_pos >> 4) & 1) << 8);
 
-    next_scale = texturePacker.getCurrentScale();
+    next_scale = texturePacker.getMaxScale();
 
     if (next_scale > 1) {
         w *= next_scale;
@@ -774,8 +770,6 @@ int op_on_psxvram_sub_4675B0_parent_call1(int a1, int structure, int x, int y, i
     next_psxvram_x = -1;
     next_psxvram_y = -1;
 
-    next_scale = 1;
-
     return ret;
 }
 
@@ -786,14 +780,10 @@ int op_on_psxvram_sub_4675B0_parent_call2(texture_page *tex_page, int rel_pos, i
     next_psxvram_x = (tex_page->x >> (2 - tex_page->color_key)) + ((rel_pos & 0xF) << 6);
     next_psxvram_y = tex_page->y + (((rel_pos >> 4) & 1) << 8);
 
-    next_scale = texturePacker.getCurrentScale();
-
     int ret = ((int(*)(texture_page *, int, int))0x4653A0)(tex_page, rel_pos, a3);
 
     next_psxvram_x = -1;
     next_psxvram_y = -1;
-
-    next_scale = 1;
 
     return ret;
 }
@@ -825,6 +815,7 @@ void read_vram_to_buffer1(uint8_t *vram, int vram_w_2048, uint8_t *target, int t
         color_format = bpp == 2 ? TexturePacker::FormatR5G5B5 : TexturePacker::Format8Bit;
     }
 
+    texturePacker.registerTiledTex(target, next_psxvram_x, next_psxvram_y, w / next_scale, h / next_scale, next_scale);
     // FIXME: cat we ignore target_w? it is taken from tex header and should be always w * depth or something like this
     texturePacker.getRect(target, next_psxvram_x, next_psxvram_y, w / next_scale, h / next_scale, color_format, next_scale);
 
@@ -979,6 +970,8 @@ uint32_t ff8_credits_open_texture(char *fileName, char *buffer)
 void vram_init()
 {
     ffnx_info("%s: sizeof(struc_50) = %d\n", __func__, sizeof(struc_50));
+
+    texturePacker.setVram(psxvram_buffer);
 
     replace_call(0x52F9D2, ff8_credits_open_texture);
     /* replace_call(0x462B22, ff8_replace_call0);

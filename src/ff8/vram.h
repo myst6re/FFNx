@@ -22,4 +22,8 @@
 
 #pragma once
 
+#include "texture_packer.h"
+
+TexturePacker texturePacker;
+
 void vram_init();

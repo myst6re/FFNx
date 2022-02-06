@@ -1193,7 +1193,7 @@ uint32_t Renderer::createTexture(char* filename, uint32_t* width, uint32_t* heig
     return handle.idx;
 }
 
-bimg::ImageContainer* Renderer::createImageContainer(const char* filename)
+bimg::ImageContainer* Renderer::createImageContainer(const char* filename, bimg::TextureFormat::Enum targetFormat)
 {
     FILE* file = fopen(filename, "rb");
     bimg::ImageContainer* img = nullptr;
@@ -1221,6 +1221,17 @@ bimg::ImageContainer* Renderer::createImageContainer(const char* filename)
 
             driver_free(buffer);
         }
+    }
+
+    if (img && targetFormat != bimg::TextureFormat::Enum::UnknownDepth && targetFormat != img->m_format)
+    {
+        if (trace_all || trace_renderer) ffnx_trace("Renderer::%s: convert image to format %d\n", __func__, targetFormat);
+
+        bimg::ImageContainer* converted = bimg::imageConvert(&defaultAllocator, targetFormat, *img);
+
+        bimg::imageFree(img);
+
+        img = converted;
     }
 
     return img;

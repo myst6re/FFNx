@@ -361,7 +361,7 @@ public:
 
     uint32_t createTexture(uint8_t* data, size_t width, size_t height, int stride = 0, RendererTextureType type = RendererTextureType::BGRA, bool isSrgb = true);
     uint32_t createTexture(char* filename, uint32_t* width, uint32_t* height, uint32_t* mipCount, bool isSrgb = true);
-    bimg::ImageContainer* createImageContainer(const char* filename);
+    bimg::ImageContainer* createImageContainer(const char* filename, bimg::TextureFormat::Enum targetFormat = bimg::TextureFormat::Enum::UnknownDepth);
     bgfx::TextureHandle createTextureHandle(char* filename, uint32_t* width, uint32_t* height, uint32_t* mipCount, bool isSrgb = true);
     uint32_t createTextureLibPng(char* filename, uint32_t* width, uint32_t* height, bool isSrgb = true);
     bool saveTexture(const char* filename, uint32_t width, uint32_t height, void* data);

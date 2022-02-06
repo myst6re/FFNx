@@ -26,7 +26,7 @@
 #include <map>
 #include <bimg/bimg.h>
 
-typedef uint32_t TextureId;
+typedef uint32_t ModdedTextureId;
 
 #define VRAM_WIDTH 1024
 #define VRAM_HEIGHT 512
@@ -49,16 +49,24 @@ public:
         FormatAlphaShift,
         FormatAlphaHeightHack,
     };
-    TexturePacker(uint8_t *vram);
+    explicit TexturePacker();
+    inline void setVram(uint8_t *vram) {
+        _vram = vram;
+    }
     void setTexture(const char *name, const uint8_t *texture, int x, int y, int w, int h);
     void getRect(uint8_t *target, int x, int y, int w, int h) const;
     inline uint8_t getMaxScale() const {
         return _maxScaleCached;
     }
+    inline bool hasModdedTextures() const {
+        return ! _moddedTextures.empty();
+    }
+    void registerTiledTex(uint8_t *target, int x, int y, int w, int h, uint8_t scale);
     void getRect(uint8_t *target, int x, int y, int w, int h, ColorFormat targetFormat, uint8_t scale = 1) const;
     void getColors(uint8_t *target, int x, int y, int size, ColorFormat targetFormat, uint8_t colorShift = 0) const;
     void copyRect(int sourceX, int sourceY, int targetX, int targetY, int w, int h);
     void fillRect(int x, int y, int w, int h, uint8_t r, uint8_t g, uint8_t b, PsDepth depth = R5G5B5);
+    void drawModdedTextures(const uint8_t *texData, uint32_t paletteIndex, uint32_t *target);
 
     bool saveVram(const char *fileName) const;
 private:
@@ -67,7 +75,7 @@ private:
         return _vram + VRAM_DEPTH * (x + y * VRAM_WIDTH);
     }
     void updateMaxScale();
-    void drawTextures(uint8_t *target, int x, int y, int w, int h, ColorFormat targetFormat, uint8_t scale) const;
+    void drawModdedTextures(uint32_t *target, int x, int y, int w, int h, uint8_t scale);
 
     void vramToR8G8B8(uint32_t *output) const;
     static inline uint32_t fromR5G5B5Color(uint16_t color) {
@@ -105,6 +113,7 @@ private:
         uint8_t scale() const;
         bool createImage();
         void destroyImage();
+        uint32_t getColor(int scaledX, int scaledY) const;
         bool contains(int x, int y, int w, int h) const;
         bool intersect(int x, int y, int w, int h) const;
         bool match(int x, int y, int w, int h) const;
@@ -118,9 +127,17 @@ private:
         int _x, _y;
         int _w, _h;
     };
+    struct TiledTex {
+        TiledTex();
+        TiledTex(int x, int y, int w, int h, uint8_t scale);
+        int x, y;
+        int w, h;
+        uint8_t scale;
+    };
 
     uint8_t *_vram; // uint16_t[VRAM_WIDTH * VRAM_HEIGHT] aka uint8_t[VRAM_WIDTH * VRAM_HEIGHT * VRAM_DEPTH]
-    TextureId _vramTextureIds[VRAM_WIDTH * VRAM_HEIGHT];
-    std::map<TextureId, Texture> _textures;
+    std::map<const uint8_t *, TiledTex> _tiledTexs;
+    ModdedTextureId _vramTextureIds[VRAM_WIDTH * VRAM_HEIGHT];
+    std::map<ModdedTextureId, Texture> _moddedTextures;
     uint8_t _maxScaleCached;
 };

@@ -51,6 +51,8 @@
 #include "lighting.h"
 #include "achievement.h"
 
+#include "ff8/vram.h"
+
 bool proxyWndProc = false;
 
 // global game window handler
@@ -1201,6 +1203,12 @@ uint32_t load_external_texture(void* image_data, uint32_t dataSize, struct textu
 
 		if(!_strnicmp(VREF(tex_header, file.pc_name), "flevel/hand_1", strlen("flevel/hand_1") - 1)) gl_set->force_filter = true;
 	}
+	else if(ff8)
+	{
+		texturePacker.drawModdedTextures(VREF(tex_header, image_data), VREF(tex_header, palette_index), (uint32_t *)image_data);
+
+		texture = newRenderer.createTexture((uint8_t *)image_data, originalWidth, originalHeight);
+	}
 
 	if(texture)
 	{
@@ -1234,6 +1242,8 @@ void convert_image_data(unsigned char *image_data, uint32_t *converted_image_dat
 {
 	uint32_t i, j, o = 0, c = 0;
 
+	ffnx_trace("%s w=%d h=%d\n", __func__, w, h);
+
 	// invalid texture in FF8, do not attempt to convert
 	if(ff8 && tex_format->bytesperpixel == 0) return;
 
@@ -1263,6 +1273,7 @@ void convert_image_data(unsigned char *image_data, uint32_t *converted_image_dat
 	// RGB(A) source data
 	else
 	{
+		ffnx_trace("%s 2 w=%d h=%d tex_format->bytesperpixel=%d color_key=%d\n", __func__, w, h, tex_format->bytesperpixel, color_key);
 		if(tex_format->use_palette)
 		{
 			ffnx_glitch("unsupported texture format\n");
