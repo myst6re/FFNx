@@ -28,6 +28,13 @@
 
 bool tim_to_rgba32(uint32_t *target, uint8_t bpp, uint8_t *img_data, uint16_t img_w, uint16_t img_h, uint16_t *pal_data)
 {
+    if (img_data == nullptr)
+    {
+        ffnx_error("%s img_data is null\n", __func__);
+
+        return false;
+    }
+
     if (bpp == 0)
     {
         if (pal_data == nullptr)

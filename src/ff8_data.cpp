@@ -268,11 +268,16 @@ void ff8_find_externals()
 	ff8_externals.sub_465720 = get_relative_call(ff8_externals.sub_464BD0, 0xAF);
 
 	ff8_externals.ssigpu_callbacks_1 = (uint32_t *)get_absolute_value(ff8_externals.sub_45D080, 0x21E);
+	ff8_externals.ssigpu_callbacks_2 = (uint32_t *)get_absolute_value(ff8_externals.sub_45D080, 0x122);
 	ff8_externals.sub_462AD0 = get_relative_call(ff8_externals.ssigpu_callbacks_1[116], 0x13);
 	ff8_externals.sub_462DF0 = get_relative_call(ff8_externals.sub_462AD0, 0x62);
 	ff8_externals.ssigpu_tx_select_2_sub_465CE0 = get_relative_call(ff8_externals.sub_462DF0, 0x33);
 	ff8_externals.sub_464F70 = (int(*)(int,int,int,int,int,int,int,int,int,uint8_t*))get_relative_call(ff8_externals.ssigpu_tx_select_2_sub_465CE0, 0x281);
-	ff8_externals.sub_4675C0 = (void(*)(uint8_t*,int,uint8_t*,int,signed int,int,int))get_relative_call(uint32_t(ff8_externals.sub_464F70), 0x2C5);
+	ff8_externals.read_vram_1 = (void(*)(uint8_t*,int,uint8_t*,int,signed int,int,int))get_relative_call(uint32_t(ff8_externals.sub_464F70), 0x2C5);
+	ff8_externals.sub_464DB0 = get_relative_call(ff8_externals.ssigpu_tx_select_2_sub_465CE0, 0x2CF);
+	ff8_externals.read_vram_2_paletted = (void(*)(uint8_t*,int,uint8_t*,int,signed int,int,int,uint16_t*))get_relative_call(ff8_externals.sub_464DB0, 0xEC);
+	ff8_externals.sub_4649A0 = get_relative_call(ff8_externals.ssigpu_callbacks_2[100], 0x33);
+	ff8_externals.read_vram_3_paletted = (void(*)(uint8_t*,uint8_t*,signed int,int,int,uint16_t*))get_relative_call(ff8_externals.sub_4649A0, 0x13F);
 
 	ff8_externals.sub_559E40 = get_relative_call(ff8_externals.swirl_main_loop, 0x28);
 	ff8_externals.sub_559F30 = get_relative_call(ff8_externals.sub_559E40, 0xC1);

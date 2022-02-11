@@ -24,7 +24,10 @@
 
 #include <string>
 #include <map>
+#include <unordered_set>
 #include <bimg/bimg.h>
+
+#include "../ff8.h"
 
 typedef uint32_t ModdedTextureId;
 
@@ -36,78 +39,97 @@ typedef uint32_t ModdedTextureId;
 
 class TexturePacker {
 public:
-    explicit TexturePacker();
-    inline void setVram(uint8_t *vram) {
-        _vram = vram;
-    }
-    void setTexture(const char *name, const uint8_t *texture, int x, int y, int w, int h);
-    inline uint8_t getMaxScale() const {
-        return _maxScaleCached;
-    }
-    void registerTiledTex(uint8_t *target, int x, int y, int w, int h);
-    bool drawModdedTextures(const uint8_t *texData, uint32_t paletteIndex, uint32_t *target, uint8_t scale);
+	explicit TexturePacker();
+	inline void setVram(uint8_t *vram) {
+		_vram = vram;
+	}
+	void setTexture(const char *name, const uint8_t *texture, int x, int y, int w, int h, uint8_t bpp, bool isPal);
+	bool hasTexture(const char *name, int x, int y, int w, int h);
+	inline uint8_t getMaxScale() const {
+		return _maxScaleCached;
+	}
+	void registerTiledTex(uint8_t *target, int x, int y, uint8_t bpp);
+	bool drawModdedTextures(const uint8_t *texData, const uint32_t *paletteData, uint32_t paletteIndex, uint32_t paletteEntries, uint32_t *target, int targetW, int targetH, uint8_t scale);
 
-    bool saveVram(const char *fileName) const;
+	void saveVram(const char *fileName, uint8_t bpp) const;
 private:
-    inline uint8_t *vramSeek(int x, int y) const {
-        return _vram + VRAM_DEPTH * (x + y * VRAM_WIDTH);
-    }
-    void updateMaxScale();
-    bool drawModdedTextures(uint32_t *target, int x, int y, int w, int h, uint8_t scale);
+	inline uint8_t *vramSeek(int x, int y) const {
+		return _vram + VRAM_DEPTH * (x + y * VRAM_WIDTH);
+	}
+	void updateMaxScale();
+	class TextureInfos {
+	public:
+		TextureInfos();
+		TextureInfos(
+			int x, int y, int w, int h,
+			uint8_t bpp
+		);
+		inline int x() const {
+			return _x;
+		}
+		inline int y() const {
+			return _y;
+		}
+		inline int w() const {
+			return _w;
+		}
+		inline int h() const {
+			return _h;
+		}
+		inline uint8_t bpp() const {
+			return _bpp;
+		}
+	protected:
+		int _x, _y;
+		int _w, _h;
+		uint8_t _bpp;
+	};
+	class Texture : public TextureInfos {
+	public:
+		Texture();
+		Texture(
+			const char *name,
+			int x, int y, int w, int h,
+			uint8_t bpp
+		);
+		inline const std::string &name() const {
+			return _name;
+		}
+		uint8_t scale() const;
+		bool createImage(uint8_t palette_index = 0);
+		void destroyImage();
+		inline bool hasImage() const {
+			return _image != nullptr;
+		}
+		uint32_t getColor(int scaledX, int scaledY);
+		inline bool hasPal() const {
+			return _pal.bpp() != 255;
+		}
+		inline const TextureInfos &pal() const {
+			return _pal;
+		}
+		inline void setPal(const TextureInfos &pal) {
+			_pal = pal;
+		}
+		ff8_tim toTim(uint8_t *imgData, uint16_t *palData) const;
+	private:
+		bimg::ImageContainer *_image;
+		std::string _name;
+		TextureInfos _pal;
+		bool _logged;
+	};
+	struct TiledTex {
+		TiledTex();
+		TiledTex(int x, int y, uint8_t bpp);
+		int x, y;
+		uint8_t bpp;
+	};
+	void getVramRect(uint8_t *target, const TextureInfos &texture) const;
+	bool drawModdedTextures(uint32_t *target, const uint32_t *paletteData, const TiledTex &tiledTex, int w, int h, uint8_t scale, uint32_t paletteIndex, uint32_t paletteEntries);
 
-    void vramToR8G8B8(uint32_t *output) const;
-    static inline uint32_t fromR5G5B5Color(uint16_t color) {
-        uint8_t r = color & 31,
-                g = (color >> 5) & 31,
-                b = (color >> 10) & 31;
-
-        return (0xffu << 24) |
-            ((((r << 3) + (r >> 2)) & 0xffu) << 16) |
-            ((((g << 3) + (g >> 2)) & 0xffu) << 8) |
-            (((b << 3) + (b >> 2)) & 0xffu);
-    }
-    class Texture {
-    public:
-        Texture();
-        Texture(
-            const char *name,
-            int x, int y, int w, int h
-        );
-        inline const std::string &name() const {
-            return _name;
-        }
-        inline int x() const {
-            return _x;
-        }
-        inline int y() const {
-            return _y;
-        }
-        inline int w() const {
-            return _w;
-        }
-        inline int h() const {
-            return _h;
-        }
-        uint8_t scale() const;
-        bool createImage(uint8_t palette_index = 0);
-        void destroyImage();
-        uint32_t getColor(int scaledX, int scaledY) const;
-    private:
-        bimg::ImageContainer *_image;
-        std::string _name;
-        int _x, _y;
-        int _w, _h;
-    };
-    struct TiledTex {
-        TiledTex();
-        TiledTex(int x, int y, int w, int h);
-        int x, y;
-        int w, h;
-    };
-
-    uint8_t *_vram; // uint16_t[VRAM_WIDTH * VRAM_HEIGHT] aka uint8_t[VRAM_WIDTH * VRAM_HEIGHT * VRAM_DEPTH]
-    std::map<const uint8_t *, TiledTex> _tiledTexs;
-    ModdedTextureId _vramTextureIds[VRAM_WIDTH * VRAM_HEIGHT];
-    std::map<ModdedTextureId, Texture> _moddedTextures;
-    uint8_t _maxScaleCached;
+	uint8_t *_vram; // uint16_t[VRAM_WIDTH * VRAM_HEIGHT] aka uint8_t[VRAM_WIDTH * VRAM_HEIGHT * VRAM_DEPTH]
+	std::map<const uint8_t *, TiledTex> _tiledTexs;
+	ModdedTextureId _vramTextureIds[VRAM_WIDTH * VRAM_HEIGHT];
+	std::map<ModdedTextureId, Texture> _moddedTextures;
+	uint8_t _maxScaleCached;
 };
