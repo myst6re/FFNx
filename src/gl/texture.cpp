@@ -59,6 +59,8 @@ void gl_upload_texture(struct texture_set *texture_set, uint32_t palette_index, 
 	VOBJ(texture_set, texture_set, texture_set);
 	VOBJ(tex_header, tex_header, VREF(texture_set, tex_header));
 
+	ffnx_trace("%s is external %d\n", __func__, VREF(texture_set, ogl.external));
+
 	if(VREF(texture_set, ogl.external))
 	{
 		w = VREF(texture_set, ogl.width);

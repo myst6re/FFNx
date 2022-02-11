@@ -988,11 +988,16 @@ struct ff8_externals
 	int32_t (*check_game_is_paused)(int32_t);
 	uint32_t sub_470250;
 	uint32_t *ssigpu_callbacks_1;
+	uint32_t *ssigpu_callbacks_2;
 	uint32_t sub_462AD0;
 	uint32_t sub_462DF0;
 	uint32_t ssigpu_tx_select_2_sub_465CE0;
 	int (*sub_464F70)(int, int, int, int, int, int, int, int, int, uint8_t *);
-	void(*sub_4675C0)(uint8_t *, int, uint8_t *, int, signed int, int, int);
+	void(*read_vram_1)(uint8_t *, int, uint8_t *, int, signed int, int, int);
+	void(*read_vram_2_paletted)(uint8_t *, int, uint8_t *, int, signed int, int, int, uint16_t *);
+	void(*read_vram_3_paletted)(uint8_t *, uint8_t *, signed int, int, int, uint16_t *);
+	uint32_t sub_464DB0;
+	uint32_t sub_4649A0;
 	char *archive_path_prefix;
 	int(*fs_archive_search_filename)(const char *, ff8_file_fi_infos *, const ff8_file_container *);
 	int(*ff8_fs_archive_search_filename2)(const char *, ff8_file_fi_infos *, const ff8_file_container *);
