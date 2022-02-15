@@ -1293,6 +1293,8 @@ uint32_t load_external_texture(void* image_data, uint32_t dataSize, struct textu
 		{
 			driver_free(image_data_scaled);
 		}
+
+		return false;
 	}
 
 	if(texture)

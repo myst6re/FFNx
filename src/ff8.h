@@ -442,7 +442,7 @@ struct struc_50
 {
 	uint32_t initialized;
 	struct texture_page texture_page[8];
-	uint32_t field_324;
+	uint32_t vram_page_enabled;
 	uint32_t field_328;
 	uint32_t vram_needs_reload;
 	uint32_t field_330;

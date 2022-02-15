@@ -124,7 +124,7 @@ bool TexturePacker::drawModdedTextures(const uint8_t *texData, uint32_t paletteI
 		struct stat dummy;
 		const TiledTex &tex = _tiledTexs[texData];
 
-		if (tex.bpp == 0)
+		/* if (tex.bpp == 0)
 		{
 			snprintf(fileName, MAX_PATH, "texture-page-%d-%d.png", int(texData), paletteIndex);
 
@@ -134,11 +134,11 @@ bool TexturePacker::drawModdedTextures(const uint8_t *texData, uint32_t paletteI
 				targetH * scale,
 				target
 			);
-		}
+		} */
 		bool ret = drawModdedTextures(target, tex, targetW, targetH, scale, paletteIndex, paletteEntries);
 		// _tiledTexs.erase(texData);
 
-		if (tex.bpp == 0 && ret)
+		/* if (tex.bpp == 0 && ret)
 		{
 			snprintf(fileName, MAX_PATH, "modded-texture-%d-%d.png", int(texData), paletteIndex);
 
@@ -148,7 +148,7 @@ bool TexturePacker::drawModdedTextures(const uint8_t *texData, uint32_t paletteI
 				targetH * scale,
 				target
 			);
-		}
+		} */
 
 		return ret;
 	}
@@ -165,7 +165,6 @@ bool TexturePacker::drawModdedTextures(uint32_t *target, const TiledTex &tiledTe
 		return false;
 	}
 
-	uint32_t *target_origin = target;
 	int w = targetW;
 
 	if (tiledTex.bpp <= 2)
@@ -207,8 +206,6 @@ bool TexturePacker::drawModdedTextures(uint32_t *target, const TiledTex &tiledTe
 					Texture &texture = _moddedTextures[textureId];
 					int textureX = vramX - texture.x(),
 						textureY = vramY - texture.y();
-
-					ffnx_info("toto %d\n", texture.pal().x());
 
 					if (scale == 1)
 					{

@@ -33,6 +33,88 @@ int next_psxvram_y = -1;
 uint8_t next_bpp = 2;
 uint8_t next_scale = 1;
 
+#define BYTE_TO_BINARY_PATTERN "%c%c%c%c%c%c%c%c"
+#define BYTE_TO_BINARY(byte)  \
+  ((byte) & 0x80 ? '1' : '0'), \
+  ((byte) & 0x40 ? '1' : '0'), \
+  ((byte) & 0x20 ? '1' : '0'), \
+  ((byte) & 0x10 ? '1' : '0'), \
+  ((byte) & 0x08 ? '1' : '0'), \
+  ((byte) & 0x04 ? '1' : '0'), \
+  ((byte) & 0x02 ? '1' : '0'), \
+  ((byte) & 0x01 ? '1' : '0')
+
+
+void print_struct_50()
+{
+    struc_50 *struct_50 = (struc_50 *)0x1CB5D18;
+
+    for (int i = 0; i < 32; ++i)
+    {
+        const struc_50 &current = struct_50[i];
+
+        if (current.vram_page_enabled || current.initialized)
+        {
+            ffnx_info(
+                "texture %d\n"
+                "initialized = %X " BYTE_TO_BINARY_PATTERN BYTE_TO_BINARY_PATTERN BYTE_TO_BINARY_PATTERN BYTE_TO_BINARY_PATTERN "\n"
+                "vram_page_enabled = %X " BYTE_TO_BINARY_PATTERN BYTE_TO_BINARY_PATTERN BYTE_TO_BINARY_PATTERN BYTE_TO_BINARY_PATTERN "\n"
+                "field_328 = %X\n"
+                "vram_needs_reload = %d\n"
+                "field_330 = %X\n"
+                "vram_x = %d\n"
+                "vram_y = %d\n"
+                "vram_width = %d\n"
+                "vram_height = %d\n"
+                "vram_palette_data = %p\n"
+                "vram_palette_pos = %X\n"
+                "==\n",
+                i,
+                current.initialized, BYTE_TO_BINARY(current.initialized >> 24), BYTE_TO_BINARY(current.initialized >> 16), BYTE_TO_BINARY(current.initialized >> 8), BYTE_TO_BINARY(current.initialized >> 0),
+                current.vram_page_enabled, BYTE_TO_BINARY(current.vram_page_enabled >> 24), BYTE_TO_BINARY(current.vram_page_enabled >> 16), BYTE_TO_BINARY(current.vram_page_enabled >> 8), BYTE_TO_BINARY(current.vram_page_enabled >> 0),
+                current.field_328,
+                current.vram_needs_reload,
+                current.field_330,
+                current.vram_x,
+                current.vram_y,
+                current.vram_width,
+                current.vram_height,
+                current.vram_palette_data,
+                current.vram_palette_pos
+            );
+
+            /* for (int j = 0; j < 8; ++j)
+            {
+                const texture_page &tp = current.texture_page[j];
+
+                ffnx_info(
+                    "page %d\n"
+                    "field_0 %X\n"
+                    "x = %d\n"
+                    "y = %d\n"
+                    "width = %d\n"
+                    "height = %d\n"
+                    "color_key = %d\n"
+                    "u = %f\n"
+                    "v = %f\n"
+                    "field_20 = %X\n"
+                    "===\n",
+                    j,
+                    tp.field_0,
+                    tp.x,
+                    tp.y,
+                    tp.width,
+                    tp.height,
+                    tp.color_key,
+                    tp.u,
+                    tp.v,
+                    tp.field_20
+                );
+            } */
+        }
+    }
+}
+
 int ff8_upload_vram(int16_t *pos_and_size, uint8_t *texture_buffer)
 {
     const int x = pos_and_size[0];
@@ -43,6 +125,8 @@ int ff8_upload_vram(int16_t *pos_and_size, uint8_t *texture_buffer)
 
     if (trace_all || trace_vram) ffnx_trace("%s x=%d y=%d w=%d h=%d bpp=%d isPal=%d\n", __func__, x, y, w, h, next_bpp, isPal);
 
+    print_struct_50();
+
     texturePacker.setTexture(isPal ? last_texture_name : next_texture_name, texture_buffer, x, y, w, h, next_bpp, isPal);
 
     ff8_externals.sub_464850(x, y, x + w - 1, h + y - 1);
@@ -50,7 +134,90 @@ int ff8_upload_vram(int16_t *pos_and_size, uint8_t *texture_buffer)
     strncpy(last_texture_name, next_texture_name, MAX_PATH);
     *next_texture_name = '\0';
 
+    if (trace_all || trace_vram) ffnx_trace("%s after\n", __func__);
+
+    print_struct_50();
+
     return 1;
+}
+
+int ff8_wm_texl_palette_upload_vram(int16_t *pos_and_size, uint8_t *texture_buffer)
+{
+    int *dword_C75DB8 = (int *)0xC75DB8;
+    int texl_id = (*dword_C75DB8 >> 8) & 0xFF;
+
+    if (trace_all || trace_vram) ffnx_trace("%s texl_id=%d\n", __func__, texl_id);
+
+    return ff8_upload_vram(pos_and_size, texture_buffer);
+}
+
+int ff8_wm_texl_palette_upload_vram2(int16_t *pos_and_size, uint8_t *texture_buffer)
+{
+    int *dword_C75DB8 = (int *)0xC75DB8;
+    int texl_id = (*dword_C75DB8 >> 8) & 0xFF;
+
+    if (trace_all || trace_vram) ffnx_trace("%s texl_id=%d\n", __func__, texl_id);
+
+    return ff8_upload_vram(pos_and_size, texture_buffer);
+}
+
+int ff8_wm_draw_frame(void *a1)
+{
+    if (trace_all || trace_vram) ffnx_trace("%s\n", __func__);
+
+    return ((int(*)(void*))ff8_externals.sub_45D080)(a1);
+}
+
+void ff8_read_buffer_parent_parent()
+{
+    if (trace_all || trace_vram) ffnx_trace("%s\n", __func__);
+
+    //print_struct_50();
+
+    ((void(*)())ff8_externals.sub_464BD0)();
+
+    ffnx_info("%s after\n", __func__);
+    //print_struct_50();
+}
+
+void ff8_unknown_read_vram(void *a1)
+{
+    if (trace_all || trace_vram) ffnx_trace("%s\n", __func__);
+}
+
+void ff8_read_vram_1(int CLUT, int *target, int size)
+{
+    if (trace_all || trace_vram) ffnx_trace("%s CLUT=%d size=%d\n", __func__, CLUT, size);
+
+
+}
+
+int ff8_tx_select_call1(unsigned int a1, unsigned int header_with_bit_depth, int16_t CLUT_pos_x6y9, DWORD *a4, int *a5, DWORD *a6)
+{
+    if (trace_all || trace_vram) ffnx_trace("%s\n", __func__);
+
+    return ((int(*)(unsigned int a1, unsigned int, int16_t, DWORD *, int *, DWORD *))ff8_externals.ssigpu_tx_select_2_sub_465CE0)(a1, header_with_bit_depth, CLUT_pos_x6y9, a4, a5, a6);
+}
+
+int ff8_tx_select_call2(unsigned int a1, unsigned int header_with_bit_depth, int16_t CLUT_pos_x6y9, DWORD *a4, int *a5, DWORD *a6)
+{
+    if (trace_all || trace_vram) ffnx_trace("%s\n", __func__);
+
+    return ((int(*)(unsigned int a1, unsigned int, int16_t, DWORD *, int *, DWORD *))ff8_externals.ssigpu_tx_select_2_sub_465CE0)(a1, header_with_bit_depth, CLUT_pos_x6y9, a4, a5, a6);
+}
+
+int ff8_tx_select_call3(unsigned int a1, unsigned int header_with_bit_depth, int16_t CLUT_pos_x6y9, DWORD *a4, int *a5, DWORD *a6)
+{
+    if (trace_all || trace_vram) ffnx_trace("%s\n", __func__);
+
+    return ((int(*)(unsigned int a1, unsigned int, int16_t, DWORD *, int *, DWORD *))ff8_externals.ssigpu_tx_select_2_sub_465CE0)(a1, header_with_bit_depth, CLUT_pos_x6y9, a4, a5, a6);
+}
+
+int ff8_tx_select_call4(unsigned int a1, unsigned int header_with_bit_depth, int16_t CLUT_pos_x6y9, DWORD *a4, int *a5, DWORD *a6)
+{
+    if (trace_all || trace_vram) ffnx_trace("%s\n", __func__);
+
+    return ((int(*)(unsigned int a1, unsigned int, int16_t, DWORD *, int *, DWORD *))ff8_externals.ssigpu_tx_select_2_sub_465CE0)(a1, header_with_bit_depth, CLUT_pos_x6y9, a4, a5, a6);
 }
 
 int read_vram_to_buffer_parent_call1(int a1, int structure, int x, int y, int w, int h, int bpp, int rel_pos, int a9, uint8_t *target)
@@ -131,17 +298,14 @@ void read_vram_to_buffer(uint8_t *vram, int vram_w_2048, uint8_t *target, int ta
         texturePacker.registerTiledTex(target, next_psxvram_x, next_psxvram_y, bpp);
     }
 
-	int *dword_1CA8690 = (int *)0x1CA8690;
-
-	ffnx_info("%s: %d %d\n", __func__, *dword_1CA8690 & 0x3F, *dword_1CA8690 >> 6);
-
-
     ff8_externals.read_vram_1(vram, vram_w_2048, target, target_w, w, h, bpp);
 }
 
 void read_vram_to_buffer_with_palette1(uint8_t *vram, int vram_w_2048, uint8_t *target, int target_w, int w, int h, int bpp, uint16_t *vram_palette)
 {
-    if (trace_all || trace_vram) ffnx_trace("%s: vram_pos=(%d, %d) target=%X target_w=%d w=%d h=%d bpp=%d vram_palette=%X\n", __func__, next_psxvram_x, next_psxvram_y, int(target), target_w, w, h, bpp, int(vram_palette));
+    int *dword_1CA8690 = (int *)0x1CA8690;
+
+    if (trace_all || trace_vram) ffnx_trace("%s: vram_pos=(%d, %d) target=%X target_w=%d w=%d h=%d bpp=%d vram_palette=%X pal=(%d, %d)\n", __func__, next_psxvram_x, next_psxvram_y, int(target), target_w, w, h, bpp, int(vram_palette), *dword_1CA8690 & 0x3F, *dword_1CA8690 >> 6);
 
     if (next_psxvram_x == -1)
     {
@@ -151,10 +315,6 @@ void read_vram_to_buffer_with_palette1(uint8_t *vram, int vram_w_2048, uint8_t *
     {
         texturePacker.registerTiledTex(target, next_psxvram_x, next_psxvram_y, bpp);
     }
-
-	int *dword_1CA8690 = (int *)0x1CA8690;
-
-	ffnx_info("%s: %d %d\n", __func__, *dword_1CA8690 & 0x3F, *dword_1CA8690 >> 6);
 
     ff8_externals.read_vram_2_paletted(vram, vram_w_2048, target, target_w, w, h, bpp, vram_palette);
 }
@@ -246,7 +406,7 @@ uint32_t ff8_wm_open_texture2(uint8_t *pointer, ff8_tim *texture_infos)
     int *dword_C75DB8 = (int *)0xC75DB8;
 
     if (trace_all || trace_vram) ffnx_trace("%s C75DB8=%d\n", __func__, *dword_C75DB8);
-    *dword_C75DB8 = 0x0000;
+    //*dword_C75DB8 = 0x0000; // Force upload texl textures
 
     return ((uint32_t(*)(uint8_t*,ff8_tim*))0x541740)(pointer, texture_infos);
 }
@@ -256,7 +416,7 @@ uint32_t ff8_wm_open_texture3(uint8_t *pointer, ff8_tim *texture_infos)
     int *dword_C75DB8 = (int *)0xC75DB8;
 
     if (trace_all || trace_vram) ffnx_trace("%s C75DB8=%d\n", __func__, *dword_C75DB8);
-    *dword_C75DB8 = 0x0000;
+    //*dword_C75DB8 = 0x0000; // Force upload texl textures
 
     return ((uint32_t(*)(uint8_t*,ff8_tim*))0x541740)(pointer, texture_infos);
 }
@@ -266,7 +426,7 @@ uint32_t ff8_wm_open_texture4(uint8_t *pointer, ff8_tim *texture_infos)
     int *dword_C75DB8 = (int *)0xC75DB8;
 
     if (trace_all || trace_vram) ffnx_trace("%s C75DB8=%d\n", __func__, *dword_C75DB8);
-    *dword_C75DB8 = 0x0000;
+    //*dword_C75DB8 = 0x0000; // Force upload texl textures
 
     return ((uint32_t(*)(uint8_t*,ff8_tim*))0x541740)(pointer, texture_infos);
 }
@@ -278,7 +438,7 @@ uint32_t ff8_wm_open_texture5(uint8_t *pointer, ff8_tim *texture_infos)
 
     if (trace_all || trace_vram) ffnx_trace("%s C75DB8=%d\n", __func__, *dword_C75DB8);
 
-    *dword_C75DB8 = 0x0000;
+    //*dword_C75DB8 = 0x0000; // Force upload texl textures
 
     return ((uint32_t(*)(uint8_t*,ff8_tim*))0x541740)(pointer, texture_infos);
 }
@@ -289,7 +449,7 @@ uint32_t ff8_wm_open_texture6(uint8_t *pointer, ff8_tim *texture_infos)
     int *dword_C75DB8 = (int *)0xC75DB8;
 
     if (trace_all || trace_vram) ffnx_trace("%s C75DB8=%d\n", __func__, *dword_C75DB8);
-    *dword_C75DB8 = 0x0000;
+    //*dword_C75DB8 = 0x0000; // Force upload texl textures
 
     return ((uint32_t(*)(uint8_t*,ff8_tim*))0x541740)(pointer, texture_infos);
 }
@@ -299,9 +459,24 @@ uint32_t ff8_wm_open_texture7(uint8_t *pointer, ff8_tim *texture_infos)
     int *dword_C75DB8 = (int *)0xC75DB8;
 
     if (trace_all || trace_vram) ffnx_trace("%s C75DB8=%d\n", __func__, *dword_C75DB8);
-    *dword_C75DB8 = 0x0000;
+    //*dword_C75DB8 = 0x0000; // Force upload texl textures
 
     return ((uint32_t(*)(uint8_t*,ff8_tim*))0x541740)(pointer, texture_infos);
+}
+
+void set_vram_enabled2_sub_464B50(int a1, int header_with_bit_depth, uint16_t pos_x6y9, int a4, int a5, int a6)
+{
+    ffnx_trace("%s a1=%d header_with_bit_depth=%d (depth=%d ???=%d page=%d x=%d y=%d) pos_x6y9=(%d, %d) a4=%d a5=%d a6=%d\n", __func__, a1,
+        header_with_bit_depth, (((unsigned __int16)header_with_bit_depth >> 7) & 3), header_with_bit_depth & 0x60, header_with_bit_depth & 0x1F, (header_with_bit_depth & 0xF) << 6, 16 * (header_with_bit_depth & 0x10),
+        pos_x6y9 & 0x3F, (pos_x6y9 & 0x7FFF) >> 6, a4, a5, a6);
+
+    ((void(*)(int,int,uint16_t))0x464B50)(a1, header_with_bit_depth, pos_x6y9);
+}
+
+void crash(int a1, int a2, int a3, int a4, int a5)
+{
+    ffnx_trace("%s a1=%d a2=%d a3=%d a4=%d a5=%d", __func__, a1, a2, a3, a4, a5);
+    *((int *)0xFFFFFFFFF) = 42;
 }
 
 void vram_init()
@@ -323,6 +498,25 @@ void vram_init()
     */
 
     replace_function(ff8_externals.upload_psx_vram, ff8_upload_vram);
+
+    // wm texl project
+    replace_call(0x5533C0 + 0x2EC, ff8_wm_texl_palette_upload_vram);
+    replace_call(0x5533C0 + 0x3F0, ff8_wm_texl_palette_upload_vram2);
+
+    replace_call(0x559889, ff8_wm_draw_frame);
+    replace_call(ff8_externals.sub_45D080 + 0x208, ff8_read_buffer_parent_parent);
+    replace_function(0x466EE0, ff8_unknown_read_vram);
+
+    // replace_call(0x466180 + 0x2C, ff8_read_vram_1);
+
+    replace_call(0x462FB7, set_vram_enabled2_sub_464B50);
+    //replace_function(0x464B6E, crash);
+
+    /* replace_call(0x4610C1, ff8_tx_select_call1);
+    replace_call(0x461A4C, ff8_tx_select_call2);
+    replace_call(0x462E13, ff8_tx_select_call3);
+    replace_call(0x465CB8, ff8_tx_select_call4); */
+
 
     // read_vram_to_buffer_parent_calls
     replace_call(ff8_externals.sub_464BD0 + 0x53, read_vram_to_buffer_parent_call1);
