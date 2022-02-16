@@ -47,70 +47,69 @@ uint8_t next_scale = 1;
 
 void print_struct_50()
 {
-    struc_50 *struct_50 = (struc_50 *)0x1CB5D18;
-
-    for (int i = 0; i < 32; ++i)
+    for (int bpp = 0; bpp < 3; ++bpp)
     {
-        const struc_50 &current = struct_50[i];
+        ffnx_info("bpp = %d\n", bpp);
 
-        if (current.vram_page_enabled || current.initialized)
+        for (int i = 0; i < 32; ++i)
         {
-            ffnx_info(
-                "texture %d\n"
-                "initialized = %X " BYTE_TO_BINARY_PATTERN BYTE_TO_BINARY_PATTERN BYTE_TO_BINARY_PATTERN BYTE_TO_BINARY_PATTERN "\n"
-                "vram_page_enabled = %X " BYTE_TO_BINARY_PATTERN BYTE_TO_BINARY_PATTERN BYTE_TO_BINARY_PATTERN BYTE_TO_BINARY_PATTERN "\n"
-                "field_328 = %X\n"
-                "vram_needs_reload = %d\n"
-                "field_330 = %X\n"
-                "vram_x = %d\n"
-                "vram_y = %d\n"
-                "vram_width = %d\n"
-                "vram_height = %d\n"
-                "vram_palette_data = %p\n"
-                "vram_palette_pos = %X\n"
-                "==\n",
-                i,
-                current.initialized, BYTE_TO_BINARY(current.initialized >> 24), BYTE_TO_BINARY(current.initialized >> 16), BYTE_TO_BINARY(current.initialized >> 8), BYTE_TO_BINARY(current.initialized >> 0),
-                current.vram_page_enabled, BYTE_TO_BINARY(current.vram_page_enabled >> 24), BYTE_TO_BINARY(current.vram_page_enabled >> 16), BYTE_TO_BINARY(current.vram_page_enabled >> 8), BYTE_TO_BINARY(current.vram_page_enabled >> 0),
-                current.field_328,
-                current.vram_needs_reload,
-                current.field_330,
-                current.vram_x,
-                current.vram_y,
-                current.vram_width,
-                current.vram_height,
-                current.vram_palette_data,
-                current.vram_palette_pos
-            );
+            const struc_50 &current = ff8_externals.psx_texture_pages[bpp].struc_50_array[i];
 
-            /* for (int j = 0; j < 8; ++j)
+            if (current.texture_page_enabled || current.initialized)
             {
-                const texture_page &tp = current.texture_page[j];
-
                 ffnx_info(
-                    "page %d\n"
-                    "field_0 %X\n"
-                    "x = %d\n"
-                    "y = %d\n"
-                    "width = %d\n"
-                    "height = %d\n"
-                    "color_key = %d\n"
-                    "u = %f\n"
-                    "v = %f\n"
-                    "field_20 = %X\n"
-                    "===\n",
-                    j,
-                    tp.field_0,
-                    tp.x,
-                    tp.y,
-                    tp.width,
-                    tp.height,
-                    tp.color_key,
-                    tp.u,
-                    tp.v,
-                    tp.field_20
+                    "texture %d\n"
+                    "initialized = %X " BYTE_TO_BINARY_PATTERN BYTE_TO_BINARY_PATTERN BYTE_TO_BINARY_PATTERN BYTE_TO_BINARY_PATTERN "\n"
+                    "texture_page_enabled = %X " BYTE_TO_BINARY_PATTERN BYTE_TO_BINARY_PATTERN BYTE_TO_BINARY_PATTERN BYTE_TO_BINARY_PATTERN "\n"
+                    "field_328 = %X\n"
+                    "vram_needs_reload = %d\n"
+                    "field_330 = %X\n"
+                    "vram = (%d, %d, %d, %d)\n"
+                    "vram_palette_data = %p\n"
+                    "vram_palette_pos = %X\n"
+                    "==\n",
+                    i,
+                    current.initialized, BYTE_TO_BINARY(current.initialized >> 24), BYTE_TO_BINARY(current.initialized >> 16), BYTE_TO_BINARY(current.initialized >> 8), BYTE_TO_BINARY(current.initialized >> 0),
+                    current.texture_page_enabled, BYTE_TO_BINARY(current.texture_page_enabled >> 24), BYTE_TO_BINARY(current.texture_page_enabled >> 16), BYTE_TO_BINARY(current.texture_page_enabled >> 8), BYTE_TO_BINARY(current.texture_page_enabled >> 0),
+                    current.field_328,
+                    current.vram_needs_reload,
+                    current.field_330,
+                    current.vram_x,
+                    current.vram_y,
+                    current.vram_width,
+                    current.vram_height,
+                    current.vram_palette_data,
+                    current.vram_palette_pos
                 );
-            } */
+
+                for (int j = 0; j < 8; ++j)
+                {
+                    if (current.texture_page_enabled & (0x1 << j) || current.initialized & (0x1 << j))
+                    {
+                        const texture_page &tp = current.texture_page[j];
+
+                        ffnx_info(
+                            "page %d\n"
+                            "field_0 %X\n"
+                            "coord = (%d, %d, %d, %d)\n"
+                            "color_key = %d\n"
+                            "uv = (%f, %f)\n"
+                            "field_20 = %X\n"
+                            "===\n",
+                            j,
+                            tp.field_0,
+                            tp.x,
+                            tp.y,
+                            tp.width,
+                            tp.height,
+                            tp.color_key,
+                            tp.u,
+                            tp.v,
+                            tp.field_20
+                        );
+                    }
+                }
+            }
         }
     }
 }
@@ -176,7 +175,6 @@ void ff8_read_buffer_parent_parent()
 
     ((void(*)())ff8_externals.sub_464BD0)();
 
-    ffnx_info("%s after\n", __func__);
     //print_struct_50();
 }
 
@@ -192,32 +190,32 @@ void ff8_read_vram_1(int CLUT, int *target, int size)
 
 }
 
-int ff8_tx_select_call1(unsigned int a1, unsigned int header_with_bit_depth, int16_t CLUT_pos_x6y9, DWORD *a4, int *a5, DWORD *a6)
+int ff8_tx_select_call1(uint32_t a1, uint32_t header_with_bit_depth, int16_t CLUT_pos_x6y9, DWORD *a4, int *a5, DWORD *a6)
 {
     if (trace_all || trace_vram) ffnx_trace("%s\n", __func__);
 
-    return ((int(*)(unsigned int a1, unsigned int, int16_t, DWORD *, int *, DWORD *))ff8_externals.ssigpu_tx_select_2_sub_465CE0)(a1, header_with_bit_depth, CLUT_pos_x6y9, a4, a5, a6);
+    return ((int(*)(uint32_t a1, uint32_t, int16_t, DWORD *, int *, DWORD *))ff8_externals.ssigpu_tx_select_2_sub_465CE0)(a1, header_with_bit_depth, CLUT_pos_x6y9, a4, a5, a6);
 }
 
-int ff8_tx_select_call2(unsigned int a1, unsigned int header_with_bit_depth, int16_t CLUT_pos_x6y9, DWORD *a4, int *a5, DWORD *a6)
+int ff8_tx_select_call2(uint32_t a1, uint32_t header_with_bit_depth, int16_t CLUT_pos_x6y9, DWORD *a4, int *a5, DWORD *a6)
 {
     if (trace_all || trace_vram) ffnx_trace("%s\n", __func__);
 
-    return ((int(*)(unsigned int a1, unsigned int, int16_t, DWORD *, int *, DWORD *))ff8_externals.ssigpu_tx_select_2_sub_465CE0)(a1, header_with_bit_depth, CLUT_pos_x6y9, a4, a5, a6);
+    return ((int(*)(uint32_t a1, uint32_t, int16_t, DWORD *, int *, DWORD *))ff8_externals.ssigpu_tx_select_2_sub_465CE0)(a1, header_with_bit_depth, CLUT_pos_x6y9, a4, a5, a6);
 }
 
-int ff8_tx_select_call3(unsigned int a1, unsigned int header_with_bit_depth, int16_t CLUT_pos_x6y9, DWORD *a4, int *a5, DWORD *a6)
+int ff8_tx_select_call3(uint32_t a1, uint32_t header_with_bit_depth, int16_t CLUT_pos_x6y9, DWORD *a4, int *a5, DWORD *a6)
 {
     if (trace_all || trace_vram) ffnx_trace("%s\n", __func__);
 
-    return ((int(*)(unsigned int a1, unsigned int, int16_t, DWORD *, int *, DWORD *))ff8_externals.ssigpu_tx_select_2_sub_465CE0)(a1, header_with_bit_depth, CLUT_pos_x6y9, a4, a5, a6);
+    return ((int(*)(uint32_t a1, uint32_t, int16_t, DWORD *, int *, DWORD *))ff8_externals.ssigpu_tx_select_2_sub_465CE0)(a1, header_with_bit_depth, CLUT_pos_x6y9, a4, a5, a6);
 }
 
-int ff8_tx_select_call4(unsigned int a1, unsigned int header_with_bit_depth, int16_t CLUT_pos_x6y9, DWORD *a4, int *a5, DWORD *a6)
+int ff8_tx_select_call4(uint32_t a1, uint32_t header_with_bit_depth, int16_t CLUT_pos_x6y9, DWORD *a4, int *a5, DWORD *a6)
 {
     if (trace_all || trace_vram) ffnx_trace("%s\n", __func__);
 
-    return ((int(*)(unsigned int a1, unsigned int, int16_t, DWORD *, int *, DWORD *))ff8_externals.ssigpu_tx_select_2_sub_465CE0)(a1, header_with_bit_depth, CLUT_pos_x6y9, a4, a5, a6);
+    return ((int(*)(uint32_t a1, uint32_t, int16_t, DWORD *, int *, DWORD *))ff8_externals.ssigpu_tx_select_2_sub_465CE0)(a1, header_with_bit_depth, CLUT_pos_x6y9, a4, a5, a6);
 }
 
 int read_vram_to_buffer_parent_call1(int a1, int structure, int x, int y, int w, int h, int bpp, int rel_pos, int a9, uint8_t *target)
@@ -464,7 +462,7 @@ uint32_t ff8_wm_open_texture7(uint8_t *pointer, ff8_tim *texture_infos)
     return ((uint32_t(*)(uint8_t*,ff8_tim*))0x541740)(pointer, texture_infos);
 }
 
-void set_vram_enabled2_sub_464B50(int a1, int header_with_bit_depth, uint16_t pos_x6y9, int a4, int a5, int a6)
+void set_texture_page_enabled2_sub_464B50(int a1, int header_with_bit_depth, uint16_t pos_x6y9, int a4, int a5, int a6)
 {
     ffnx_trace("%s a1=%d header_with_bit_depth=%d (depth=%d ???=%d page=%d x=%d y=%d) pos_x6y9=(%d, %d) a4=%d a5=%d a6=%d\n", __func__, a1,
         header_with_bit_depth, (((unsigned __int16)header_with_bit_depth >> 7) & 3), header_with_bit_depth & 0x60, header_with_bit_depth & 0x1F, (header_with_bit_depth & 0xF) << 6, 16 * (header_with_bit_depth & 0x10),
@@ -477,6 +475,175 @@ void crash(int a1, int a2, int a3, int a4, int a5)
 {
     ffnx_trace("%s a1=%d a2=%d a3=%d a4=%d a5=%d", __func__, a1, a2, a3, a4, a5);
     *((int *)0xFFFFFFFFF) = 42;
+}
+
+void __cdecl display_texture_related_2_sub_45D070(void *funct_param0)
+{
+    void (__cdecl *func1)(int8_t *); // eax
+    void (__cdecl *func3)(int8_t *); // eax
+    void (__cdecl *func0)(int8_t *); // eax
+    void (__cdecl *func2)(int8_t *); // eax
+
+    if ((dword_1CA8500 - 0x1C48500) / 24 < 0x4000)
+    {
+        dword_1CA8558 = 0;
+
+        if (funct_param0 == (void *)-1)
+        {
+            funct_param0 = pointer_to_something_dword_1B474E0;
+        }
+
+        pointer_to_something_dword_1B474E0 = funct_param0;
+
+        void *funct_param2 = funct_param0;
+
+        while (funct_param2 < (void *)0x1C48500 || funct_param2 >= (void *)0x1CA8500)
+        {
+            int v14 = sub_45D040(funct_param2);
+
+            if (!v14) {
+                return;
+            }
+
+            funct_param2 = *(void **)funct_param2;
+            *(int32_t *)(v14 + 4) = 1;
+
+            if (((uint32_t)funct_param2 & 0xFFFFFF) == 0xFFFFFF)
+            {
+                goto LABEL_38;
+            }
+
+LABEL_37:
+            if (! funct_param2)
+            {
+                goto LABEL_38;
+            }
+        }
+
+        int32_t *v3 = *(int32_t **)funct_param2;
+        int8_t *v4 = funct_param2;
+        int8_t *func_param_3 = *(int8_t **)funct_param2;
+        dword_1CA8688 = HIBYTE(*v3);
+
+        while (dword_1CA8688 > 0)
+        {
+            int v7 = 1;
+            int func_id = (uint8_t)func_param_3[7];
+
+            if (func_param_3[7])
+            {
+                if ((v4[20] & 1) != 0)
+                {
+                    dword_B7CC00 = dword_B7CC0C;
+                    dword_B7CC04 = dword_B7CC10;
+                    dword_1CA86D4 = 1;
+                    dword_B7CC1C = 16;
+                }
+                else
+                {
+                    dword_B7CC00 = dword_B7CC14;
+                    dword_B7CC04 = dword_B7CC18;
+                    dword_1CA86D4 = 0;
+                    dword_B7CC1C = 13;
+                }
+
+                if ((dword_1CA86E4 & 2) != 0)
+                {
+                    func1 = (void (__cdecl *)(int8_t *))pointer_to_func_dword_B7DC18[func_id];
+
+                    if (func1)
+                    {
+                        func1(func_param_3);
+                    }
+                }
+
+                func3 = nullptr;
+
+                if (callback_enabled_byte_B7CD28[func_id])
+                {
+                    if ((dword_1CA86E4 & 1) != 0)
+                    {
+                        if (dword_B7CC24)
+                        {
+                            func0 = (void (__cdecl *)(int8_t *))pointer_to_func2_dword_B7D708[func_id];
+
+                            if (func0)
+                            {
+                                func0(func_param_3);
+                            }
+                        }
+
+                        if (dword_1CA8528)
+                        {
+                            func2 = (void (__cdecl *)(int8_t *))pointer_to_func_dword_B7DC18[func_id];
+
+                            if (func2)
+                            {
+                                func2(func_param_3);
+                            }
+
+                            if (dword_1CA8528)
+                            {
+                                func3 = (void (__cdecl *)(int8_t *))pointer_to_func_dword_B7DC18[func_id];
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    func3 = (void (__cdecl *)(int8_t *))pointer_to_func2_dword_B7D708[func_id];
+                }
+
+                if (func3)
+                {
+                    func3(func_param_3);
+                }
+
+                v7 = (uint8_t)byte_B7CC28[func_id];
+
+                if (! v7)
+                {
+                    v7 = 1;
+                }
+            }
+
+            dword_1CA8688 -= v7;
+            func_param_3 += 4 * v7;
+        }
+
+        if ((*v3 & 0xFFFFFF) != 0xFFFFFF)
+        {
+            funct_param2 = (void *)((*v3 & 0xFFFFFF) | ((uint8_t)funct_param2[22] << 24));
+
+            goto LABEL_37;
+        }
+
+LABEL_38:
+        if (dword_B7CC24)
+        {
+            psxvram_read_to_buffer_parent_parent_sub_464BC0();
+            dword_B7CC20 = 1;
+            sub_460C10();
+            sub_45D300(funct_param0, ssigpu_callbacks_dword_B7CF08);
+            sub_460CD0();
+            dword_B7CC20 = 0;
+            sub_460C10();
+            sub_45D300(funct_param0, pointer_to_func_off_B7D308);
+            sub_460CD0();
+            dword_B7CC20 = 1;
+        }
+    }
+
+    dword_1CA8500 = 0x1C48500;
+
+    if (dword_1CA867C)
+    {
+        dword_1CA867C = 0;
+    }
+
+    dword_1CA8528 = 0;
+    dword_1CA868C = 0;
+    dword_1CA8684 = 0;
 }
 
 void vram_init()
@@ -503,13 +670,13 @@ void vram_init()
     replace_call(0x5533C0 + 0x2EC, ff8_wm_texl_palette_upload_vram);
     replace_call(0x5533C0 + 0x3F0, ff8_wm_texl_palette_upload_vram2);
 
-    replace_call(0x559889, ff8_wm_draw_frame);
-    replace_call(ff8_externals.sub_45D080 + 0x208, ff8_read_buffer_parent_parent);
-    replace_function(0x466EE0, ff8_unknown_read_vram);
+    //replace_call(0x559889, ff8_wm_draw_frame);
+    //replace_call(ff8_externals.sub_45D080 + 0x208, ff8_read_buffer_parent_parent);
+    //replace_function(0x466EE0, ff8_unknown_read_vram);
 
     // replace_call(0x466180 + 0x2C, ff8_read_vram_1);
 
-    replace_call(0x462FB7, set_vram_enabled2_sub_464B50);
+    replace_call(0x462FB7, set_texture_page_enabled2_sub_464B50);
     //replace_function(0x464B6E, crash);
 
     /* replace_call(0x4610C1, ff8_tx_select_call1);

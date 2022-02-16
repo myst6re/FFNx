@@ -442,7 +442,7 @@ struct struc_50
 {
 	uint32_t initialized;
 	struct texture_page texture_page[8];
-	uint32_t vram_page_enabled;
+	uint32_t texture_page_enabled;
 	uint32_t field_328;
 	uint32_t vram_needs_reload;
 	uint32_t field_330;
@@ -877,7 +877,7 @@ struct ff8_externals
 	uint32_t upload_psx_vram;
 	void (*sub_464850)(uint32_t, uint32_t, uint32_t, uint32_t);
 	WORD *psxvram_buffer;
-	struct struc_51 *psx_texture_pages;
+	struct struc_51 *psx_texture_pages; // One per bpp (bpp 4, 8 and 16)
 	uint32_t read_field_data;
 	uint32_t upload_mim_file;
 	char *field_filename;
