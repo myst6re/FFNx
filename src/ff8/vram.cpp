@@ -477,7 +477,9 @@ void crash(int a1, int a2, int a3, int a4, int a5)
     *((int *)0xFFFFFFFFF) = 42;
 }
 
-void __cdecl display_texture_related_2_sub_45D070(void *funct_param0)
+typedef void FuncParam;
+
+void __cdecl display_texture_related_2_sub_45D070(FuncParam *funct_param0)
 {
     void (__cdecl *func1)(int8_t *); // eax
     void (__cdecl *func3)(int8_t *); // eax
@@ -490,138 +492,156 @@ void __cdecl display_texture_related_2_sub_45D070(void *funct_param0)
 
         if (funct_param0 == (void *)-1)
         {
-            funct_param0 = pointer_to_something_dword_1B474E0;
+            funct_param0 = previous_funct_param_dword_1B474E0;
         }
 
-        pointer_to_something_dword_1B474E0 = funct_param0;
+        previous_funct_param_dword_1B474E0 = funct_param0;
 
-        void *funct_param2 = funct_param0;
+        FuncParam *funct_param_cur = funct_param0;
 
-        while (funct_param2 < (void *)0x1C48500 || funct_param2 >= (void *)0x1CA8500)
+        do
         {
-            int v14 = sub_45D040(funct_param2);
-
-            if (!v14) {
-                return;
-            }
-
-            funct_param2 = *(void **)funct_param2;
-            *(int32_t *)(v14 + 4) = 1;
-
-            if (((uint32_t)funct_param2 & 0xFFFFFF) == 0xFFFFFF)
+            while (funct_param_cur < (FuncParam *)0x1C48500 || funct_param_cur >= (FuncParam *)0x1CA8500)
             {
-                goto LABEL_38;
-            }
+                int32_t *sub_45D040_return_value = sub_45D040(funct_param_cur);
 
-LABEL_37:
-            if (! funct_param2)
-            {
-                goto LABEL_38;
-            }
-        }
-
-        int32_t *v3 = *(int32_t **)funct_param2;
-        int8_t *v4 = funct_param2;
-        int8_t *func_param_3 = *(int8_t **)funct_param2;
-        dword_1CA8688 = HIBYTE(*v3);
-
-        while (dword_1CA8688 > 0)
-        {
-            int v7 = 1;
-            int func_id = (uint8_t)func_param_3[7];
-
-            if (func_param_3[7])
-            {
-                if ((v4[20] & 1) != 0)
+                if (sub_45D040_return_value == nullptr)
                 {
-                    dword_B7CC00 = dword_B7CC0C;
-                    dword_B7CC04 = dword_B7CC10;
-                    dword_1CA86D4 = 1;
-                    dword_B7CC1C = 16;
-                }
-                else
-                {
-                    dword_B7CC00 = dword_B7CC14;
-                    dword_B7CC04 = dword_B7CC18;
-                    dword_1CA86D4 = 0;
-                    dword_B7CC1C = 13;
+                    return;
                 }
 
-                if ((dword_1CA86E4 & 2) != 0)
-                {
-                    func1 = (void (__cdecl *)(int8_t *))pointer_to_func_dword_B7DC18[func_id];
+                sub_45D040_return_value[1] = 1;
 
-                    if (func1)
+                funct_param_cur = *(FuncParam **)funct_param_cur;
+
+                if (funct_param_cur == nullptr || (uint32_t(funct_param_cur) & 0xFFFFFF) == 0xFFFFFF)
+                {
+                    break 2;
+                }
+            }
+
+            uint8_t *funct_param_cur4 = funct_param_cur;
+            int32_t *funct_param_deref1 = *(int32_t **)funct_param_cur;
+            uint8_t *funct_param_deref1_cur = *(int8_t **)funct_param_cur;
+            max_size_dword_1CA8688 = funct_param_deref1_cur[1];
+
+            /*
+            funct_param_deref1
+            u8 field0;
+            u8 size;
+            u8 field2;
+            u8 field3;
+
+            u8 field4;
+            u8 field5;
+            u8 field6;
+            u8 func_id;
+            */
+
+            while (max_size_dword_1CA8688 > 0)
+            {
+                int op_size = 1;
+                int func_id = funct_param_deref1_cur[7];
+
+                if (func_id != 0)
+                {
+                    if ((funct_param_cur4[20] & 1) != 0)
                     {
-                        func1(func_param_3);
+                        dword_B7CC00 = dword_B7CC0C;
+                        dword_B7CC04 = dword_B7CC10;
+                        dword_1CA86D4 = 1;
+                        dword_B7CC1C = 16;
+                    }
+                    else
+                    {
+                        dword_B7CC00 = dword_B7CC14;
+                        dword_B7CC04 = dword_B7CC18;
+                        dword_1CA86D4 = 0;
+                        dword_B7CC1C = 13;
+                    }
+
+                    if ((dword_1CA86E4 & 2) != 0)
+                    {
+                        func1 = (void (__cdecl *)(int8_t *))pointer_to_func_dword_B7DC18[func_id];
+
+                        if (func1 != nullptr)
+                        {
+                            func1(funct_param_deref1_cur);
+                        }
+                    }
+
+                    func3 = nullptr;
+
+                    if (ssigpu_callback_enabled_byte_B7CD28[func_id])
+                    {
+                        if ((dword_1CA86E4 & 1) != 0)
+                        {
+                            if (dword_B7CC24 != 0)
+                            {
+                                func0 = (void (__cdecl *)(int8_t *))pointer_to_func2_dword_B7D708[func_id];
+
+                                if (func0 != nullptr)
+                                {
+                                    func0(funct_param_deref1_cur);
+                                }
+                            }
+
+                            if (dword_1CA8528 != 0)
+                            {
+                                func2 = (void (__cdecl *)(int8_t *))pointer_to_func_dword_B7DC18[func_id];
+
+                                if (func2 != nullptr)
+                                {
+                                    func2(funct_param_deref1_cur);
+                                }
+
+                                // Do it twice?
+                                if (dword_1CA8528 != 0)
+                                {
+                                    func3 = (void (__cdecl *)(int8_t *))pointer_to_func_dword_B7DC18[func_id];
+
+                                    if (func3 != nullptr)
+                                    {
+                                        func3(funct_param_deref1_cur);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    else
+                    {
+                        func3 = (void (__cdecl *)(int8_t *))pointer_to_func2_dword_B7D708[func_id];
+
+                        if (func3 != nullptr)
+                        {
+                            func3(funct_param_deref1_cur);
+                        }
+                    }
+
+                    op_size = (uint8_t)ssigpu_op_size_byte_B7CC28[func_id];
+
+                    if (op_size == 0)
+                    {
+                        op_size = 1;
                     }
                 }
 
-                func3 = nullptr;
-
-                if (callback_enabled_byte_B7CD28[func_id])
-                {
-                    if ((dword_1CA86E4 & 1) != 0)
-                    {
-                        if (dword_B7CC24)
-                        {
-                            func0 = (void (__cdecl *)(int8_t *))pointer_to_func2_dword_B7D708[func_id];
-
-                            if (func0)
-                            {
-                                func0(func_param_3);
-                            }
-                        }
-
-                        if (dword_1CA8528)
-                        {
-                            func2 = (void (__cdecl *)(int8_t *))pointer_to_func_dword_B7DC18[func_id];
-
-                            if (func2)
-                            {
-                                func2(func_param_3);
-                            }
-
-                            if (dword_1CA8528)
-                            {
-                                func3 = (void (__cdecl *)(int8_t *))pointer_to_func_dword_B7DC18[func_id];
-                            }
-                        }
-                    }
-                }
-                else
-                {
-                    func3 = (void (__cdecl *)(int8_t *))pointer_to_func2_dword_B7D708[func_id];
-                }
-
-                if (func3)
-                {
-                    func3(func_param_3);
-                }
-
-                v7 = (uint8_t)byte_B7CC28[func_id];
-
-                if (! v7)
-                {
-                    v7 = 1;
-                }
+                max_size_dword_1CA8688 -= op_size;
+                funct_param_deref1_cur += 4 * op_size;
             }
 
-            dword_1CA8688 -= v7;
-            func_param_3 += 4 * v7;
+            if ((*funct_param_deref1 & 0xFFFFFF) == 0xFFFFFF)
+            {
+                break;
+            }
+
+            funct_param_cur = (void *)((*funct_param_deref1 & 0xFFFFFF) | (uint8_t(funct_param_cur[22]) << 24));
         }
+        while (funct_param_cur != nullptr);
 
-        if ((*v3 & 0xFFFFFF) != 0xFFFFFF)
+        if (dword_B7CC24 != 0)
         {
-            funct_param2 = (void *)((*v3 & 0xFFFFFF) | ((uint8_t)funct_param2[22] << 24));
-
-            goto LABEL_37;
-        }
-
-LABEL_38:
-        if (dword_B7CC24)
-        {
-            psxvram_read_to_buffer_parent_parent_sub_464BC0();
+            ff8_read_buffer_parent_parent();
             dword_B7CC20 = 1;
             sub_460C10();
             sub_45D300(funct_param0, ssigpu_callbacks_dword_B7CF08);
@@ -636,7 +656,7 @@ LABEL_38:
 
     dword_1CA8500 = 0x1C48500;
 
-    if (dword_1CA867C)
+    if (dword_1CA867C != 0)
     {
         dword_1CA867C = 0;
     }
