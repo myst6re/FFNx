@@ -1279,7 +1279,7 @@ uint32_t load_external_texture(void* image_data, uint32_t dataSize, struct textu
 			}
 		}
 
-		if (image_data_scaled != nullptr && texturePacker.drawModdedTextures(VREF(tex_header, image_data), VREF(tex_header, palette_index), VREF(tex_header, palette_entries), (uint32_t *)image_data_scaled, originalWidth, originalHeight, scale))
+		if (image_data_scaled != nullptr && texturePacker.drawModdedTextures(VREF(tex_header, image_data), tex_format->palette_data, VREF(tex_header, palette_index), VREF(tex_header, palette_entries), (uint32_t *)image_data_scaled, originalWidth, originalHeight, scale))
 		{
 			//texture = newRenderer.createTexture(image_data_scaled, originalWidth * scale, originalHeight * scale);
 		}

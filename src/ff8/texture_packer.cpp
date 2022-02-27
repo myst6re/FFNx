@@ -91,6 +91,30 @@ void TexturePacker::setTexture(const char *name, const uint8_t *source, int x, i
 	updateMaxScale();
 }
 
+bool TexturePacker::hasTexture(const char *name, int x, int y, int w, int h)
+{
+	for (int i = 0; i < h; ++i)
+	{
+		int vramY = y + i;
+
+		for (int j = 0; j < w; ++j)
+		{
+			int vramX = x + j;
+			ModdedTextureId textureId = _vramTextureIds[vramY * VRAM_WIDTH + vramX];
+
+			if (
+				textureId != INVALID_TEXTURE && _moddedTextures.contains(textureId)
+				&& _moddedTextures[textureId].name().compare(name) == 0
+			)
+			{
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
 void TexturePacker::updateMaxScale()
 {
 	_maxScaleCached = 1;
@@ -108,7 +132,7 @@ void TexturePacker::updateMaxScale()
 	if (trace_all || trace_vram) ffnx_trace("TexturePacker::%s scale=%d\n", __func__, _maxScaleCached);
 }
 
-bool TexturePacker::drawModdedTextures(const uint8_t *texData, uint32_t paletteIndex, uint32_t paletteEntries, uint32_t *target, int targetW, int targetH, uint8_t scale)
+bool TexturePacker::drawModdedTextures(const uint8_t *texData, const uint32_t *paletteData, uint32_t paletteIndex, uint32_t paletteEntries, uint32_t *target, int targetW, int targetH, uint8_t scale)
 {
 	if (trace_all || trace_vram) ffnx_trace("TexturePacker::%s pointer=0x%X paletteIndex=%d, paletteEntries=%d\n", __func__, texData, paletteIndex, paletteEntries);
 
@@ -117,6 +141,23 @@ bool TexturePacker::drawModdedTextures(const uint8_t *texData, uint32_t paletteI
 	{
 		return false;
 	} */
+
+	if (paletteData && paletteEntries > 0)
+	{
+		for (int i = 0; i < 16; ++i)
+		{
+			uint32_t color = paletteData[paletteIndex + i];
+			ffnx_trace(
+				"TexturePacker::%s: tex palette %i (%X, %X, %X, %X)\n",
+				__func__,
+				i,
+				color >> 24,
+				(color >> 16) & 0xFF,
+				(color >> 8) & 0xFF,
+				color & 0xFF
+			);
+		}
+	}
 
 	if (_tiledTexs.contains(texData))
 	{
@@ -135,7 +176,7 @@ bool TexturePacker::drawModdedTextures(const uint8_t *texData, uint32_t paletteI
 				target
 			);
 		} */
-		bool ret = drawModdedTextures(target, tex, targetW, targetH, scale, paletteIndex, paletteEntries);
+		bool ret = drawModdedTextures(target, paletteData, tex, targetW, targetH, scale, paletteIndex, paletteEntries);
 		// _tiledTexs.erase(texData);
 
 		/* if (tex.bpp == 0 && ret)
@@ -158,13 +199,14 @@ bool TexturePacker::drawModdedTextures(const uint8_t *texData, uint32_t paletteI
 	return false;
 }
 
-bool TexturePacker::drawModdedTextures(uint32_t *target, const TiledTex &tiledTex, int targetW, int targetH, uint8_t scale, uint32_t paletteIndex, uint32_t paletteEntries)
+bool TexturePacker::drawModdedTextures(uint32_t *target, const uint32_t *paletteData, const TiledTex &tiledTex, int targetW, int targetH, uint8_t scale, uint32_t paletteIndex, uint32_t paletteEntries)
 {
 	if (_moddedTextures.empty())
 	{
 		return false;
 	}
 
+	uint32_t *origTarget = target;
 	int w = targetW;
 
 	if (tiledTex.bpp <= 2)
@@ -269,8 +311,8 @@ bool TexturePacker::drawModdedTextures(uint32_t *target, const TiledTex &tiledTe
 			const Texture &texture = _moddedTextures[textureId];
 
 			if (trace_all || trace_vram) ffnx_trace(
-				"%s: save %s pos=(%d %d) size=(%d %d) pal_pos(%d %d) pal_size(%d %d)\n", __func__,
-				texture.name().c_str(), texture.x(), texture.y(), texture.w(), texture.h(), texture.pal().x(), texture.pal().y(), texture.pal().w(), texture.pal().h()
+				"%s: save %s pos=(%d %d) size=(%d %d) color_key=%d pal_pos(%d %d) pal_size(%d %d)\n", __func__,
+				texture.name().c_str(), texture.x(), texture.y(), texture.w(), texture.h(), texture.bpp(), texture.pal().x(), texture.pal().y(), texture.pal().w(), texture.pal().h()
 			);
 
 			uint8_t *data = (uint8_t *)driver_malloc(texture.w() * texture.h() * VRAM_DEPTH),
@@ -295,11 +337,47 @@ bool TexturePacker::drawModdedTextures(uint32_t *target, const TiledTex &tiledTe
 					ffnx_warning("%s: palette overflow\n", __func__);
 					palDataCursor = palData;
 				}
+
+				ffnx_trace("TexturePacker::%s: tim pal infos: (%d, %d, %d, %d)\n",
+					__func__, pal.x(), pal.y(), pal.w(), pal.h());
+
+				for (int j = 0 ; j < pal.h(); ++j)
+				{
+					for (int i = 0; i < pal.w(); ++i)
+					{
+						uint32_t color = fromR5G5B5Color(palData[j * pal.w() + i]);
+						ffnx_trace(
+							"TexturePacker::%s: tim palette %X %X (%X, %X, %X, %X)\n",
+							__func__,
+							j,
+							i,
+							(color >> 24) & 0xFF,
+							(color >> 16) & 0xFF,
+							(color >> 8) & 0xFF,
+							color & 0xFF
+						);
+					}
+				}
 			}
 
 			ff8_tim tim = texture.toTim(data, (uint16_t *)palDataCursor);
 
 			save_tim(texture.name().c_str(), texture.bpp(), &tim, paletteIndex);
+
+			char fileName[MAX_PATH];
+			snprintf(fileName, MAX_PATH, "%s-tex", texture.name().c_str());
+
+			uint32_t *noAlpha = (uint32_t *)driver_malloc(targetW * targetH * sizeof(uint32_t));
+			for (int i = 0; i < targetW * targetH; ++i)
+			{
+				noAlpha[i] = 0xFF000000 | (origTarget[i] & 0xFFFFFF); // Force alpha
+			}
+
+			ffnx_info("test %d %d\n", target - origTarget, (uint8_t*)target - (uint8_t*)origTarget);
+
+			save_texture(noAlpha, targetW * targetH * sizeof(uint32_t), targetW, targetH, paletteIndex, fileName, false);
+
+			driver_free(noAlpha);
 
 			driver_free(data);
 			if (palData != nullptr)
@@ -307,10 +385,6 @@ bool TexturePacker::drawModdedTextures(uint32_t *target, const TiledTex &tiledTe
 				driver_free(palData);
 			}
 		}
-
-		ffnx_trace(
-				"%s2\n", __func__
-			);
 
 		return false;
 	}
@@ -340,37 +414,31 @@ void TexturePacker::registerTiledTex(uint8_t *target, int x, int y, uint8_t bpp)
 	_tiledTexs[target] = TiledTex(x, y, bpp);
 }
 
-bool TexturePacker::saveVram(const char *fileName) const
+void TexturePacker::saveVram(const char *fileName, uint8_t bpp) const
 {
-	uint32_t *vram = new uint32_t[VRAM_WIDTH * VRAM_HEIGHT];
-	vramToR8G8B8(vram);
+	uint16_t palette[256] = {};
 
-	bool ret = newRenderer.saveTexture(
-		fileName,
-		VRAM_WIDTH,
-		VRAM_HEIGHT,
-		vram
-	);
+	ff8_tim tim_infos = ff8_tim();
 
-	delete[] vram;
+	tim_infos.img_data = _vram;
+	tim_infos.img_w = VRAM_WIDTH;
+	tim_infos.img_h = VRAM_HEIGHT;
 
-	return ret;
-}
-
-void TexturePacker::vramToR8G8B8(uint32_t *output) const
-{
-	uint16_t *vram = (uint16_t *)_vram;
-
-	for (int y = 0; y < VRAM_HEIGHT; ++y)
+	if (bpp < 2)
 	{
-		for (int x = 0; x < VRAM_WIDTH; ++x)
-		{
-			*output = fromR5G5B5Color(*vram);
+		tim_infos.pal_data = palette;
+		tim_infos.pal_h = 1;
+		tim_infos.pal_w = bpp == 0 ? 16 : 256;
 
-			++output;
-			++vram;
+		// Greyscale palette
+		for (int i = 0; i < tim_infos.pal_w; ++i)
+		{
+			uint8_t color = bpp == 0 ? i * 16 : i;
+			palette[i] = color | (color << 5) | (color << 10);
 		}
 	}
+
+	save_tim(fileName, bpp, &tim_infos, bpp);
 }
 
 TexturePacker::TextureInfos::TextureInfos() :
