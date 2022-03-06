@@ -513,6 +513,13 @@ void ff8_upload_vram_triple_triad_2(int16_t *pos_and_size, uint8_t *texture_buff
     ff8_upload_vram(pos_and_size, texture_buffer);
 }
 
+void ff8_upload_vram_triple_triad_3(int16_t *pos_and_size, uint8_t *texture_buffer)
+{
+    if (trace_all || trace_vram) ffnx_trace("%s %p\n", __func__, texture_buffer);
+
+    ff8_upload_vram(pos_and_size, texture_buffer);
+}
+
 void ff8_wm_open_pal1(int16_t *pos_and_size, uint8_t *texture_buffer)
 {
     if (trace_all || trace_vram) ffnx_trace("%s %p\n", __func__, texture_buffer);
@@ -867,6 +874,7 @@ void vram_init()
     // Triple Triad
     replace_call(0x538BA9, ff8_upload_vram_triple_triad_1);
     replace_call(0x538D2C, ff8_upload_vram_triple_triad_2);
+    replace_call(0x538D41, ff8_upload_vram_triple_triad_3);
 
     replace_function(ff8_externals.upload_psx_vram, ff8_upload_vram);
 
