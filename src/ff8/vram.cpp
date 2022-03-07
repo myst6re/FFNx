@@ -26,7 +26,6 @@
 #include "../image/tim.h"
 
 char next_texture_name[MAX_PATH] = "";
-char last_texture_name[MAX_PATH] = "";
 uint16_t *next_pal_data = nullptr;
 int next_psxvram_x = -1;
 int next_psxvram_y = -1;
@@ -160,11 +159,10 @@ void ff8_upload_vram(int16_t *pos_and_size, uint8_t *texture_buffer)
 
     if (trace_all || trace_vram) ffnx_trace("%s x=%d y=%d w=%d h=%d bpp=%d isPal=%d\n", __func__, x, y, w, h, next_bpp, isPal);
 
-    texturePacker.setTexture(isPal ? last_texture_name : next_texture_name, texture_buffer, x, y, w, h, next_bpp, isPal);
+    texturePacker.setTexture(next_texture_name, texture_buffer, x, y, w, h, next_bpp, isPal);
 
     ff8_externals.sub_464850(x, y, x + w - 1, h + y - 1);
 
-    strncpy(last_texture_name, next_texture_name, MAX_PATH);
     *next_texture_name = '\0';
 
     // if (trace_all || trace_vram) ffnx_trace("%s after\n", __func__);
@@ -479,20 +477,24 @@ void ff8_cdcheck_error_upload_vram(int16_t *pos_and_size, uint8_t *texture_buffe
     ff8_upload_vram(pos_and_size, texture_buffer);
 }
 
-void ff8_upload_vram_triple_triad_1(int16_t *pos_and_size, uint8_t *texture_buffer)
+void ff8_upload_vram_bg_triple_triad(int16_t *pos_and_size, uint8_t *texture_buffer)
 {
     if (trace_all || trace_vram) ffnx_trace("%s %p\n", __func__, texture_buffer);
 
     if (texture_buffer == (uint8_t *)0xC4ACC0)
     {
         strncpy(next_texture_name, "cardgame/intro", MAX_PATH);
-        next_bpp = 2;
     }
     else if (texture_buffer == (uint8_t *)0xC20CAC)
     {
         strncpy(next_texture_name, "cardgame/game", MAX_PATH);
-        next_bpp = 2;
     }
+    else if (trace_all || trace_vram)
+    {
+        ffnx_warning("%s: cannot identify vram texture %X\n", __func__, texture_buffer);
+    }
+
+    next_bpp = 2;
 
     if (save_textures && *next_texture_name != '\0')
     {
@@ -506,16 +508,33 @@ void ff8_upload_vram_triple_triad_1(int16_t *pos_and_size, uint8_t *texture_buff
     ff8_upload_vram(pos_and_size, texture_buffer);
 }
 
-void ff8_upload_vram_triple_triad_2(int16_t *pos_and_size, uint8_t *texture_buffer)
+void ff8_upload_vram_pal_triple_triad(int16_t *pos_and_size, uint8_t *texture_buffer)
 {
     if (trace_all || trace_vram) ffnx_trace("%s %p\n", __func__, texture_buffer);
+
+    next_pal_data = (uint16_t *)texture_buffer;
+    next_bpp = 2;
+
+    if (texture_buffer == (uint8_t *)0xBA9C8C)
+    {
+        strncpy(next_texture_name, "cardgame/cards", MAX_PATH);
+    }
 
     ff8_upload_vram(pos_and_size, texture_buffer);
+
+    next_pal_data = nullptr;
 }
 
-void ff8_upload_vram_triple_triad_3(int16_t *pos_and_size, uint8_t *texture_buffer)
+void ff8_upload_vram_data_triple_triad(int16_t *pos_and_size, uint8_t *texture_buffer)
 {
     if (trace_all || trace_vram) ffnx_trace("%s %p\n", __func__, texture_buffer);
+
+    next_bpp = 1;
+
+    if (texture_buffer == (uint8_t *)0xBB0C98)
+    {
+        strncpy(next_texture_name, "cardgame/cards", MAX_PATH);
+    }
 
     ff8_upload_vram(pos_and_size, texture_buffer);
 }
@@ -872,9 +891,9 @@ void vram_init()
     replace_call(0x541BBD, ff8_wm_open_texture7); // ???
     */
     // Triple Triad
-    replace_call(0x538BA9, ff8_upload_vram_triple_triad_1);
-    replace_call(0x538D2C, ff8_upload_vram_triple_triad_2);
-    replace_call(0x538D41, ff8_upload_vram_triple_triad_3);
+    replace_call(0x538BA9, ff8_upload_vram_bg_triple_triad);
+    replace_call(0x538D2C, ff8_upload_vram_pal_triple_triad);
+    replace_call(0x538D41, ff8_upload_vram_data_triple_triad);
 
     replace_function(ff8_externals.upload_psx_vram, ff8_upload_vram);
 

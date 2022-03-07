@@ -1,11 +1,30 @@
+/****************************************************************************/
+//    Copyright (C) 2009 Aali132                                            //
+//    Copyright (C) 2018 quantumpencil                                      //
+//    Copyright (C) 2018 Maxime Bacoux                                      //
+//    Copyright (C) 2020 Chris Rizzitello                                   //
+//    Copyright (C) 2020 John Pritchard                                     //
+//    Copyright (C) 2022 myst6re                                            //
+//    Copyright (C) 2022 Julian Xhokaxhiu                                   //
+//    Copyright (C) 2022 Tang-Tang Zhou                                     //
+//                                                                          //
+//    This file is part of FFNx                                             //
+//                                                                          //
+//    FFNx is free software: you can redistribute it and/or modify          //
+//    it under the terms of the GNU General Public License as published by  //
+//    the Free Software Foundation, either version 3 of the License         //
+//                                                                          //
+//    FFNx is distributed in the hope that it will be useful,               //
+//    but WITHOUT ANY WARRANTY; without even the implied warranty of        //
+//    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         //
+//    GNU General Public License for more details.                          //
+/****************************************************************************/
 
 #include "texture_packer.h"
 #include "../renderer.h"
 #include "../saveload.h"
 #include "../patch.h"
 #include "../image/tim.h"
-
-#include <png.h>
 
 TexturePacker::TexturePacker() :
 	_vram(nullptr)
@@ -28,29 +47,45 @@ void TexturePacker::setTexture(const char *name, const uint8_t *source, int x, i
 	{
 		if (isPal)
 		{
-			for (std::pair<const ModdedTextureId, Texture> &pair: _moddedTextures)
+			if (_lastUploadedTextureId != INVALID_TEXTURE && ! _lastUploadedTextureIsPal
+					&& _moddedTextures.contains(_lastUploadedTextureId))
 			{
-				Texture &t = pair.second;
-
-				if (t.name().compare(name) == 0)
-				{
-					if (trace_all || trace_vram) ffnx_info("TexturePacker::%s: associate palette with existing texture\n", __func__);
-					t.setPal(TextureInfos(x, y, w, h, bpp));
-					_moddedTextures[pair.first] = t;
-					break;
-				}
+				if (trace_all || trace_vram) ffnx_info("TexturePacker::%s: associate palette with existing texture %s\n", __func__, name);
+				_moddedTextures[_lastUploadedTextureId].setPal(TextureInfos(x, y, w, h, bpp));
 			}
+			else
+			{
+				if (trace_all || trace_vram) ffnx_info("TexturePacker::%s: save orphan palette for later use %s\n", __func__, name);
+				Texture palette = Texture(name, x, y, w, h, bpp);
+				_orphanPalettes[palette.name()] = palette;
+			}
+
+			_lastUploadedTextureId = INVALID_TEXTURE;
 		}
 		else
 		{
 			tex = Texture(name, x, y, w, h, bpp);
+			_lastUploadedTextureId = INVALID_TEXTURE;
 
 			if (tex.createImage() || save_textures)
 			{
+				if (_orphanPalettes.contains(tex.name()))
+				{
+					if (trace_all || trace_vram) ffnx_info("TexturePacker::%s: associate existing palette with texture\n", __func__);
+					tex.setPal(_orphanPalettes[tex.name()]);
+					_orphanPalettes.erase(tex.name());
+				}
+				else
+				{
+					_lastUploadedTextureId = textureId;
+				}
+
 				textureId = x + y * VRAM_WIDTH;
 				_moddedTextures[textureId] = tex;
 			}
 		}
+
+		_lastUploadedTextureIsPal = isPal;
 	}
 
 	for (int i = 0; i < h; ++i)
@@ -142,12 +177,12 @@ bool TexturePacker::drawModdedTextures(const uint8_t *texData, const uint32_t *p
 		return false;
 	} */
 
-	if (paletteData && paletteEntries > 0)
+	/* if (paletteData && paletteEntries > 0)
 	{
 		for (int i = 0; i < 16; ++i)
 		{
 			uint32_t color = paletteData[paletteIndex + i];
-			ffnx_trace(
+			if (trace_all || trace_vram) ffnx_trace(
 				"TexturePacker::%s: tex palette %i (%X, %X, %X, %X)\n",
 				__func__,
 				i,
@@ -157,7 +192,7 @@ bool TexturePacker::drawModdedTextures(const uint8_t *texData, const uint32_t *p
 				color & 0xFF
 			);
 		}
-	}
+	} */
 
 	if (_tiledTexs.contains(texData))
 	{
@@ -338,7 +373,7 @@ bool TexturePacker::drawModdedTextures(uint32_t *target, const uint32_t *palette
 					palDataCursor = palData;
 				}
 
-				ffnx_trace("TexturePacker::%s: tim pal infos: (%d, %d, %d, %d)\n",
+				if (trace_all || trace_vram) ffnx_trace("TexturePacker::%s: tim pal infos: (%d, %d, %d, %d)\n",
 					__func__, pal.x(), pal.y(), pal.w(), pal.h());
 
 				for (int j = 0 ; j < pal.h(); ++j)
@@ -346,7 +381,7 @@ bool TexturePacker::drawModdedTextures(uint32_t *target, const uint32_t *palette
 					for (int i = 0; i < pal.w(); ++i)
 					{
 						uint32_t color = fromR5G5B5Color(palData[j * pal.w() + i]);
-						ffnx_trace(
+						if (trace_all || trace_vram) ffnx_trace(
 							"TexturePacker::%s: tim palette %X %X (%X, %X, %X, %X)\n",
 							__func__,
 							j,
@@ -373,7 +408,7 @@ bool TexturePacker::drawModdedTextures(uint32_t *target, const uint32_t *palette
 				noAlpha[i] = 0xFF000000 | (origTarget[i] & 0xFFFFFF); // Force alpha
 			}
 
-			ffnx_info("test %d %d\n", target - origTarget, (uint8_t*)target - (uint8_t*)origTarget);
+			if (trace_all || trace_vram) ffnx_info("test %d %d\n", target - origTarget, (uint8_t*)target - (uint8_t*)origTarget);
 
 			save_texture(noAlpha, targetW * targetH * sizeof(uint32_t), targetW, targetH, paletteIndex, fileName, false);
 

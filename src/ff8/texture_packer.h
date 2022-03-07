@@ -79,6 +79,9 @@ private:
         inline uint8_t bpp() const {
             return _bpp;
         }
+        inline bool isValid() const {
+            return _bpp != 255;
+        }
     protected:
         int _x, _y;
         int _w, _h;
@@ -103,7 +106,7 @@ private:
         }
         uint32_t getColor(int scaledX, int scaledY);
         inline bool hasPal() const {
-            return _pal.bpp() != 255;
+            return _pal.isValid();
         }
         inline const TextureInfos &pal() const {
             return _pal;
@@ -131,5 +134,8 @@ private:
     std::map<const uint8_t *, TiledTex> _tiledTexs;
     ModdedTextureId _vramTextureIds[VRAM_WIDTH * VRAM_HEIGHT];
     std::map<ModdedTextureId, Texture> _moddedTextures;
+    std::map<std::string, TextureInfos> _orphanPalettes;
+    ModdedTextureId _lastUploadedTextureId;
     uint8_t _maxScaleCached;
+    bool _lastUploadedTextureIsPal;
 };
