@@ -73,6 +73,8 @@ void normalize_path(char *name)
 	}
 }
 
+int idx = 0;
+
 void save_texture(const void *data, uint32_t dataSize, uint32_t width, uint32_t height, uint32_t palette_index, const char *name, bool is_animated)
 {
 	char filename[sizeof(basedir) + 1024];
@@ -120,7 +122,7 @@ void save_texture(const void *data, uint32_t dataSize, uint32_t width, uint32_t 
 		// -------------------------------------------
 	}
 	else
-		_snprintf(filename, sizeof(filename), "%s/%s/%s_%02i.png", basedir, mod_path.c_str(), name, palette_index);
+		_snprintf(filename, sizeof(filename), "%s/%s/%s_%02i_%d.png", basedir, mod_path.c_str(), name, palette_index, idx++);
 
 	normalize_path(filename);
 

@@ -85,6 +85,11 @@ void apply_vibrate_calc(char port, int left, int right)
 	gamepad_state[port & 0x1].left_motor_speed = left;
 	gamepad_state[port & 0x1].right_motor_speed = right;
 
+	ffnx_info("keyscan %X %X entries_offset=%d\n", gamepad_state[0].entries[gamepad_state[0].entries_offset].keyscan, gamepad_state[1].entries[gamepad_state[1].entries_offset].keyscan, gamepad_state[0].entries_offset);
+	for (int i = 0; i < 10; ++i) {
+		ffnx_info("field_%d %X\n", i, ((uint16_t *)&(gamepad_state[0].entries[gamepad_state[0].entries_offset]))[i]);
+	}
+
 	vibrate(left, right);
 }
 

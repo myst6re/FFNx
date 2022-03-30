@@ -163,7 +163,7 @@ bool TexturePacker::drawModdedTextures(const uint8_t *texData, const uint32_t *p
 		return false;
 	} */
 
-	if (paletteData && paletteEntries > 0)
+	/* if (paletteData && paletteEntries > 0)
 	{
 		for (int i = 0; i < 16; ++i)
 		{
@@ -178,7 +178,7 @@ bool TexturePacker::drawModdedTextures(const uint8_t *texData, const uint32_t *p
 				color & 0xFF
 			);
 		}
-	}
+	} */
 
 	if (_tiledTexs.contains(texData))
 	{
@@ -574,7 +574,7 @@ uint8_t TexturePacker::Texture::scale() const
 uint32_t TexturePacker::Texture::getColor(int scaledX, int scaledY)
 {
 	if (!_logged) {
-		ffnx_info("%s: %d %d x=%d y=%d w=%d h=%d img_w=%d img_h=%d bpp=%d\n", _name.c_str(), scaledX, scaledY, _x, _y, _w, _h, _image->m_width, _image->m_height, _bpp);
+		//ffnx_info("%s: %d %d x=%d y=%d w=%d h=%d img_w=%d img_h=%d bpp=%d\n", _name.c_str(), scaledX, scaledY, _x, _y, _w, _h, _image->m_width, _image->m_height, _bpp);
 		_logged = true;
 	}
 	return ((uint32_t *)_image->m_data)[scaledX + scaledY * _image->m_width];
