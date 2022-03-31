@@ -106,12 +106,25 @@ uint32_t replace_function(uint32_t offset, void *func)
 
 void unreplace_function(uint32_t func)
 {
-	uint32_t offset = replaced_functions[func + 2];
+	uint32_t offset = replaced_functions[func + 2], value = replaced_functions[func + 1];
+	DWORD dummy;
+
+	replaced_functions[func + 1] = *(uint32_t *)(offset + 1);
+
+	VirtualProtect((void *)offset, 5, PAGE_EXECUTE_READWRITE, &dummy);
+	*(uint32_t *)(offset + 1) = value;
+	*(unsigned char *)offset = replaced_functions[func];
+}
+
+void rereplace_function(uint32_t func)
+{
+	uint32_t offset = replaced_functions[func + 2], value = replaced_functions[func + 1];
 	DWORD dummy;
 
 	VirtualProtect((void *)offset, 5, PAGE_EXECUTE_READWRITE, &dummy);
-	*(uint32_t *)(offset + 1) = replaced_functions[func + 1];
-	*(unsigned char *)offset = replaced_functions[func];
+
+	*(unsigned char *)offset = 0xE9;
+	*(uint32_t *)(offset + 1) = value;
 }
 
 void unreplace_functions()

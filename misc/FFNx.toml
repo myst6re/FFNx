@@ -546,7 +546,7 @@ save_path = "save"
 
 # Dump in the logs more verbose error messages coming directly from the engine
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~
-ff7_more_debug = false
+more_debug = false
 
 ###############################################################################
 # OPTIONS ONLY FOR FF8

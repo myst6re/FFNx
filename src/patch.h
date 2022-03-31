@@ -25,6 +25,8 @@
 
 uint32_t replace_function(uint32_t offset, void *func);
 void unreplace_function(uint32_t func);
+// Replace again a function unreplaced before
+void rereplace_function(uint32_t func);
 void unreplace_functions();
 
 void replace_call(uint32_t offset, void *func);
