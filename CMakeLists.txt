@@ -78,6 +78,9 @@ find_package(tomlplusplus CONFIG REQUIRED)
 find_package(STEAMWORKSSDK CONFIG REQUIRED)
 find_package(xxHash CONFIG REQUIRED)
 
+find_path(DETOURS_INCLUDE_DIR "detours/detours.h")
+find_library(DETOURS_LIBRARY detours REQUIRED)
+
 set(RELEASE_NAME "FFNx")
 
 if(_DLL_VERSION STREQUAL "devel" OR _DLL_VERSION MATCHES "-")
@@ -106,6 +109,7 @@ target_include_directories(
   PRIVATE ${SOLOUD_INCLUDE_DIRS}
   PRIVATE ${STACKWALKER_INCLUDE_DIRS}
   PRIVATE ${VGMSTREAM_INCLUDE_DIRS}
+  PRIVATE ${DETOURS_INCLUDE_DIR}
 )
 target_link_libraries(
   ${RELEASE_NAME}
@@ -124,6 +128,7 @@ target_link_libraries(
   tomlplusplus::tomlplusplus
   STEAMWORKSSDK::STEAMWORKSSDK
   xxHash::xxhash
+  ${DETOURS_LIBRARY}
   ${BX_LIBRARIES}
   ${BIMG_LIBRARIES}
   ${BGFX_LIBRARIES}

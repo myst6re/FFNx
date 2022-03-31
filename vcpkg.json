@@ -37,7 +37,8 @@
     "tomlplusplus",
     "vgmstream",
     "steamworkssdk",
-    "xxhash"
+    "xxhash",
+    "detours"
   ],
   "overrides": [
     {
@@ -99,6 +100,11 @@
       "name": "xxhash",
       "version": "0.8.1",
       "port-version": 1
+    },
+    {
+      "name": "detours",
+      "version": "4.0.1",
+      "port-version": 5
     }
   ]
 }

@@ -22,6 +22,7 @@
 
 #include <windows.h>
 #include <stdint.h>
+#include <detours/detours.h>
 
 #include "crashdump.h"
 
@@ -36,9 +37,9 @@ uint32_t max_addr = 0;
 uint32_t replace_counter = 0;
 uint32_t replaced_functions[512 * 3];
 
-void check_is_call(const char *name, uint32_t base, uint32_t offset, uint8_t instruction)
+void check_is_call(const char *name, uint32_t base, uint32_t offset, uint16_t instruction)
 {
-	if (instruction != 0xE8 && instruction != 0xE9)
+	if ((instruction & 0xFF) != 0xE8 && (instruction & 0xFF) != 0xE9 && instruction != 0x15FF)
 	{
 		// Warning to diagnose errors faster
 		ffnx_warning("%s: Unrecognized call/jmp instruction at 0x%X + 0x%X (0x%X): 0x%X\n", name, base, offset, base + offset, instruction);
@@ -90,6 +91,17 @@ void collect_addresses(const char *name, uint32_t base, uint32_t offset, uint32_
 
 uint32_t replace_function(uint32_t offset, void *func)
 {
+	if (offset & 0x80000000)
+	{
+		install_winapi_hook(true, (PVOID *)(offset & 0x7FFFFFFF), func);
+
+		replaced_functions[replace_counter++] = uint32_t(func);
+		replaced_functions[replace_counter++] = 0;
+		replaced_functions[replace_counter++] = offset;
+
+		return replace_counter - 3;
+	}
+
 	DWORD dummy;
 
 	VirtualProtect((void *)offset, 5, PAGE_EXECUTE_READWRITE, &dummy);
@@ -106,12 +118,33 @@ uint32_t replace_function(uint32_t offset, void *func)
 
 void unreplace_function(uint32_t func)
 {
-	uint32_t offset = replaced_functions[func + 2];
+	uint32_t offset = replaced_functions[func + 2], value = replaced_functions[func + 1];
+
+	if (offset & 0x80000000)
+	{
+		install_winapi_hook(false, (PVOID *)(offset & 0x7FFFFFFF), (PVOID)replaced_functions[func]);
+
+		return;
+	}
+
+	DWORD dummy;
+
+	replaced_functions[func + 1] = *(uint32_t *)(offset + 1);
+
+	VirtualProtect((void *)offset, 5, PAGE_EXECUTE_READWRITE, &dummy);
+	*(uint32_t *)(offset + 1) = value;
+	*(unsigned char *)offset = replaced_functions[func];
+}
+
+void rereplace_function(uint32_t func)
+{
+	uint32_t offset = replaced_functions[func + 2], value = replaced_functions[func + 1];
 	DWORD dummy;
 
 	VirtualProtect((void *)offset, 5, PAGE_EXECUTE_READWRITE, &dummy);
-	*(uint32_t *)(offset + 1) = replaced_functions[func + 1];
-	*(unsigned char *)offset = replaced_functions[func];
+
+	*(unsigned char *)offset = 0xE9;
+	*(uint32_t *)(offset + 1) = value;
 }
 
 void unreplace_functions()
@@ -156,17 +189,26 @@ uint32_t replace_call_function(uint32_t offset, void* func)
 
 uint32_t get_relative_call(uint32_t base, uint32_t offset)
 {
-	uint8_t instruction = *((uint8_t *)(base + offset));
+	uint16_t instruction = *((uint16_t *)(base + offset));
 
 	check_is_call(__func__, base, offset, instruction);
 
-	uint32_t ret = base + *((uint32_t *)(base + offset + 1)) + offset + 5;
+	uint32_t addr;
+
+	if (instruction == 0x15FF) // External call
+	{
+		addr = *((uint32_t *)(base + offset + 2)) | 0x80000000; // Flag the address
+	}
+	else
+	{
+		addr = base + *((uint32_t *)(base + offset + 1)) + offset + 5;
+	}
 
 #ifdef PATCH_COLLECT_DUPLICATES
-	collect_addresses(__func__, base, offset, ret);
+	collect_addresses(__func__, base, offset, addr);
 #endif
 
-	return ret;
+	return addr;
 }
 
 uint32_t get_absolute_value(uint32_t base, uint32_t offset)
@@ -257,4 +299,13 @@ void memset_code(uint32_t offset, uint32_t val, uint32_t size)
 	VirtualProtect((void *)offset, size, PAGE_EXECUTE_READWRITE, &dummy);
 
 	memset((void *)offset, val, size);
+}
+
+// From https://stackoverflow.com/a/24322128
+bool install_winapi_hook(_In_ BOOL bState, _Inout_ PVOID* ppPointer, _In_ PVOID pDetour)
+{
+	return DetourTransactionBegin() == NO_ERROR
+		&& DetourUpdateThread(GetCurrentThread()) == NO_ERROR
+		&& (bState ? DetourAttach : DetourDetach)(ppPointer, pDetour) == NO_ERROR
+		&& DetourTransactionCommit() == NO_ERROR;
 }
