@@ -157,63 +157,11 @@ bool TexturePacker::drawModdedTextures(const uint8_t *texData, const uint32_t *p
 {
 	if (trace_all || trace_vram) ffnx_trace("TexturePacker::%s pointer=0x%X paletteIndex=%d, paletteEntries=%d\n", __func__, texData, paletteIndex, paletteEntries);
 
-	// Not supported for now
-	/* if (paletteIndex != 0)
-	{
-		return false;
-	} */
-
-	/* if (paletteData && paletteEntries > 0)
-	{
-		for (int i = 0; i < 16; ++i)
-		{
-			uint32_t color = paletteData[paletteIndex + i];
-			ffnx_trace(
-				"TexturePacker::%s: tex palette %i (%X, %X, %X, %X)\n",
-				__func__,
-				i,
-				color >> 24,
-				(color >> 16) & 0xFF,
-				(color >> 8) & 0xFF,
-				color & 0xFF
-			);
-		}
-	} */
-
 	if (_tiledTexs.contains(texData))
 	{
-		char fileName[MAX_PATH];
-		struct stat dummy;
 		const TiledTex &tex = _tiledTexs[texData];
 
-		/* if (tex.bpp == 0)
-		{
-			snprintf(fileName, MAX_PATH, "texture-page-%d-%d.png", int(texData), paletteIndex);
-
-			newRenderer.saveTexture(
-				fileName,
-				targetW * scale,
-				targetH * scale,
-				target
-			);
-		} */
-
-		bool ret = drawModdedTextures(target, paletteData, tex, targetW, targetH, scale, paletteIndex, paletteEntries);
-		// _tiledTexs.erase(texData);
-
-		/* if (tex.bpp == 0 && ret)
-		{
-			snprintf(fileName, MAX_PATH, "modded-texture-%d-%d.png", int(texData), paletteIndex);
-
-			newRenderer.saveTexture(
-				fileName,
-				targetW * scale,
-				targetH * scale,
-				target
-			);
-		} */
-
-		return ret;
+		return drawModdedTextures(target, paletteData, tex, targetW, targetH, scale, paletteIndex, paletteEntries);
 	}
 
 	if (trace_all || trace_vram) ffnx_warning("TexturePacker::%s Unknown tex data\n", __func__);
@@ -243,12 +191,6 @@ bool TexturePacker::drawModdedTextures(uint32_t *target, const uint32_t *palette
 	}
 
 	bool hasModdedTexture = false;
-	std::unordered_set<ModdedTextureId> matchedTextures;
-
-	if (save_textures)
-	{
-		matchedTextures.reserve(_moddedTextures.size());
-	}
 
 	int scaledW = w * scale,
 		scaledH = targetH * scale;
@@ -275,160 +217,7 @@ bool TexturePacker::drawModdedTextures(uint32_t *target, const uint32_t *palette
 		}
 	}
 
-/*
-	for (int i = 0; i < targetH; ++i)
-	{
-		int vramY = tiledTex.y + i;
-
-		for (int j = 0; j < w; ++j)
-		{
-			int vramX = tiledTex.x + j;
-			ModdedTextureId textureId = _vramTextureIds[vramY * VRAM_WIDTH + vramX];
-
-			if (textureId != INVALID_TEXTURE && _moddedTextures.contains(textureId))
-			{
-				if (save_textures)
-				{
-					matchedTextures.insert(textureId);
-				}
-				else
-				{
-					Texture &texture = _moddedTextures[textureId];
-					int textureX = vramX - texture.x(),
-						textureY = vramY - texture.y();
-
-					if (scale == 1)
-					{
-						if (tiledTex.bpp == 0)
-						{
-							*target = texture.getColor(textureX * 4 + 0, textureY);
-							target += 1;
-							*target = texture.getColor(textureX * 4 + 1, textureY);
-							target += 1;
-							*target = texture.getColor(textureX * 4 + 2, textureY);
-							target += 1;
-							*target = texture.getColor(textureX * 4 + 3, textureY);
-						}
-						else if (tiledTex.bpp == 1)
-						{
-							*target = texture.getColor(textureX * 2 + 0, textureY);
-							target += 1;
-							*target = texture.getColor(textureX * 2 + 1, textureY);
-						}
-						else if (tiledTex.bpp == 2)
-						{
-							*target = texture.getColor(textureX * 1 + 0, textureY);
-						}
-					}
-					else
-					{
-					}
-
-					hasModdedTexture = true;
-				}
-			}
-			else
-			{
-				if (tiledTex.bpp == 0)
-				{
-					target += 3;
-				}
-				else if (tiledTex.bpp == 1)
-				{
-					target += 1;
-				}
-			}
-
-			target += 1;
-		}
-	}*/
-
 	if (trace_all || trace_vram) ffnx_trace("TexturePacker::%s x=%d y=%d bpp=%d w=%d targetW=%d targetH=%d scale=%d hasModdedTexture=%d\n", __func__, tiledTex.x, tiledTex.y, tiledTex.bpp, w, targetW, targetH, scale, hasModdedTexture);
-
-	/* if (save_textures)
-	{
-		for (ModdedTextureId textureId: matchedTextures)
-		{
-			const Texture &texture = _moddedTextures[textureId];
-
-			if (trace_all || trace_vram) ffnx_trace(
-				"%s: save %s pos=(%d %d) size=(%d %d) color_key=%d pal_pos(%d %d) pal_size(%d %d)\n", __func__,
-				texture.name().c_str(), texture.x(), texture.y(), texture.w(), texture.h(), texture.bpp(), texture.pal().x(), texture.pal().y(), texture.pal().w(), texture.pal().h()
-			);
-
-			uint8_t *data = (uint8_t *)driver_malloc(texture.w() * texture.h() * VRAM_DEPTH),
-				*palData = nullptr, *palDataCursor;
-
-			getVramRect(data, texture);
-
-			if (texture.hasPal())
-			{
-				const TextureInfos &pal = texture.pal();
-				size_t palDataSize = pal.w() * pal.h() * VRAM_DEPTH;
-				palData = (uint8_t *)driver_malloc(palDataSize);
-				uint8_t *maxPalData = palData + palDataSize;
-
-				getVramRect(palData, pal);
-
-				palDataCursor = palData + paletteIndex * paletteEntries;
-				uint16_t colorCount = texture.bpp() == 0 ? 16 : 256;
-
-				if (palDataCursor + colorCount * VRAM_DEPTH >= maxPalData)
-				{
-					ffnx_warning("%s: palette overflow\n", __func__);
-					palDataCursor = palData;
-				}
-
-				ffnx_trace("TexturePacker::%s: tim pal infos: (%d, %d, %d, %d)\n",
-					__func__, pal.x(), pal.y(), pal.w(), pal.h());
-
-				for (int j = 0 ; j < pal.h(); ++j)
-				{
-					for (int i = 0; i < pal.w(); ++i)
-					{
-						uint32_t color = fromR5G5B5Color(palData[j * pal.w() + i]);
-						ffnx_trace(
-							"TexturePacker::%s: tim palette %X %X (%X, %X, %X, %X)\n",
-							__func__,
-							j,
-							i,
-							(color >> 24) & 0xFF,
-							(color >> 16) & 0xFF,
-							(color >> 8) & 0xFF,
-							color & 0xFF
-						);
-					}
-				}
-			}
-
-			Tim tim = texture.toTim(data, (uint16_t *)palDataCursor);
-
-			tim.save(texture.name().c_str(), paletteIndex, 0);
-
-			char fileName[MAX_PATH];
-			snprintf(fileName, MAX_PATH, "%s-tex", texture.name().c_str());
-
-			uint32_t *noAlpha = (uint32_t *)driver_malloc(targetW * targetH * sizeof(uint32_t));
-			for (int i = 0; i < targetW * targetH; ++i)
-			{
-				noAlpha[i] = 0xFF000000 | (origTarget[i] & 0xFFFFFF); // Force alpha
-			}
-
-			ffnx_info("test %d %d\n", target - origTarget, (uint8_t*)target - (uint8_t*)origTarget);
-
-			save_texture(noAlpha, targetW * targetH * sizeof(uint32_t), targetW, targetH, paletteIndex, fileName, false);
-
-			driver_free(noAlpha);
-
-			driver_free(data);
-			if (palData != nullptr)
-			{
-				driver_free(palData);
-			}
-		}
-
-		return false;
-	} */
 
 	return hasModdedTexture;
 }

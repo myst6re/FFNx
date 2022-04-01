@@ -25,13 +25,13 @@
 #include <stdint.h>
 #include "../ff8.h"
 
-inline uint32_t fromR5G5B5Color(uint16_t color)
+inline uint32_t fromR5G5B5Color(uint16_t color, bool withAlpha = false)
 {
 	uint8_t r = color & 0x1F,
 		g = (color >> 5) & 0x1F,
 		b = (color >> 10) & 0x1F;
 
-	return ((color & 0x8000 ? 0xffu : 0x00) << 24) |
+	return ((color & 0x8000 || !withAlpha ? 0xffu : 0x00) << 24) |
 		((((r << 3) + (r >> 2)) & 0xffu) << 16) |
 		((((g << 3) + (g >> 2)) & 0xffu) << 8) |
 		(((b << 3) + (b >> 2)) & 0xffu);
@@ -82,13 +82,13 @@ class Tim {
 public:
 	Tim(uint8_t bpp, const ff8_tim &tim);
 	uint16_t colorsPerPal() const;
-	bool save(const char *fileName, uint8_t palX = 0, uint8_t palY = 0) const;
-	bool saveMultiPaletteGrid(const char *fileName, uint8_t cellCols, uint8_t cellRows, uint8_t palCols = 1) const;
+	bool save(const char *fileName, uint8_t palX = 0, uint8_t palY = 0, bool withAlpha = false) const;
+	bool saveMultiPaletteGrid(const char *fileName, uint8_t cellCols, uint8_t cellRows, uint8_t palCols = 1, bool withAlpha = false) const;
 	static Tim fromLzsData(uint8_t *uncompressed_data);
 	static Tim fromTimData(uint8_t *data);
 private:
-	bool save(const char *fileName, PaletteDetectionStrategy *paletteDetectionStrategy) const;
-	bool toRGBA32(uint32_t *target, PaletteDetectionStrategy *paletteDetectionStrategy) const;
+	bool save(const char *fileName, PaletteDetectionStrategy *paletteDetectionStrategy, bool withAlpha) const;
+	bool toRGBA32(uint32_t *target, PaletteDetectionStrategy *paletteDetectionStrategy, bool withAlpha) const;
 	ff8_tim _tim;
 	uint8_t _bpp;
 };

@@ -233,7 +233,7 @@ void ff8_upload_vram_triple_triad_2_texture_name(uint8_t *texture_buffer)
 		strncpy(next_texture_name, "cardgame/cards", sizeof(next_texture_name));
 		if (next_pal_data == (uint16_t *)texture_buffer)
 		{
-			if (save_textures) Tim::fromTimData(texture_buffer - 20).saveMultiPaletteGrid(next_texture_name, 28, 4, 2);
+			if (save_textures) Tim::fromTimData(texture_buffer - 20).saveMultiPaletteGrid(next_texture_name, 28, 4, 2, true);
 		}
 		next_bpp = 1;
 	}

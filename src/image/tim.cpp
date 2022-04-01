@@ -49,10 +49,10 @@ uint32_t PaletteDetectionStrategyFixed::palIndex() const
 	return palOffset(0, 0);
 }
 
-bool Tim::save(const char *fileName, uint8_t palX, uint8_t palY) const
+bool Tim::save(const char *fileName, uint8_t palX, uint8_t palY, bool withAlpha) const
 {
 	PaletteDetectionStrategyFixed fixed(this, palX, palY);
-	return fixed.isValid() && save(fileName, &fixed);
+	return fixed.isValid() && save(fileName, &fixed, withAlpha);
 }
 
 PaletteDetectionStrategyGrid::PaletteDetectionStrategyGrid(const Tim *const tim, uint8_t cellCols, uint8_t cellRows, uint8_t palCols) :
@@ -106,13 +106,13 @@ uint32_t PaletteDetectionStrategyGrid::palIndex() const
 	return 0;
 }
 
-bool Tim::saveMultiPaletteGrid(const char *fileName, uint8_t cellCols, uint8_t cellRows, uint8_t palCols) const
+bool Tim::saveMultiPaletteGrid(const char *fileName, uint8_t cellCols, uint8_t cellRows, uint8_t palCols, bool withAlpha) const
 {
 	PaletteDetectionStrategyGrid grid(this, cellCols, cellRows, palCols);
-	return grid.isValid() && save(fileName, &grid);
+	return grid.isValid() && save(fileName, &grid, withAlpha);
 }
 
-bool Tim::toRGBA32(uint32_t *target, PaletteDetectionStrategy *paletteDetectionStrategy) const
+bool Tim::toRGBA32(uint32_t *target, PaletteDetectionStrategy *paletteDetectionStrategy, bool withAlpha) const
 {
 	if (_tim.img_data == nullptr)
 	{
@@ -136,11 +136,11 @@ bool Tim::toRGBA32(uint32_t *target, PaletteDetectionStrategy *paletteDetectionS
 		{
 			for (int x = 0; x < _tim.img_w / 2; ++x)
 			{
-				*target = fromR5G5B5Color((_tim.pal_data + paletteDetectionStrategy->palOffset(x, y))[*img_data & 0xF]);
+				*target = fromR5G5B5Color((_tim.pal_data + paletteDetectionStrategy->palOffset(x, y))[*img_data & 0xF], withAlpha);
 
 				++target;
 
-				*target = fromR5G5B5Color((_tim.pal_data + paletteDetectionStrategy->palOffset(x + 1, y))[*img_data >> 4]);
+				*target = fromR5G5B5Color((_tim.pal_data + paletteDetectionStrategy->palOffset(x + 1, y))[*img_data >> 4], withAlpha);
 
 				++target;
 				++img_data;
@@ -162,7 +162,7 @@ bool Tim::toRGBA32(uint32_t *target, PaletteDetectionStrategy *paletteDetectionS
 		{
 			for (int x = 0; x < _tim.img_w; ++x)
 			{
-				*target = fromR5G5B5Color((_tim.pal_data + paletteDetectionStrategy->palOffset(x, y))[*img_data]);
+				*target = fromR5G5B5Color((_tim.pal_data + paletteDetectionStrategy->palOffset(x, y))[*img_data], withAlpha);
 
 				++target;
 				++img_data;
@@ -177,7 +177,7 @@ bool Tim::toRGBA32(uint32_t *target, PaletteDetectionStrategy *paletteDetectionS
 		{
 			for (int x = 0; x < _tim.img_w; ++x)
 			{
-				*target = fromR5G5B5Color(*img_data16);
+				*target = fromR5G5B5Color(*img_data16, withAlpha);
 
 				++target;
 				++img_data16;
@@ -194,7 +194,7 @@ bool Tim::toRGBA32(uint32_t *target, PaletteDetectionStrategy *paletteDetectionS
 	return true;
 }
 
-bool Tim::save(const char *fileName, PaletteDetectionStrategy *paletteDetectionStrategy) const
+bool Tim::save(const char *fileName, PaletteDetectionStrategy *paletteDetectionStrategy, bool withAlpha) const
 {
 	// allocate PBO
 	uint32_t image_data_size = _tim.img_w * _tim.img_h * 4;
@@ -204,7 +204,7 @@ bool Tim::save(const char *fileName, PaletteDetectionStrategy *paletteDetectionS
 	if (image_data != nullptr)
 	{
 		// TODO: multiple palettes
-		if (toRGBA32(image_data, paletteDetectionStrategy))
+		if (toRGBA32(image_data, paletteDetectionStrategy, withAlpha))
 		{
 			// TODO: is animated
 			save_texture(image_data, image_data_size, _tim.img_w, _tim.img_h, paletteDetectionStrategy->palIndex(), fileName, false);
