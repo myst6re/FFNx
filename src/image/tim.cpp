@@ -29,14 +29,7 @@
 Tim::Tim(uint8_t bpp, const ff8_tim &tim) :
 	_bpp(bpp), _tim(tim)
 {
-	if (_bpp == 0)
-	{
-		_tim.img_w *= 4;
-	}
-	else if (_bpp == 1)
-	{
-		_tim.img_w *= 2;
-	}
+	_tim.img_w *= 4 >> bpp;
 }
 
 uint32_t PaletteDetectionStrategyFixed::palOffset(uint16_t, uint16_t) const
@@ -61,8 +54,6 @@ PaletteDetectionStrategyGrid::PaletteDetectionStrategyGrid(const Tim *const tim,
 	_colorPerPal = tim->_tim.pal_w / _palCols;
 	_cellWidth = tim->_tim.img_w / _cellCols;
 	_cellHeight = tim->_tim.img_h / _cellRows;
-
-	ffnx_info("PaletteDetectionStrategyGrid::%s: colorPerPal=%d pal_w=%d bpp=%d\n", __func__, _colorPerPal, tim->_tim.pal_w, tim->_bpp);
 }
 
 bool PaletteDetectionStrategyGrid::isValid() const
@@ -75,17 +66,15 @@ bool PaletteDetectionStrategyGrid::isValid() const
 
 	if (_tim->_tim.img_w % _cellCols != 0)
 	{
-		ffnx_warning("PaletteDetectionStrategyGrid::%s img_w=%d mod cellCols=%d != 0\n", __func__, _tim->_tim.img_w, _cellCols);
-		//return false;
+		ffnx_error("PaletteDetectionStrategyGrid::%s img_w=%d mod cellCols=%d != 0\n", __func__, _tim->_tim.img_w, _cellCols);
+		return false;
 	}
 
 	if (_tim->_tim.pal_h * _palCols != _cellCols * _cellRows)
 	{
-		ffnx_warning("PaletteDetectionStrategyGrid::%s not enough palette for this image %d (%d) * %d\n", __func__, _palCols, _tim->_tim.pal_w, _tim->_tim.pal_h);
-		//return false;
+		ffnx_error("PaletteDetectionStrategyGrid::%s not enough palette for this image %d (%d) * %d\n", __func__, _palCols, _tim->_tim.pal_w, _tim->_tim.pal_h);
+		return false;
 	}
-
-	ffnx_info("PaletteDetectionStrategyGrid::%s pal_data %p img_data %p\n", __func__, _tim->_tim.pal_data, _tim->_tim.img_data);
 
 	return true;
 }

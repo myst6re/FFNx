@@ -176,7 +176,6 @@ bool TexturePacker::drawModdedTextures(uint32_t *target, const uint32_t *palette
 		return false;
 	}
 
-	uint32_t *origTarget = target;
 	int w = targetW;
 
 	if (tiledTex.bpp <= 2)
