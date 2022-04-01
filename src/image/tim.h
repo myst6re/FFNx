@@ -27,11 +27,11 @@
 
 inline uint32_t fromR5G5B5Color(uint16_t color)
 {
-	uint8_t r = color & 31,
-		g = (color >> 5) & 31,
-		b = (color >> 10) & 31;
+	uint8_t r = color & 0x1F,
+		g = (color >> 5) & 0x1F,
+		b = (color >> 10) & 0x1F;
 
-	return (0xffu << 24) |
+	return ((color & 0x8000 ? 0x00 : 0xffu) << 24) |
 		((((r << 3) + (r >> 2)) & 0xffu) << 16) |
 		((((g << 3) + (g >> 2)) & 0xffu) << 8) |
 		(((b << 3) + (b >> 2)) & 0xffu);
@@ -46,27 +46,34 @@ public:
 		return true;
 	}
 	virtual uint32_t palOffset(uint16_t x, uint16_t y) const = 0;
+	virtual uint32_t palIndex() const = 0;
 protected:
 	const Tim *const _tim;
 };
 
+// One palette at (x, y)
 class PaletteDetectionStrategyFixed : public PaletteDetectionStrategy {
 public:
 	PaletteDetectionStrategyFixed(const Tim *const tim, uint16_t palX, uint16_t palY) :
 		PaletteDetectionStrategy(tim), _palX(palX), _palY(palY) {}
 	virtual uint32_t palOffset(uint16_t imgX, uint16_t imgY) const override;
+	virtual uint32_t palIndex() const override;
 private:
 	uint16_t _palX, _palY;
 };
 
+// A grid of fixed size cells, with one palette per cell
 class PaletteDetectionStrategyGrid : public PaletteDetectionStrategy {
 public:
-	PaletteDetectionStrategyGrid(const Tim *const tim, uint8_t cellCols, uint8_t cellRows);
+	PaletteDetectionStrategyGrid(const Tim *const tim, uint8_t cellCols, uint8_t cellRows, uint8_t palCols);
 	virtual bool isValid() const override;
 	virtual uint32_t palOffset(uint16_t imgX, uint16_t imgY) const override;
+	virtual uint32_t palIndex() const override;
 private:
 	uint8_t _cellCols, _cellRows;
-	uint8_t _palCols, _colorPerPal;
+	uint16_t _cellWidth, _cellHeight;
+	uint16_t _colorPerPal;
+	uint8_t _palCols;
 };
 
 class Tim {
@@ -75,12 +82,13 @@ class Tim {
 public:
 	Tim(uint8_t bpp, const ff8_tim &tim);
 	uint16_t colorsPerPal() const;
-	bool toRGBA32(uint32_t *target, uint8_t palX = 0, uint8_t palY = 0) const;
-	bool toRGBA32MultiPaletteGrid(uint32_t *target, uint8_t cellCols, uint8_t cellRows) const;
-	void save(const char *fileName, uint8_t palX = 0, uint8_t palY = 0) const;
-	static Tim fromLzs(uint8_t *uncompressed_data);
+	bool save(const char *fileName, uint8_t palX = 0, uint8_t palY = 0) const;
+	bool saveMultiPaletteGrid(const char *fileName, uint8_t cellCols, uint8_t cellRows, uint8_t palCols = 1) const;
+	static Tim fromLzsData(uint8_t *uncompressed_data);
+	static Tim fromTimData(uint8_t *data);
 private:
-	bool toRGBA32(uint32_t *target, PaletteDetectionStrategy *paletteDetectionStrategy = nullptr) const;
+	bool save(const char *fileName, PaletteDetectionStrategy *paletteDetectionStrategy) const;
+	bool toRGBA32(uint32_t *target, PaletteDetectionStrategy *paletteDetectionStrategy) const;
 	ff8_tim _tim;
 	uint8_t _bpp;
 };

@@ -172,12 +172,12 @@ uint32_t ff8_credits_open_texture(char *fileName, char *buffer)
 	if (trace_all || trace_vram) ffnx_trace("%s: %s\n", __func__, fileName);
 
 	// {name}.lzs
-	strncpy(next_texture_name, strrchr(fileName, '\\') + 1, MAX_PATH);
+	strncpy(next_texture_name, strrchr(fileName, '\\') + 1, sizeof(next_texture_name));
 	next_bpp = 2;
 
 	uint32_t ret = ff8_externals.credits_open_file(fileName, buffer);
 
-	if (save_textures) Tim::fromLzs((uint8_t *)buffer).save(next_texture_name);
+	if (save_textures) Tim::fromLzsData((uint8_t *)buffer).save(next_texture_name);
 
 	return ret;
 }
@@ -186,10 +186,10 @@ void ff8_cdcheck_error_upload_vram(int16_t *pos_and_size, uint8_t *texture_buffe
 {
 	if (trace_all || trace_vram) ffnx_trace("%s\n", __func__);
 
-	strncpy(next_texture_name, "discerr.lzs", MAX_PATH);
+	strncpy(next_texture_name, "discerr.lzs", sizeof(next_texture_name));
 	next_bpp = 2;
 
-	if (save_textures) Tim::fromLzs(texture_buffer - 8).save(next_texture_name);
+	if (save_textures) Tim::fromLzsData(texture_buffer - 8).save(next_texture_name);
 
 	ff8_upload_vram(pos_and_size, texture_buffer);
 }
@@ -200,12 +200,12 @@ void ff8_upload_vram_triple_triad_1(int16_t *pos_and_size, uint8_t *texture_buff
 
 	if (texture_buffer == (uint8_t *)0xC4ACC0)
 	{
-		strncpy(next_texture_name, "cardgame/intro", MAX_PATH);
+		strncpy(next_texture_name, "cardgame/intro", sizeof(next_texture_name));
 		next_bpp = 2;
 	}
 	else if (texture_buffer == (uint8_t *)0xC20CAC)
 	{
-		strncpy(next_texture_name, "cardgame/game", MAX_PATH);
+		strncpy(next_texture_name, "cardgame/game", sizeof(next_texture_name));
 		next_bpp = 2;
 	}
 
@@ -225,17 +225,21 @@ void ff8_upload_vram_triple_triad_2_texture_name(uint8_t *texture_buffer)
 {
 	if (texture_buffer == (uint8_t *)0xBA982C || texture_buffer == (uint8_t *)0xBA9878)
 	{
-		strncpy(next_texture_name, "cardgame/unknown1", MAX_PATH);
+		strncpy(next_texture_name, "cardgame/unknown1", sizeof(next_texture_name));
 		next_bpp = 1;
 	}
 	else if (texture_buffer == (uint8_t *)0xBA9C8C || texture_buffer == (uint8_t *)0xBB0C98)
 	{
-		strncpy(next_texture_name, "cardgame/cards", MAX_PATH);
+		strncpy(next_texture_name, "cardgame/cards", sizeof(next_texture_name));
+		if (next_pal_data == (uint16_t *)texture_buffer)
+		{
+			if (save_textures) Tim::fromTimData(texture_buffer - 20).saveMultiPaletteGrid(next_texture_name, 28, 4, 2);
+		}
 		next_bpp = 1;
 	}
 	else if (texture_buffer == (uint8_t *)0xB96C0C || texture_buffer == (uint8_t *)0xB97818)
 	{
-		strncpy(next_texture_name, "cardgame/unknown2", MAX_PATH);
+		strncpy(next_texture_name, "cardgame/unknown2", sizeof(next_texture_name));
 		next_bpp = 1;
 	}
 }
@@ -244,8 +248,8 @@ void ff8_upload_vram_triple_triad_2_palette(int16_t *pos_and_size, uint8_t *text
 {
 	if (trace_all || trace_vram) ffnx_trace("%s %p\n", __func__, texture_buffer);
 
-	ff8_upload_vram_triple_triad_2_texture_name(texture_buffer);
 	next_pal_data = (uint16_t *)texture_buffer;
+	ff8_upload_vram_triple_triad_2_texture_name(texture_buffer);
 	next_bpp = 2;
 
 	ff8_upload_vram(pos_and_size, texture_buffer);

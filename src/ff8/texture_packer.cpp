@@ -197,6 +197,7 @@ bool TexturePacker::drawModdedTextures(const uint8_t *texData, const uint32_t *p
 				target
 			);
 		} */
+		return false;
 		bool ret = drawModdedTextures(target, paletteData, tex, targetW, targetH, scale, paletteIndex, paletteEntries);
 		// _tiledTexs.erase(texData);
 
