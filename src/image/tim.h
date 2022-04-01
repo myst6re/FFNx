@@ -31,7 +31,7 @@ inline uint32_t fromR5G5B5Color(uint16_t color)
 		g = (color >> 5) & 0x1F,
 		b = (color >> 10) & 0x1F;
 
-	return ((color & 0x8000 ? 0x00 : 0xffu) << 24) |
+	return ((color & 0x8000 ? 0xffu : 0x00) << 24) |
 		((((r << 3) + (r >> 2)) & 0xffu) << 16) |
 		((((g << 3) + (g >> 2)) & 0xffu) << 8) |
 		(((b << 3) + (b >> 2)) & 0xffu);

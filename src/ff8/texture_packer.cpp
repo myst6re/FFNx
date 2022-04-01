@@ -197,7 +197,7 @@ bool TexturePacker::drawModdedTextures(const uint8_t *texData, const uint32_t *p
 				target
 			);
 		} */
-		return false;
+
 		bool ret = drawModdedTextures(target, paletteData, tex, targetW, targetH, scale, paletteIndex, paletteEntries);
 		// _tiledTexs.erase(texData);
 
@@ -250,6 +250,32 @@ bool TexturePacker::drawModdedTextures(uint32_t *target, const uint32_t *palette
 		matchedTextures.reserve(_moddedTextures.size());
 	}
 
+	int scaledW = w * scale,
+		scaledH = targetH * scale;
+
+	for (int i = 0; i < scaledH; ++i)
+	{
+		int vramY = tiledTex.y + i / scale;
+
+		for (int j = 0; j < scaledW; ++j)
+		{
+			int vramX = tiledTex.x + j / scale;
+			ModdedTextureId textureId = _vramTextureIds[vramX + vramY * VRAM_WIDTH];
+
+			if (textureId != INVALID_TEXTURE && _moddedTextures.contains(textureId)) {
+				const Texture &texture = _moddedTextures[textureId];
+
+				int realX = j - (texture.x() - tiledTex.x) * scale,
+					realY = i - (texture.y() - tiledTex.y) * scale;
+				*target = texture.getColor(realX, realY);
+				hasModdedTexture = true;
+			}
+
+			target += 1;
+		}
+	}
+
+/*
 	for (int i = 0; i < targetH; ++i)
 	{
 		int vramY = tiledTex.y + i;
@@ -296,13 +322,6 @@ bool TexturePacker::drawModdedTextures(uint32_t *target, const uint32_t *palette
 					}
 					else
 					{
-						/* for (int yTex = 0; yTex < scale; ++yTex)
-						{
-							for (int xTex = 0; xTex < scale; ++xTex)
-							{
-
-							}
-						} */
 					}
 
 					hasModdedTexture = true;
@@ -322,11 +341,11 @@ bool TexturePacker::drawModdedTextures(uint32_t *target, const uint32_t *palette
 
 			target += 1;
 		}
-	}
+	}*/
 
 	if (trace_all || trace_vram) ffnx_trace("TexturePacker::%s x=%d y=%d bpp=%d w=%d targetW=%d targetH=%d scale=%d hasModdedTexture=%d\n", __func__, tiledTex.x, tiledTex.y, tiledTex.bpp, w, targetW, targetH, scale, hasModdedTexture);
 
-	if (save_textures)
+	/* if (save_textures)
 	{
 		for (ModdedTextureId textureId: matchedTextures)
 		{
@@ -409,7 +428,7 @@ bool TexturePacker::drawModdedTextures(uint32_t *target, const uint32_t *palette
 		}
 
 		return false;
-	}
+	} */
 
 	return hasModdedTexture;
 }
@@ -572,7 +591,7 @@ uint8_t TexturePacker::Texture::scale() const
 	return scaleW;
 }
 
-uint32_t TexturePacker::Texture::getColor(int scaledX, int scaledY)
+uint32_t TexturePacker::Texture::getColor(int scaledX, int scaledY) const
 {
 	return ((uint32_t *)_image->m_data)[scaledX + scaledY * _image->m_width];
 }

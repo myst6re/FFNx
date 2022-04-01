@@ -102,7 +102,7 @@ private:
 		inline bool hasImage() const {
 			return _image != nullptr;
 		}
-		uint32_t getColor(int scaledX, int scaledY);
+		uint32_t getColor(int scaledX, int scaledY) const;
 		inline bool hasPal() const {
 			return _pal.bpp() != 255;
 		}
