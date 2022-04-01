@@ -26,122 +26,202 @@
 #include "../log.h"
 #include "../saveload.h"
 
-bool tim_to_rgba32(uint32_t *target, uint8_t bpp, uint8_t *img_data, uint16_t img_w, uint16_t img_h, uint16_t *pal_data)
+Tim::Tim(uint8_t bpp, const ff8_tim &tim) :
+	_bpp(bpp), _tim(tim)
 {
-    if (img_data == nullptr)
-    {
-        ffnx_error("%s img_data is null\n", __func__);
-
-        return false;
-    }
-
-    if (bpp == 0)
-    {
-        if (pal_data == nullptr)
-        {
-            ffnx_error("%s bpp 0 without palette\n", __func__);
-
-            return false;
-        }
-
-        for (int y = 0; y < img_h; ++y)
-        {
-            for (int x = 0; x < img_w / 2; ++x)
-            {
-                *target = fromR5G5B5Color(pal_data[*img_data & 0xF]);
-
-                ++target;
-
-                *target = fromR5G5B5Color(pal_data[*img_data >> 4]);
-
-                ++target;
-                ++img_data;
-            }
-        }
-    }
-    else if (bpp == 1)
-    {
-        if (pal_data == nullptr)
-        {
-            ffnx_error("%s bpp 1 without palette\n", __func__);
-
-            return false;
-        }
-
-        for (int y = 0; y < img_h; ++y)
-        {
-            for (int x = 0; x < img_w; ++x)
-            {
-                *target = fromR5G5B5Color(pal_data[*img_data]);
-
-                ++target;
-                ++img_data;
-            }
-        }
-    }
-    else if (bpp == 2)
-    {
-        uint16_t *img_data16 = (uint16_t *)img_data;
-
-        for (int y = 0; y < img_h; ++y)
-        {
-            for (int x = 0; x < img_w; ++x)
-            {
-                *target = fromR5G5B5Color(*img_data16);
-
-                ++target;
-                ++img_data16;
-            }
-        }
-    }
-    else
-    {
-        ffnx_error("%s unknown bpp %d\n", __func__, bpp);
-
-        return false;
-    }
-
-    return true;
+	if (_bpp == 0)
+	{
+		_tim.img_w *= 4;
+	}
+	else if (_bpp == 1)
+	{
+		_tim.img_w *= 2;
+	}
 }
 
-void save_tim(const char *fileName, uint8_t bpp, ff8_tim *tim_infos, uint32_t palette_index)
+uint32_t PaletteDetectionStrategyFixed::palOffset(uint16_t, uint16_t) const
 {
-    uint32_t w = tim_infos->img_w;
-
-    if (bpp == 0)
-    {
-        w *= 4;
-    }
-    else if (bpp == 1)
-    {
-        w *= 2;
-    }
-
-    // allocate PBO
-    uint32_t image_data_size = w * tim_infos->img_h * 4;
-    uint32_t *image_data = (uint32_t*)driver_malloc(image_data_size);
-
-    // convert source data
-    if (image_data != nullptr)
-    {
-        // TODO: multiple palettes
-        if (tim_to_rgba32(image_data, bpp, tim_infos->img_data, w, tim_infos->img_h, tim_infos->pal_data))
-        {
-            // TODO: is animated
-            save_texture(image_data, image_data_size, w, tim_infos->img_h, palette_index, fileName, false);
-        }
-
-        driver_free(image_data);
-    }
+	return _palX + _palY * _tim->_tim.pal_w;
 }
 
-void save_lzs(const char *fileName, uint8_t *uncompressed_data)
+bool Tim::toRGBA32(uint32_t *target, uint8_t palX, uint8_t palY) const
 {
-    uint16_t *header = (uint16_t *)uncompressed_data;
-    ff8_tim tim_infos = ff8_tim();
-    tim_infos.img_w = header[2];
-    tim_infos.img_h = header[3];
-    tim_infos.img_data = uncompressed_data + 8;
+	PaletteDetectionStrategyFixed fixed(this, palX, palY);
+	return fixed.isValid() && toRGBA32(target, &fixed);
+}
 
-    save_tim(fileName, 2, &tim_infos);
+PaletteDetectionStrategyGrid::PaletteDetectionStrategyGrid(const Tim *const tim, uint8_t cellCols, uint8_t cellRows) :
+	PaletteDetectionStrategy(tim), _cellCols(cellCols), _cellRows(cellRows), _palCols(1)
+{
+	_colorPerPal = tim->colorsPerPal();
+
+	if (_colorPerPal > 0 && tim->_tim.pal_w > _colorPerPal)
+	{
+		_palCols = _tim->_tim.pal_w / _colorPerPal;
+	}
+}
+
+bool PaletteDetectionStrategyGrid::isValid() const
+{
+	if (_tim->_tim.img_w % _cellCols != 0)
+	{
+		ffnx_error("PaletteDetectionStrategyGrid::%s img_w=%d % cellCols=%d != 0\n", __func__, _tim->_tim.img_w, _cellCols);
+		return false;
+	}
+
+	if (_tim->_tim.pal_w % _colorPerPal == 0)
+	{
+		ffnx_error("PaletteDetectionStrategyGrid::%s pal width=%d not a multiple of %d\n", __func__, _tim->_tim.pal_w, _colorPerPal);
+		return false;
+	}
+
+	if (_tim->_tim.pal_h * _palCols != _cellCols * _cellRows)
+	{
+		ffnx_error("PaletteDetectionStrategyGrid::%s not enough palette for this image\n", __func__);
+		return false;
+	}
+
+	return true;
+}
+
+uint32_t PaletteDetectionStrategyGrid::palOffset(uint16_t imgX, uint16_t imgY) const
+{
+	// Direction: top to bottom then left to right
+	uint16_t cellX = imgX / _cellCols, cellY = imgY / _cellRows;
+	uint16_t palX = (cellX % _palCols) * _colorPerPal, palY = (cellX / _palCols) * _cellRows + cellY;
+
+	return palX + palY * _tim->_tim.pal_w;
+}
+
+bool Tim::toRGBA32MultiPaletteGrid(uint32_t *target, uint8_t cellCols, uint8_t cellRows) const
+{
+	PaletteDetectionStrategyGrid grid(this, cellCols, cellRows);
+	return grid.isValid() && toRGBA32(target, &grid);
+}
+
+bool Tim::toRGBA32(uint32_t *target, PaletteDetectionStrategy *paletteDetectionStrategy) const
+{
+	if (_tim.img_data == nullptr)
+	{
+		ffnx_error("%s img_data is null\n", __func__);
+
+		return false;
+	}
+
+	if (_bpp == 0)
+	{
+		if (_tim.pal_data == nullptr || paletteDetectionStrategy == nullptr)
+		{
+			ffnx_error("%s bpp 0 without palette\n", __func__);
+
+			return false;
+		}
+
+		uint8_t *img_data = _tim.img_data;
+
+		for (int y = 0; y < _tim.img_h; ++y)
+		{
+			for (int x = 0; x < _tim.img_w / 2; ++x)
+			{
+				*target = fromR5G5B5Color((_tim.pal_data + paletteDetectionStrategy->palOffset(x, y))[*_tim.img_data & 0xF]);
+
+				++target;
+
+				*target = fromR5G5B5Color((_tim.pal_data + paletteDetectionStrategy->palOffset(x + 1, y))[*_tim.img_data >> 4]);
+
+				++target;
+				++img_data;
+			}
+		}
+	}
+	else if (_bpp == 1)
+	{
+		if (_tim.pal_data == nullptr || paletteDetectionStrategy == nullptr)
+		{
+			ffnx_error("%s bpp 1 without palette\n", __func__);
+
+			return false;
+		}
+
+		uint8_t *img_data = _tim.img_data;
+
+		for (int y = 0; y < _tim.img_h; ++y)
+		{
+			for (int x = 0; x < _tim.img_w; ++x)
+			{
+				*target = fromR5G5B5Color((_tim.pal_data + paletteDetectionStrategy->palOffset(x, y))[*_tim.img_data]);
+
+				++target;
+				++img_data;
+			}
+		}
+	}
+	else if (_bpp == 2)
+	{
+		uint16_t *img_data16 = (uint16_t *)_tim.img_data;
+
+		for (int y = 0; y < _tim.img_h; ++y)
+		{
+			for (int x = 0; x < _tim.img_w; ++x)
+			{
+				*target = fromR5G5B5Color(*img_data16);
+
+				++target;
+				++img_data16;
+			}
+		}
+	}
+	else
+	{
+		ffnx_error("%s unknown bpp %d\n", __func__, _bpp);
+
+		return false;
+	}
+
+	return true;
+}
+
+void Tim::save(const char *fileName, uint8_t palX, uint8_t palY) const
+{
+	// allocate PBO
+	uint32_t image_data_size = _tim.img_w * _tim.img_h * 4;
+	uint32_t *image_data = (uint32_t*)driver_malloc(image_data_size);
+
+	// convert source data
+	if (image_data != nullptr)
+	{
+		// TODO: multiple palettes
+		if (toRGBA32(image_data, palX, palY))
+		{
+			// TODO: is animated
+			save_texture(image_data, image_data_size, _tim.img_w, _tim.img_h, palX + palY * _tim.pal_w, fileName, false);
+		}
+
+		driver_free(image_data);
+	}
+}
+
+Tim Tim::fromLzs(uint8_t *uncompressed_data)
+{
+	uint16_t *header = (uint16_t *)uncompressed_data;
+	ff8_tim tim_infos = ff8_tim();
+	tim_infos.img_w = header[2];
+	tim_infos.img_h = header[3];
+	tim_infos.img_data = uncompressed_data + 8;
+
+	return Tim(2, tim_infos);
+}
+
+uint16_t Tim::colorsPerPal() const
+{
+	if (_bpp == 1)
+	{
+		return 256;
+	}
+	else if (_bpp == 0)
+	{
+		return 16;
+	}
+
+	return 0;
 }

@@ -28,6 +28,7 @@
 #include <bimg/bimg.h>
 
 #include "../ff8.h"
+#include "../image/tim.h"
 
 typedef uint32_t ModdedTextureId;
 
@@ -111,12 +112,11 @@ private:
 		inline void setPal(const TextureInfos &pal) {
 			_pal = pal;
 		}
-		ff8_tim toTim(uint8_t *imgData, uint16_t *palData) const;
+		Tim toTim(uint8_t *imgData, uint16_t *palData) const;
 	private:
 		bimg::ImageContainer *_image;
 		std::string _name;
 		TextureInfos _pal;
-		bool _logged;
 	};
 	struct TiledTex {
 		TiledTex();

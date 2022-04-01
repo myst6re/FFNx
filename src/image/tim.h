@@ -27,16 +27,60 @@
 
 inline uint32_t fromR5G5B5Color(uint16_t color)
 {
-    uint8_t r = color & 31,
-            g = (color >> 5) & 31,
-            b = (color >> 10) & 31;
+	uint8_t r = color & 31,
+		g = (color >> 5) & 31,
+		b = (color >> 10) & 31;
 
-    return (0xffu << 24) |
-        ((((r << 3) + (r >> 2)) & 0xffu) << 16) |
-        ((((g << 3) + (g >> 2)) & 0xffu) << 8) |
-        (((b << 3) + (b >> 2)) & 0xffu);
+	return (0xffu << 24) |
+		((((r << 3) + (r >> 2)) & 0xffu) << 16) |
+		((((g << 3) + (g >> 2)) & 0xffu) << 8) |
+		(((b << 3) + (b >> 2)) & 0xffu);
 }
 
-bool tim_to_rgba32(uint32_t *target, uint8_t bpp, uint8_t *img_data, uint16_t img_w, uint16_t img_h, uint16_t *pal_data = nullptr);
-void save_tim(const char *fileName, uint8_t bpp, ff8_tim *tim_infos, uint32_t palette_index = 0);
-void save_lzs(const char *fileName, uint8_t *uncompressed_data);
+class Tim;
+
+class PaletteDetectionStrategy {
+public:
+	PaletteDetectionStrategy(const Tim *const tim) : _tim(tim) {};
+	virtual bool isValid() const {
+		return true;
+	}
+	virtual uint32_t palOffset(uint16_t x, uint16_t y) const = 0;
+protected:
+	const Tim *const _tim;
+};
+
+class PaletteDetectionStrategyFixed : public PaletteDetectionStrategy {
+public:
+	PaletteDetectionStrategyFixed(const Tim *const tim, uint16_t palX, uint16_t palY) :
+		PaletteDetectionStrategy(tim), _palX(palX), _palY(palY) {}
+	virtual uint32_t palOffset(uint16_t imgX, uint16_t imgY) const override;
+private:
+	uint16_t _palX, _palY;
+};
+
+class PaletteDetectionStrategyGrid : public PaletteDetectionStrategy {
+public:
+	PaletteDetectionStrategyGrid(const Tim *const tim, uint8_t cellCols, uint8_t cellRows);
+	virtual bool isValid() const override;
+	virtual uint32_t palOffset(uint16_t imgX, uint16_t imgY) const override;
+private:
+	uint8_t _cellCols, _cellRows;
+	uint8_t _palCols, _colorPerPal;
+};
+
+class Tim {
+	friend class PaletteDetectionStrategyFixed;
+	friend class PaletteDetectionStrategyGrid;
+public:
+	Tim(uint8_t bpp, const ff8_tim &tim);
+	uint16_t colorsPerPal() const;
+	bool toRGBA32(uint32_t *target, uint8_t palX = 0, uint8_t palY = 0) const;
+	bool toRGBA32MultiPaletteGrid(uint32_t *target, uint8_t cellCols, uint8_t cellRows) const;
+	void save(const char *fileName, uint8_t palX = 0, uint8_t palY = 0) const;
+	static Tim fromLzs(uint8_t *uncompressed_data);
+private:
+	bool toRGBA32(uint32_t *target, PaletteDetectionStrategy *paletteDetectionStrategy = nullptr) const;
+	ff8_tim _tim;
+	uint8_t _bpp;
+};

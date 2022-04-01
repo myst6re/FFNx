@@ -381,9 +381,9 @@ bool TexturePacker::drawModdedTextures(uint32_t *target, const uint32_t *palette
 				}
 			}
 
-			ff8_tim tim = texture.toTim(data, (uint16_t *)palDataCursor);
+			Tim tim = texture.toTim(data, (uint16_t *)palDataCursor);
 
-			save_tim(texture.name().c_str(), texture.bpp(), &tim, paletteIndex);
+			tim.save(texture.name().c_str(), paletteIndex, 0);
 
 			char fileName[MAX_PATH];
 			snprintf(fileName, MAX_PATH, "%s-tex", texture.name().c_str());
@@ -459,7 +459,7 @@ void TexturePacker::saveVram(const char *fileName, uint8_t bpp) const
 		}
 	}
 
-	save_tim(fileName, bpp, &tim_infos, bpp);
+	Tim(bpp, tim_infos).save(fileName, bpp);
 }
 
 TexturePacker::TextureInfos::TextureInfos() :
@@ -475,7 +475,7 @@ TexturePacker::TextureInfos::TextureInfos(
 }
 
 TexturePacker::Texture::Texture() :
-	TextureInfos(), _image(nullptr), _name(""), _pal(TextureInfos()), _logged(false)
+	TextureInfos(), _image(nullptr), _name(""), _pal(TextureInfos())
 {
 }
 
@@ -483,7 +483,7 @@ TexturePacker::Texture::Texture(
 	const char *name,
 	int x, int y, int w, int h,
 	uint8_t bpp
-) : TextureInfos(x, y, w, h, bpp), _image(nullptr), _name(name), _pal(TextureInfos()), _logged(false)
+) : TextureInfos(x, y, w, h, bpp), _image(nullptr), _name(name), _pal(TextureInfos())
 {
 }
 
@@ -573,14 +573,10 @@ uint8_t TexturePacker::Texture::scale() const
 
 uint32_t TexturePacker::Texture::getColor(int scaledX, int scaledY)
 {
-	if (!_logged) {
-		//ffnx_info("%s: %d %d x=%d y=%d w=%d h=%d img_w=%d img_h=%d bpp=%d\n", _name.c_str(), scaledX, scaledY, _x, _y, _w, _h, _image->m_width, _image->m_height, _bpp);
-		_logged = true;
-	}
 	return ((uint32_t *)_image->m_data)[scaledX + scaledY * _image->m_width];
 }
 
-ff8_tim TexturePacker::Texture::toTim(uint8_t *imgData, uint16_t *palData) const
+Tim TexturePacker::Texture::toTim(uint8_t *imgData, uint16_t *palData) const
 {
 	ff8_tim tim = ff8_tim();
 	tim.img_x = _x;
@@ -598,7 +594,7 @@ ff8_tim TexturePacker::Texture::toTim(uint8_t *imgData, uint16_t *palData) const
 		tim.pal_data = palData;
 	}
 
-	return tim;
+	return Tim(_bpp, tim);
 }
 
 TexturePacker::TiledTex::TiledTex()

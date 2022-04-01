@@ -177,7 +177,7 @@ uint32_t ff8_credits_open_texture(char *fileName, char *buffer)
 
 	uint32_t ret = ff8_externals.credits_open_file(fileName, buffer);
 
-	if (save_textures) save_lzs(next_texture_name, (uint8_t *)buffer);
+	if (save_textures) Tim::fromLzs((uint8_t *)buffer).save(next_texture_name);
 
 	return ret;
 }
@@ -189,7 +189,7 @@ void ff8_cdcheck_error_upload_vram(int16_t *pos_and_size, uint8_t *texture_buffe
 	strncpy(next_texture_name, "discerr.lzs", MAX_PATH);
 	next_bpp = 2;
 
-	if (save_textures) save_lzs(next_texture_name, texture_buffer - 8);
+	if (save_textures) Tim::fromLzs(texture_buffer - 8).save(next_texture_name);
 
 	ff8_upload_vram(pos_and_size, texture_buffer);
 }
@@ -215,7 +215,7 @@ void ff8_upload_vram_triple_triad_1(int16_t *pos_and_size, uint8_t *texture_buff
 		tim.img_w = pos_and_size[2];
 		tim.img_h = pos_and_size[3];
 		tim.img_data = texture_buffer;
-		save_tim(next_texture_name, next_bpp, &tim);
+		Tim(next_bpp, tim).save(next_texture_name);
 	}
 
 	ff8_upload_vram(pos_and_size, texture_buffer);
