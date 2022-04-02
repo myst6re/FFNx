@@ -153,7 +153,7 @@ void TexturePacker::updateMaxScale()
 	if (trace_all || trace_vram) ffnx_trace("TexturePacker::%s scale=%d\n", __func__, _maxScaleCached);
 }
 
-bool TexturePacker::drawModdedTextures(const uint8_t *texData, const uint32_t *paletteData, uint32_t paletteIndex, uint32_t paletteEntries, uint32_t *target, int targetW, int targetH, uint8_t scale)
+bool TexturePacker::drawModdedTextures(const uint8_t *texData, const uint32_t *paletteData, uint32_t paletteIndex, uint32_t paletteEntries, uint32_t *target, const uint32_t *originalImageData, int originalW, int originalH, uint8_t scale)
 {
 	if (trace_all || trace_vram) ffnx_trace("TexturePacker::%s pointer=0x%X paletteIndex=%d, paletteEntries=%d\n", __func__, texData, paletteIndex, paletteEntries);
 
@@ -161,7 +161,13 @@ bool TexturePacker::drawModdedTextures(const uint8_t *texData, const uint32_t *p
 	{
 		const TiledTex &tex = _tiledTexs[texData];
 
-		return drawModdedTextures(target, paletteData, tex, targetW, targetH, scale, paletteIndex, paletteEntries);
+		bool hasModdedTextures = drawModdedTextures(target, paletteData, tex, originalW, originalH, scale, paletteIndex, paletteEntries);
+
+		if (hasModdedTextures) {
+			//fixAlpha(originalImageData, target, originalW, originalH, scale);
+		}
+
+		return hasModdedTextures;
 	}
 
 	if (trace_all || trace_vram) ffnx_warning("TexturePacker::%s Unknown tex data\n", __func__);
@@ -175,6 +181,16 @@ bool TexturePacker::drawModdedTextures(uint32_t *target, const uint32_t *palette
 	{
 		return false;
 	}
+
+	char fileName[MAX_PATH];
+	snprintf(fileName, sizeof(fileName), "texture-page-%d-%d-%d-%d.png", tiledTex.x, tiledTex.y, tiledTex.bpp, paletteIndex);
+
+	newRenderer.saveTexture(
+		fileName,
+		targetW * scale,
+		targetH * scale,
+		target
+	);
 
 	int w = targetW;
 
@@ -194,31 +210,60 @@ bool TexturePacker::drawModdedTextures(uint32_t *target, const uint32_t *palette
 	int scaledW = w * scale,
 		scaledH = targetH * scale;
 
-	for (int i = 0; i < scaledH; ++i)
+	for (int y = 0; y < targetH; ++y)
 	{
-		int vramY = tiledTex.y + i / scale;
+		int vramY = tiledTex.y + y;
 
-		for (int j = 0; j < scaledW; ++j)
+		for (int x = 0; x < w; ++x)
 		{
-			int vramX = tiledTex.x + j / scale;
+			int vramX = tiledTex.x + x;
 			ModdedTextureId textureId = _vramTextureIds[vramX + vramY * VRAM_WIDTH];
 
 			if (textureId != INVALID_TEXTURE && _moddedTextures.contains(textureId)) {
 				const Texture &texture = _moddedTextures[textureId];
 
-				int realX = j - (texture.x() - tiledTex.x) * scale,
-					realY = i - (texture.y() - tiledTex.y) * scale;
-				*target = texture.getColor(realX, realY);
+				int textureX = vramX - texture.x(),
+					textureY = vramY - texture.y();
+
+				texture.copyRect(textureX, textureY, target, x, y, targetW, scale);
+
 				hasModdedTexture = true;
 			}
-
-			target += 1;
 		}
+	}
+
+	if (hasModdedTexture)
+	{
+		snprintf(fileName, sizeof(fileName), "texture-page-%d-%d-%d-%d-modded.png", tiledTex.x, tiledTex.y, tiledTex.bpp, paletteIndex);
+		newRenderer.saveTexture(
+			fileName,
+			targetW * scale,
+			targetH * scale,
+			target
+		);
 	}
 
 	if (trace_all || trace_vram) ffnx_trace("TexturePacker::%s x=%d y=%d bpp=%d w=%d targetW=%d targetH=%d scale=%d hasModdedTexture=%d\n", __func__, tiledTex.x, tiledTex.y, tiledTex.bpp, w, targetW, targetH, scale, hasModdedTexture);
 
 	return hasModdedTexture;
+}
+
+void TexturePacker::fixAlpha(const uint32_t *originalImageData, uint32_t *target, int w, int h, int scale)
+{
+	ffnx_trace("TexturePacker::%s w=%d h=%d scale=%d\n", __func__, w, h, scale);
+
+	// Copy alpha channel from original tex Data to modded target
+	for (int y = 0; y < h * scale; ++y)
+	{
+		for (int x = 0; x < w * scale; ++x)
+		{
+			int originalX = x / scale,
+				originalY = y / scale;
+
+			target[x + y * w] = (originalImageData[originalX + originalY * w] & 0xFF000000) |
+				(target[x + y * w] & 0x00FFFFFF);
+		}
+	}
 }
 
 void TexturePacker::getVramRect(uint8_t *target, const TextureInfos &texture) const
@@ -382,6 +427,31 @@ uint8_t TexturePacker::Texture::scale() const
 uint32_t TexturePacker::Texture::getColor(int scaledX, int scaledY) const
 {
 	return ((uint32_t *)_image->m_data)[scaledX + scaledY * _image->m_width];
+}
+
+void TexturePacker::Texture::copyRect(int textureX, int textureY, uint32_t *target, int targetX, int targetY, int targetW, uint8_t targetScale) const
+{
+	uint8_t textureScale = scale();
+
+	if (textureScale < targetScale)
+	{
+		ffnx_warning("%s: texture scale < target scale not implemented\n", __func__);
+		return;
+	}
+
+	uint8_t rectWidth = (4 >> _bpp) * targetScale, rectHeight = targetScale;
+
+	targetX *= rectWidth;
+	targetY *= rectHeight;
+	targetW *= targetScale;
+
+	textureX *= rectWidth;
+	textureY *= rectHeight;
+
+	for (int y = 0; y < rectHeight; ++y)
+	{
+		memcpy(target + targetX + (targetY + y) * targetW, ((uint32_t *)_image->m_data) + textureX + (textureY + y) * _image->m_width, rectWidth * sizeof(uint32_t));
+	}
 }
 
 Tim TexturePacker::Texture::toTim(uint8_t *imgData, uint16_t *palData) const
