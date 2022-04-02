@@ -1243,7 +1243,9 @@ uint32_t load_external_texture(void* image_data, uint32_t dataSize, struct textu
 	struct gl_texture_set *gl_set = VREF(texture_set, ogl.gl_set);
 	struct texture_format* tex_format = VREFP(tex_header, tex_format);
 
-	if(! save_textures && (uint32_t)VREF(tex_header, file.pc_name) > 32)
+	if(save_textures) return false;
+
+	if((uint32_t)VREF(tex_header, file.pc_name) > 32)
 	{
 		if(trace_all || trace_loaders) ffnx_trace("texture file name: %s\n", VREF(tex_header, file.pc_name));
 
