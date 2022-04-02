@@ -45,12 +45,11 @@ public:
 		_vram = vram;
 	}
 	void setTexture(const char *name, const uint8_t *texture, int x, int y, int w, int h, uint8_t bpp, bool isPal);
-	bool hasTexture(const char *name, int x, int y, int w, int h);
 	inline uint8_t getMaxScale() const {
 		return _maxScaleCached;
 	}
 	void registerTiledTex(uint8_t *target, int x, int y, uint8_t bpp);
-	bool drawModdedTextures(const uint8_t *texData, const uint32_t *paletteData, uint32_t paletteIndex, uint32_t paletteEntries, uint32_t *target, const uint32_t *originalImageData, int originalW, int originalH, uint8_t scale);
+	bool drawModdedTextures(const uint8_t *texData, uint32_t *target, const uint32_t *originalImageData, int originalW, int originalH, uint8_t scale);
 
 	void saveVram(const char *fileName, uint8_t bpp) const;
 private:
@@ -126,8 +125,7 @@ private:
 		uint8_t bpp;
 	};
 	void getVramRect(uint8_t *target, const TextureInfos &texture) const;
-	bool drawModdedTextures(uint32_t *target, const uint32_t *paletteData, const TiledTex &tiledTex, int w, int h, uint8_t scale, uint32_t paletteIndex, uint32_t paletteEntries);
-	static void fixAlpha(const uint32_t *originalImageData, uint32_t *target, int w, int h, int scale);
+	bool drawModdedTextures(uint32_t *target, const TiledTex &tiledTex, int w, int h, uint8_t scale);
 
 	uint8_t *_vram; // uint16_t[VRAM_WIDTH * VRAM_HEIGHT] aka uint8_t[VRAM_WIDTH * VRAM_HEIGHT * VRAM_DEPTH]
 	std::map<const uint8_t *, TiledTex> _tiledTexs;

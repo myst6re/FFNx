@@ -135,6 +135,21 @@ void ff8_find_externals()
 	ff8_externals.sub_4972A0 = get_relative_call(ff8_externals.sub_534640, 0x51);
 	ff8_externals.load_fonts = get_relative_call(ff8_externals.sub_4972A0, 0x16);
 
+	ff8_externals.sub_537F30 = get_relative_call(ff8_externals.sub_534640, 0x2E);
+	ff8_externals.sub_5391B0 = get_relative_call(ff8_externals.sub_537F30, 0x58);
+	ff8_externals.sub_534560 = get_relative_call(ff8_externals.sub_534640, 0x5B);
+	ff8_externals.cardgame_funcs = (uint32_t *)get_absolute_value(ff8_externals.sub_534560, 0x5D);
+	ff8_externals.sub_536C30 = ff8_externals.cardgame_funcs[1];
+	ff8_externals.sub_535640 = ff8_externals.cardgame_funcs[3];
+	ff8_externals.sub_536C80 = get_absolute_value(ff8_externals.sub_536C30, 0x25);
+	ff8_externals.sub_5366D0 = get_absolute_value(ff8_externals.sub_535640, 0x42);
+	ff8_externals.cardgame_tim_texture_intro = (uint8_t *)get_absolute_value(ff8_externals.sub_536C80, 0x3);
+	ff8_externals.cardgame_tim_texture_game = (uint8_t *)get_absolute_value(ff8_externals.sub_5366D0, 0x119);
+	ff8_externals.cardgame_tim_texture_cards = (uint8_t *)get_absolute_value(ff8_externals.sub_534640, 0x11B);
+	ff8_externals.cardgame_tim_texture_icons = (uint8_t *)get_absolute_value(ff8_externals.sub_534640, 0x125);
+	ff8_externals.sub_539500 = get_relative_call(ff8_externals.sub_534640, 0x110);
+	ff8_externals.cardgame_tim_texture_font = (uint8_t *)get_absolute_value(ff8_externals.sub_539500, 0x1);
+
 	ff8_externals.fonts = (font_object **)get_absolute_value(ff8_externals.load_fonts, JP_VERSION ? 0x17 : 0x16);
 
 	common_externals.assert_malloc = (void* (*)(uint32_t, const char*, uint32_t))get_relative_call(ff8_externals.load_fonts, JP_VERSION ? 0x29 : 0x2A);

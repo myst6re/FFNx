@@ -58,7 +58,6 @@ int read_vram_to_buffer_parent_call1(int a1, int structure, int x, int y, int w,
 
 	next_psxvram_x = (x >> (2 - bpp)) + ((rel_pos & 0xF) << 6);
 	next_psxvram_y = y + (((rel_pos >> 4) & 1) << 8);
-	char name[MAX_PATH];
 
 	int ret = ff8_externals.sub_464F70(a1, structure, x, y, w, h, bpp, rel_pos, a9, target);
 
@@ -131,9 +130,7 @@ void read_vram_to_buffer(uint8_t *vram, int vram_w_2048, uint8_t *target, int ta
 
 void read_vram_to_buffer_with_palette1(uint8_t *vram, int vram_w_2048, uint8_t *target, int target_w, int w, int h, int bpp, uint16_t *vram_palette)
 {
-	int *dword_1CA8690 = (int *)0x1CA8690;
-
-	if (trace_all || trace_vram) ffnx_trace("%s: vram_pos=(%d, %d) target=%X target_w=%d w=%d h=%d bpp=%d vram_palette=%X pal=(%d, %d)\n", __func__, next_psxvram_x, next_psxvram_y, int(target), target_w, w, h, bpp, int(vram_palette), *dword_1CA8690 & 0x3F, *dword_1CA8690 >> 6);
+	if (trace_all || trace_vram) ffnx_trace("%s: vram_pos=(%d, %d) target=%X target_w=%d w=%d h=%d bpp=%d vram_palette=%X\n", __func__, next_psxvram_x, next_psxvram_y, int(target), target_w, w, h, bpp, int(vram_palette));
 
 	if (next_psxvram_x == -1)
 	{
@@ -159,10 +156,6 @@ void read_vram_to_buffer_with_palette2(uint8_t *vram, uint8_t *target, int w, in
 	{
 		texturePacker.registerTiledTex(target, next_psxvram_x, next_psxvram_y, bpp);
 	}
-
-	int *dword_1CA8690 = (int *)0x1CA8690;
-
-	ffnx_info("%s: %d %d\n", __func__, *dword_1CA8690 & 0x3F, *dword_1CA8690 >> 6);
 
 	ff8_externals.read_vram_3_paletted(vram, target, w, h, bpp, vram_palette);
 }
@@ -198,12 +191,12 @@ void ff8_upload_vram_triple_triad_1(int16_t *pos_and_size, uint8_t *texture_buff
 {
 	if (trace_all || trace_vram) ffnx_trace("%s %p\n", __func__, texture_buffer);
 
-	if (texture_buffer == (uint8_t *)0xC4ACC0)
+	if (texture_buffer == ff8_externals.cardgame_tim_texture_intro)
 	{
 		strncpy(next_texture_name, "cardgame/intro", sizeof(next_texture_name));
 		next_bpp = 2;
 	}
-	else if (texture_buffer == (uint8_t *)0xC20CAC)
+	else if (texture_buffer == ff8_externals.cardgame_tim_texture_game)
 	{
 		strncpy(next_texture_name, "cardgame/game", sizeof(next_texture_name));
 		next_bpp = 2;
@@ -223,12 +216,7 @@ void ff8_upload_vram_triple_triad_1(int16_t *pos_and_size, uint8_t *texture_buff
 
 void ff8_upload_vram_triple_triad_2_texture_name(uint8_t *texture_buffer)
 {
-	if (texture_buffer == (uint8_t *)0xBA982C || texture_buffer == (uint8_t *)0xBA9878)
-	{
-		strncpy(next_texture_name, "cardgame/unknown1", sizeof(next_texture_name));
-		next_bpp = 1;
-	}
-	else if (texture_buffer == (uint8_t *)0xBA9C8C || texture_buffer == (uint8_t *)0xBB0C98)
+	if (texture_buffer >= ff8_externals.cardgame_tim_texture_cards && texture_buffer < ff8_externals.cardgame_tim_texture_game)
 	{
 		strncpy(next_texture_name, "cardgame/cards", sizeof(next_texture_name));
 		if (next_pal_data == (uint16_t *)texture_buffer)
@@ -237,10 +225,14 @@ void ff8_upload_vram_triple_triad_2_texture_name(uint8_t *texture_buffer)
 		}
 		next_bpp = 1;
 	}
-	else if (texture_buffer == (uint8_t *)0xB96C0C || texture_buffer == (uint8_t *)0xB97818)
+	else if (texture_buffer >= ff8_externals.cardgame_tim_texture_icons && texture_buffer < ff8_externals.cardgame_tim_texture_font)
 	{
-		strncpy(next_texture_name, "cardgame/unknown2", sizeof(next_texture_name));
-		next_bpp = 1;
+		strncpy(next_texture_name, "cardgame/icons", sizeof(next_texture_name));
+		if (next_pal_data == (uint16_t *)texture_buffer)
+		{
+			if (save_textures) Tim::fromTimData(texture_buffer - 20).save(next_texture_name, 0, 0, true);
+		}
+		next_bpp = 0;
 	}
 }
 
@@ -309,9 +301,9 @@ void vram_init()
 	// cdcheck
 	replace_call(ff8_externals.cdcheck_sub_52F9E0 + 0x1DC, ff8_cdcheck_error_upload_vram);
 	// Triple Triad
-	replace_call(0x538BA9, ff8_upload_vram_triple_triad_1);
-	replace_call(0x538D2C, ff8_upload_vram_triple_triad_2_palette);
-	replace_call(0x538D41, ff8_upload_vram_triple_triad_2_data);
+	replace_call(ff8_externals.sub_5391B0 + 0x49, ff8_upload_vram_triple_triad_1);
+	replace_call(ff8_externals.sub_5391B0 + 0x1CC, ff8_upload_vram_triple_triad_2_palette);
+	replace_call(ff8_externals.sub_5391B0 + 0x1E1, ff8_upload_vram_triple_triad_2_data);
 
 	replace_function(ff8_externals.upload_psx_vram, ff8_upload_vram);
 

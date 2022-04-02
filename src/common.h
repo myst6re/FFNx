@@ -313,8 +313,6 @@ struct game_mode *getmode_cached();
 struct tex_header *make_framebuffer_tex(uint32_t tex_w, uint32_t tex_h, uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint32_t color_key);
 void internal_set_renderstate(uint32_t state, uint32_t option, struct game_obj *game_object);
 
-void scale_up_image_data_in_place(uint8_t *sourceAndTarget, int w, int h, int scale);
-
 void get_data_lang_path(PCHAR buffer);
 void get_userdata_path(PCHAR buffer, size_t bufSize, bool isSavegameFile);
 

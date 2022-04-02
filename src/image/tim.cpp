@@ -85,8 +85,6 @@ uint32_t PaletteDetectionStrategyGrid::palOffset(uint16_t imgX, uint16_t imgY) c
 	uint16_t cellX = imgX / _cellWidth, cellY = imgY / _cellHeight;
 	uint16_t palX = (cellX % _palCols) * _colorPerPal, palY = (cellX / _palCols) * _cellRows + cellY;
 
-	ffnx_info("%s: %d %d, %d %d, %d %d\n", __func__, imgX, imgY, cellX, cellY, palX, palY);
-
 	return palX + palY * _tim->_tim.pal_w;
 }
 
