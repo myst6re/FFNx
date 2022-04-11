@@ -119,19 +119,24 @@ namespace SoLoud
 		return stream;
 	}
 
-	result VGMStream::load(const char* aFilename, const char* ext)
+	result VGMStream::load(const char* aFilename, const char* ext, STREAMFILE* stream)
 	{
 		mBaseSamplerate = 0;
 
-		if (aFilename == 0)
+		if (aFilename != nullptr) {
+			if (! fileExists(aFilename))
+				return FILE_NOT_FOUND;
+		} else if (stream == nullptr) {
 			return INVALID_PARAMETER;
-
-		if (! fileExists(aFilename))
-			return FILE_NOT_FOUND;
+		}
 
 		stop();
 
-		if (ext && ext[0] != '\0') {
+		if (stream != nullptr) {
+			mStream = init_vgmstream_from_STREAMFILE(stream);
+			close_streamfile(stream);
+		}
+		else if (ext != nullptr && ext[0] != '\0') {
 			mStream = init_vgmstream_with_extension(aFilename, ext);
 		}
 		else {

@@ -90,6 +90,21 @@ external_music_ext = "akb"
 5. Replace all files when asked.
 6. Enjoy!
 
+#### Early alpha [Remastered Release](https://store.steampowered.com/app/1026680/FINAL_FANTASY_VIII__REMASTERED/)
+
+**Warning:** The compatibilty with the Remastered version is currently uncomplete. You will most likely encounters crashes
+in field and battle and model rendering issues.
+
+0. Install the game using Steam Client
+1. Open the installation directory of the game ( see [How to access game files](https://steamcommunity.com/sharedfiles/filedetails/?id=760447682) )
+2. Download the FF8 patch v1.2 ( search for `ff8_1.2.zip` or `ff8_1.2G.zip` here http://forums.qhimm.com/index.php?topic=12909.msg180223#msg180223 )
+3. Extract the patch ZIP content next to `FFVIII_LAUNCHER.exe` file
+4. Download the latest `FFNx-FF8_2000` release here: https://github.com/julianxhokaxhiu/FFNx/releases
+5. Extract the FFNx ZIP content next to `FFVIII_LAUNCHER.exe` file
+6. Double click on [`FFNx.reg`](https://github.com/julianxhokaxhiu/FFNx/blob/master/misc/FF8.reg)
+7. Start the game using `FF8.exe`
+8. Enjoy!
+
 ## Mod Launchers
 
 ### 7thHeaven 2.4.0+

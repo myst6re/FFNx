@@ -611,6 +611,23 @@ SoLoud::AudioSource* NxAudioEngine::loadMusic(const char* name, bool isFullPath,
 	return music;
 }
 
+SoLoud::AudioSource* NxAudioEngine::loadMusicFromStream(const char* name, const char* format, STREAMFILE *stream)
+{
+	if (trace_all || trace_music) ffnx_trace("NxAudioEngine::%s\n", __func__);
+
+	cleanOldAudioSources();
+
+	SoLoud::VGMStream* vgmstream = new SoLoud::VGMStream();
+	SoLoud::result res = vgmstream->load(nullptr, format, stream);
+	if (res != SoLoud::SO_NO_ERROR) {
+		ffnx_error("NxAudioEngine::%s: Cannot load stream %s with vgmstream ( SoLoud error: %u )\n", __func__, name, res);
+		delete vgmstream;
+		vgmstream = nullptr;
+	}
+
+	return vgmstream;
+}
+
 void NxAudioEngine::overloadPlayArgumentsFromConfig(char* name, uint32_t* id, MusicOptions* musicOptions)
 {
 	// Name to lower case
@@ -694,7 +711,13 @@ bool NxAudioEngine::playMusic(const char* name, uint32_t id, int channel, MusicO
 		return true;
 	}
 
-	SoLoud::AudioSource* audioSource = loadMusic(overloadedName, options.useNameAsFullPath, options.format, options.suppressOpeningSilence);
+	SoLoud::AudioSource* audioSource;
+
+	if (options.stream != nullptr) {
+		audioSource = loadMusicFromStream(overloadedName, options.format, options.stream);
+	} else {
+		audioSource = loadMusic(overloadedName, options.useNameAsFullPath, options.format, options.suppressOpeningSilence);
+	}
 
 	if (audioSource != nullptr) {
 		// Different music is playing on this channel

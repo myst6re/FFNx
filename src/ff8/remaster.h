@@ -2,10 +2,11 @@
 //    Copyright (C) 2009 Aali132                                            //
 //    Copyright (C) 2018 quantumpencil                                      //
 //    Copyright (C) 2018 Maxime Bacoux                                      //
-//    Copyright (C) 2020 myst6re                                            //
 //    Copyright (C) 2020 Chris Rizzitello                                   //
 //    Copyright (C) 2020 John Pritchard                                     //
-//    Copyright (C) 2024 Julian Xhokaxhiu                                   //
+//    Copyright (C) 2022 myst6re                                            //
+//    Copyright (C) 2022 Julian Xhokaxhiu                                   //
+//    Copyright (C) 2022 Tang-Tang Zhou                                     //
 //                                                                          //
 //    This file is part of FFNx                                             //
 //                                                                          //
@@ -21,48 +22,11 @@
 
 #pragma once
 
-#include <soloud.h>
+#include <memory>
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
+#include "zzz_archive.h"
 
-#include <libvgmstream/vgmstream.h>
+void ff8_remaster_init();
 
-#if defined(__cplusplus)
-}
-#endif
-
-namespace SoLoud
-{
-	class VGMStream : public AudioSource
-	{
-		static VGMSTREAM* init_vgmstream_with_extension(const char* aFilename, const char* ext);
-	public:
-		VGMSTREAM* mStream;
-		unsigned int mSampleCount;
-
-		sample_t* mData;
-
-		VGMStream();
-		virtual ~VGMStream();
-		result load(const char* aFilename, const char* ext = nullptr, STREAMFILE* stream = nullptr);
-
-		virtual AudioSourceInstance* createInstance();
-		time getLength();
-	};
-
-	class VGMStreamInstance : public AudioSourceInstance
-	{
-		sample_t* mStreamBuffer;
-		VGMStream* mParent;
-		unsigned int mOffset;
-	public:
-		VGMStreamInstance(VGMStream* aParent);
-		virtual ~VGMStreamInstance();
-		virtual unsigned int getAudio(float* aBuffer, unsigned int aSamplesToRead, unsigned int aBufferSize);
-		virtual result rewind();
-		virtual result seek(double aSeconds, float *mScratch, unsigned int mScratchSize);
-		virtual bool hasEnded();
-	};
-};
+extern Zzz g_FF8ZzzArchiveMain;
+extern Zzz g_FF8ZzzArchiveOther;

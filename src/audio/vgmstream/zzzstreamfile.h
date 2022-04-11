@@ -5,7 +5,7 @@
 //    Copyright (C) 2020 myst6re                                            //
 //    Copyright (C) 2020 Chris Rizzitello                                   //
 //    Copyright (C) 2020 John Pritchard                                     //
-//    Copyright (C) 2024 Julian Xhokaxhiu                                   //
+//    Copyright (C) 2022 Julian Xhokaxhiu                                   //
 //                                                                          //
 //    This file is part of FFNx                                             //
 //                                                                          //
@@ -18,10 +18,7 @@
 //    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         //
 //    GNU General Public License for more details.                          //
 /****************************************************************************/
-
 #pragma once
-
-#include <soloud.h>
 
 #if defined(__cplusplus)
 extern "C" {
@@ -33,36 +30,6 @@ extern "C" {
 }
 #endif
 
-namespace SoLoud
-{
-	class VGMStream : public AudioSource
-	{
-		static VGMSTREAM* init_vgmstream_with_extension(const char* aFilename, const char* ext);
-	public:
-		VGMSTREAM* mStream;
-		unsigned int mSampleCount;
+#include "../../ff8/zzz_archive.h"
 
-		sample_t* mData;
-
-		VGMStream();
-		virtual ~VGMStream();
-		result load(const char* aFilename, const char* ext = nullptr, STREAMFILE* stream = nullptr);
-
-		virtual AudioSourceInstance* createInstance();
-		time getLength();
-	};
-
-	class VGMStreamInstance : public AudioSourceInstance
-	{
-		sample_t* mStreamBuffer;
-		VGMStream* mParent;
-		unsigned int mOffset;
-	public:
-		VGMStreamInstance(VGMStream* aParent);
-		virtual ~VGMStreamInstance();
-		virtual unsigned int getAudio(float* aBuffer, unsigned int aSamplesToRead, unsigned int aBufferSize);
-		virtual result rewind();
-		virtual result seek(double aSeconds, float *mScratch, unsigned int mScratchSize);
-		virtual bool hasEnded();
-	};
-};
+STREAMFILE* open_ZZZ_STREAMFILE(Zzz* archive, const char* const filename, size_t filenameSize, size_t buf_size = STREAMFILE_DEFAULT_BUFFER_SIZE);
