@@ -76,6 +76,7 @@
 #include "ff8/uv_patch.h"
 #include "ff8/ambient.h"
 #include "ff8/file.h"
+#include "ff8/remaster.h"
 
 #include "wine.h"
 
@@ -116,6 +117,10 @@ uint32_t ff7_do_reset = false;
 
 // global FF7/FF8 flag, check if is steam edition
 uint32_t steam_edition = false;
+
+// global FF8 flag, check if is remastered edition
+uint32_t remastered_edition = false;
+uint64_t steam_id = 0;
 
 // global FF7 flag, check if is eStore edition
 uint32_t estore_edition = false;
@@ -743,16 +748,18 @@ int common_create_window(HINSTANCE hInstance, struct game_obj* game_object)
 	WNDCLASSA WndClass;
 
 	// Init Steam API
-	if(steam_edition || enable_steam_achievements)
+	if(steam_edition || remastered_edition || enable_steam_achievements)
 	{
+		int appid = ff8 ? (remastered_edition ? FF8_REMASTERED_APPID : FF8_APPID) : FF7_APPID;
 		// generate automatically steam_appid.txt
-		if(!steam_edition){
+		if(!steam_edition)
+		{
 			std::ofstream steam_appid_file("steam_appid.txt");
-			steam_appid_file << ((ff8) ? FF8_APPID : FF7_APPID);
+			steam_appid_file << appid;
 			steam_appid_file.close();
 		}
 
-		if (SteamAPI_RestartAppIfNecessary((ff8) ? FF8_APPID : FF7_APPID))
+		if (SteamAPI_RestartAppIfNecessary(appid))
 		{
 			MessageBoxA(gameHwnd, "Steam Error - Could not find steam_appid.txt containing the app ID of the game.\n", "Steam App ID Wrong", 0);
 			ffnx_error( "Steam Error - Could not find steam_appid.txt containing the app ID of the game.\n" );
@@ -768,6 +775,12 @@ int common_create_window(HINSTANCE hInstance, struct game_obj* game_object)
 			g_FF8SteamAchievements = std::make_unique<SteamAchievementsFF8>();
 		else
 			g_FF7SteamAchievements = std::make_unique<SteamAchievementsFF7>();
+
+		if (remastered_edition)
+		{
+			CSteamID steamID = SteamUser()->GetSteamID();
+			steam_id = steamID.ConvertToUint64();
+		}
 	}
 
 	// fetch current user screen settings
@@ -950,6 +963,9 @@ int common_create_window(HINSTANCE hInstance, struct game_obj* game_object)
 						uv_patch_init();
 					}
 					vibration_init();
+					if (remastered_edition) {
+						ff8_remaster_init();
+					}
 				}
 
 				exe_data_init();
@@ -2732,13 +2748,12 @@ uint32_t get_version()
 	return 0;
 }
 
-void get_data_lang_path(PCHAR buffer)
+void concat_lang_str(PCHAR buffer)
 {
-	strcpy(buffer, ff8 ? ff8_externals.app_path : basedir);
-	PathAppendA(buffer, R"(data\lang-)");
 	switch (version)
 	{
 	case VERSION_FF7_102_US:
+	case VERSION_FF8_12_US:
 	case VERSION_FF8_12_US_NV:
 	case VERSION_FF8_12_US_EIDOS_NV:
 		if (ff7_japanese_edition)
@@ -2747,24 +2762,36 @@ void get_data_lang_path(PCHAR buffer)
 			strcat(buffer, "en");
 		break;
 	case VERSION_FF7_102_FR:
+	case VERSION_FF8_12_FR:
 	case VERSION_FF8_12_FR_NV:
 		strcat(buffer, "fr");
 		break;
 	case VERSION_FF7_102_DE:
+	case VERSION_FF8_12_DE:
 	case VERSION_FF8_12_DE_NV:
 		strcat(buffer, "de");
 		break;
 	case VERSION_FF7_102_SP:
+	case VERSION_FF8_12_SP:
 	case VERSION_FF8_12_SP_NV:
 		strcat(buffer, "es");
 		break;
+	case VERSION_FF8_12_IT:
 	case VERSION_FF8_12_IT_NV:
 		strcat(buffer, "it");
 		break;
 	case VERSION_FF8_12_JP:
+	case VERSION_FF8_12_JP_NV:
 		strcat(buffer, "jp");
 		break;
 	}
+}
+
+void get_data_lang_path(PCHAR buffer)
+{
+	strcpy(buffer, ff8 ? ff8_externals.app_path : basedir);
+	PathAppendA(buffer, R"(data\lang-)");
+	concat_lang_str(buffer);
 }
 
 void get_userdata_path(PCHAR buffer, size_t bufSize, bool isSavegameFile)
@@ -2779,8 +2806,18 @@ void get_userdata_path(PCHAR buffer, size_t bufSize, bool isSavegameFile)
 
 		CoTaskMemFree(outPath);
 
-		if (ff8)
-			PathAppendA(buffer, R"(Square Enix\FINAL FANTASY VIII Steam)");
+		if (ff8) {
+			if (remastered_edition)
+			{
+				PathAppendA(buffer, R"(My Games\FINAL FANTASY VIII Remastered\Steam\)");
+				char steamID[20] = {};
+				snprintf(steamID, sizeof(steamID), "%I64u", steam_id);
+				PathAppendA(buffer, steamID);
+				PathAppendA(buffer, R"(\game_data\user)");
+			}
+			else
+				PathAppendA(buffer, R"(Square Enix\FINAL FANTASY VIII Steam)");
+		}
 		else
 			PathAppendA(buffer, R"(Square Enix\FINAL FANTASY VII Steam)");
 
@@ -2790,6 +2827,10 @@ void get_userdata_path(PCHAR buffer, size_t bufSize, bool isSavegameFile)
 			{
 				// Directly use the given userdata
 				PathAppendA(buffer, steam_game_userdata.c_str());
+			}
+			else if (remastered_edition)
+			{
+				PathAppendA(buffer, R"(\saves)");
 			}
 			else
 			{
@@ -3082,7 +3123,25 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 
 			game_cfg_init();
 
-			if (strstr(dllName, "af3dn.p") != NULL)
+			struct stat dummy;
+
+			if (stat("FFVIII_EFIGS.dll", &dummy) == 0)
+			{
+				ffnx_trace("Detected Remastered edition.\n");
+
+				remastered_edition = true;
+
+				// Steam edition contains movies unpacked
+				enable_ffmpeg_videos = true;
+
+				if (app_path.empty()) app_path = "./";
+				data_drive = "CD:";
+
+				patch_code_byte(uint32_t(ff8_externals.set_game_paths) + 0x1F0, DRIVE_NO_ROOT_DIR);
+				memcpy_code(uint32_t(ff8_externals.archive_path_prefix_field), "\\ff8\\data\\x\\field\\", sizeof("\\ff8\\data\\x\\field\\"));
+				memcpy_code(uint32_t(ff8_externals.archive_path_prefix_world), "\\ff8\\data\\x\\world\\", sizeof("\\ff8\\data\\x\\world\\"));
+			}
+			else if (strstr(dllName, "af3dn.p") != NULL)
 			{
 				ffnx_trace("Detected Steam edition.\n");
 

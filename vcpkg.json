@@ -163,6 +163,11 @@
       "name": "hwinfo",
       "version": "1.0.0",
       "port-version": 0
+    },
+    {
+      "name": "lz4",
+      "version": "1.9.3",
+      "port-version": 3
     }
   ]
 }

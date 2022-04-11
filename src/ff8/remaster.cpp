@@ -2,10 +2,11 @@
 //    Copyright (C) 2009 Aali132                                            //
 //    Copyright (C) 2018 quantumpencil                                      //
 //    Copyright (C) 2018 Maxime Bacoux                                      //
-//    Copyright (C) 2020 myst6re                                            //
 //    Copyright (C) 2020 Chris Rizzitello                                   //
 //    Copyright (C) 2020 John Pritchard                                     //
-//    Copyright (C) 2024 Julian Xhokaxhiu                                   //
+//    Copyright (C) 2022 myst6re                                            //
+//    Copyright (C) 2022 Julian Xhokaxhiu                                   //
+//    Copyright (C) 2022 Tang-Tang Zhou                                     //
 //                                                                          //
 //    This file is part of FFNx                                             //
 //                                                                          //
@@ -21,48 +22,31 @@
 
 #pragma once
 
-#include <soloud.h>
+#include "../globals.h"
+#include "../log.h"
+#include "remaster.h"
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
+Zzz g_FF8ZzzArchiveMain;
+Zzz g_FF8ZzzArchiveOther;
 
-#include <libvgmstream/vgmstream.h>
-
-#if defined(__cplusplus)
-}
-#endif
-
-namespace SoLoud
+void ff8_remaster_init()
 {
-	class VGMStream : public AudioSource
-	{
-		static VGMSTREAM* init_vgmstream_with_extension(const char* aFilename, const char* ext);
-	public:
-		VGMSTREAM* mStream;
-		unsigned int mSampleCount;
+    char fullpath[MAX_PATH];
 
-		sample_t* mData;
+    snprintf(fullpath, sizeof(fullpath), "%s/main.zzz", basedir);
+    errno_t err = g_FF8ZzzArchiveMain.open(fullpath);
 
-		VGMStream();
-		virtual ~VGMStream();
-		result load(const char* aFilename, const char* ext = nullptr, STREAMFILE* stream = nullptr);
+    if (err != 0) {
+        ffnx_error("%s: cannot open main.zzz (error code %d)\n", __func__, err);
+        exit(1);
+    }
 
-		virtual AudioSourceInstance* createInstance();
-		time getLength();
-	};
+    snprintf(fullpath, sizeof(fullpath), "%s/other.zzz", basedir);
 
-	class VGMStreamInstance : public AudioSourceInstance
-	{
-		sample_t* mStreamBuffer;
-		VGMStream* mParent;
-		unsigned int mOffset;
-	public:
-		VGMStreamInstance(VGMStream* aParent);
-		virtual ~VGMStreamInstance();
-		virtual unsigned int getAudio(float* aBuffer, unsigned int aSamplesToRead, unsigned int aBufferSize);
-		virtual result rewind();
-		virtual result seek(double aSeconds, float *mScratch, unsigned int mScratchSize);
-		virtual bool hasEnded();
-	};
-};
+    err = g_FF8ZzzArchiveOther.open(fullpath);
+
+    if (err != 0) {
+        ffnx_error("%s: cannot open other.zzz (error code %d)\n", __func__, err);
+        exit(1);
+    }
+}
