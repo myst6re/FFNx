@@ -23,9 +23,13 @@
 #include "file.h"
 #include "../ff8.h"
 #include "../log.h"
+#include "../patch.h"
+#include "zzz_archive.h"
 
 #include <fcntl.h>
 #include <io.h>
+#include <sys/stat.h>
+#include <lz4.h>
 
 char next_direct_file[MAX_PATH] = "";
 
@@ -69,6 +73,8 @@ int ff8_fs_archive_search_filename2(const char *fullpath, ff8_file_fi_infos *fi_
 		for (int id = 0; id < file_container->fl_infos->file_count; ++id)
 		{
 			char *path = ff8_externals.fs_archive_get_fl_filepath(id, file_container->fl_infos);
+
+			ffnx_info("%s\n", path + prefix_size);
 
 			if (!_stricmp(fullpath + prefix_size, path + prefix_size))
 			{
@@ -115,6 +121,99 @@ void ff8_fs_archive_free_file_container_sub_archive(ff8_file_container *file_con
 	return ff8_externals.free_file_container(file_container);
 }
 
+int ff8_fs_archive_read_or_uncompress_data(size_t size, uint8_t *data, ff8_file *file)
+{
+	if (trace_all || trace_files) ffnx_trace("%s size=%d\n", __func__, size);
+
+	if (file == nullptr)
+	{
+		return 0;
+	}
+
+	ff8_file_container *file_container = file->file_container;
+
+	if (file_container == nullptr)
+	{
+		return 0;
+	}
+
+	// LZ4 compression
+	if (file->fi_infos.compression == 2)
+	{
+		if (trace_all || trace_files) ffnx_trace("%s LZ4 compression detected (pos=%d, size=%d)\n", __func__, file->fi_infos.pos, file->fi_infos.size);
+
+		int pos = ff8_externals._lseek(file_container->fs_disk_file_metadata->fd, file->fi_infos.pos, SEEK_SET);
+		if (file->fi_infos.pos != pos)
+		{
+			ffnx_error("%s: cannot seek to lz4 file\n", __func__);
+			return 0;
+		}
+
+		int compressed_size = 0;
+
+		if (ff8_externals._read(file_container->fs_disk_file_metadata->fd, &compressed_size, 4) != 4)
+		{
+			ffnx_error("%s: cannot read lz4 file header\n", __func__);
+			return 0;
+		}
+
+		char *src = (char *)driver_malloc(compressed_size);
+
+		if (ff8_externals._read(file_container->fs_disk_file_metadata->fd, src, compressed_size) <= 0)
+		{
+			driver_free(src);
+			ffnx_error("%s: cannot read lz4 file data (compressed_size=%d)\n", __func__, compressed_size);
+			return 0;
+		}
+
+		char *dst = (char *)driver_malloc(file->fi_infos.size + 10);
+
+		int uncompressed_size = LZ4_decompress_safe(src + 8, dst, compressed_size - 8, file->fi_infos.size + 10);
+
+		driver_free(src);
+
+		if (uncompressed_size < 0)
+		{
+			driver_free(dst);
+			ffnx_error("%s: cannot uncompress lz4 file data (compressed_size=%d, error=%d)\n", __func__, compressed_size, uncompressed_size);
+			return 0;
+		}
+
+		memcpy(data, dst + file->current_pos, size);
+		driver_free(dst);
+
+		file->current_pos += size;
+		if (file->current_pos >= file->fi_infos.size)
+		{
+			file->current_pos = file->fi_infos.size - 1;
+		}
+
+		return 1;
+	}
+
+	unreplace_function(ff8_fs_archive_read_or_uncompress_data_replace_id);
+	int ret = ((int(*)(size_t,uint8_t*,ff8_file*))ff8_externals.read_or_uncompress_fs_data)(size, data, file);
+	rereplace_function(ff8_fs_archive_read_or_uncompress_data_replace_id);
+
+	return ret;
+}
+
+void ff8_fs_archive_field_concat_extension(char *fileName, char *extension)
+{
+	// Remastered edition only
+	if (strstr(extension, ".msd") != NULL || strstr(extension, ".jsm") != NULL
+		|| (JP_VERSION && strstr(extension, ".inf") != NULL))
+	{
+		strcat(fileName, "_");
+		concat_lang_str(fileName);
+		strcat(fileName, extension);
+	}
+	else
+	{
+		strcat(fileName, extension);
+	}
+}
+
 int ff8_open(const char *fileName, int oflag, ...)
 {
 	va_list va;
@@ -135,6 +234,13 @@ int ff8_open(const char *fileName, int oflag, ...)
 		return ret;
 	}
 
+	if (remastered_edition)
+	{
+		char newPath[MAX_PATH] = {};
+		ff8_steam_redirection(fileName, newPath);
+		return ff8_externals._sopen(newPath, oflag, 64, pmode);
+	}
+
 	return ff8_externals._sopen(fileName, oflag, 64, pmode);
 }
 
@@ -151,6 +257,13 @@ FILE *ff8_fopen(const char *fileName, const char *mode)
 		*next_direct_file = '\0';
 
 		return file;
+	}
+
+	if (remastered_edition)
+	{
+		char newPath[MAX_PATH] = {};
+		ff8_steam_redirection(fileName, newPath);
+		return ff8_externals._fsopen(newPath, mode, 64);
 	}
 
 	return ff8_externals._fsopen(fileName, mode, 64);
@@ -234,8 +347,17 @@ ff8_file *ff8_open_file(ff8_file_context *infos, const char *fs_path)
 			}
 			else
 			{
-				// We need to use the external _open, and not the official one
-				file->fd = ff8_externals._sopen(fullpath, oflag, 64, pmode);
+				if (remastered_edition)
+				{
+					char newPath[MAX_PATH] = {};
+					ff8_steam_redirection(fullpath, newPath);
+					file->fd = ff8_externals._sopen(newPath, oflag, 64, pmode);
+				}
+				else
+				{
+					// We need to use the external _open, and not the official one
+					file->fd = ff8_externals._sopen(fullpath, oflag, 64, pmode);
+				}
 			}
 
 			file->is_open = 1;
@@ -252,4 +374,90 @@ ff8_file *ff8_open_file(ff8_file_context *infos, const char *fs_path)
 	}
 
 	return file;
+}
+
+bool ff8_steam_redirection(const char *lpFileName, char *newPath)
+{
+	bool ret = true;
+
+	if (strstr(lpFileName, "CD:") != NULL)
+	{
+		uint8_t requiredDisk = *((uint8_t*)ff8_externals.savemap + 0xCC);
+		CHAR diskAsChar[2];
+
+		itoa(requiredDisk, diskAsChar, 10);
+
+		// Search for the last '\' character and get a pointer to the next char
+		const char* pos = strrchr(lpFileName, 92) + 1;
+		ret = false;
+
+		if (strstr(lpFileName, "DISK1") != NULL || strstr(lpFileName, "DISK2") != NULL || strstr(lpFileName, "DISK3") != NULL || strstr(lpFileName, "DISK4") != NULL)
+		{
+			PathAppendA(newPath, R"(data\disk)");
+			PathAppendA(newPath, pos);
+
+			if (strstr(lpFileName, diskAsChar) != NULL)
+			{
+				ff8_currentdisk = requiredDisk;
+				ret = true;
+			}
+		}
+	}
+	else if (strstr(lpFileName, "app.log") || strstr(lpFileName, "ff8input.cfg"))
+	{
+		// Search for the last '\' character and get a pointer to the next char
+		const char* pos = strrchr(lpFileName, 92) + 1;
+
+		get_userdata_path(newPath, MAX_PATH, false);
+		PathAppendA(newPath, pos);
+	}
+	else if (strstr(lpFileName, "temp.fi") || strstr(lpFileName, "temp.fl") || strstr(lpFileName, "temp.fs") || strstr(lpFileName, "temp_evn.") || strstr(lpFileName, "temp_odd."))
+	{
+		// Search for the last '\' character and get a pointer to the next char
+		const char* pos = strrchr(lpFileName, 92) + 1;
+
+		get_userdata_path(newPath, MAX_PATH, false);
+		PathAppendA(newPath, pos);
+	}
+	else if (strstr(lpFileName, ".fi") != NULL || strstr(lpFileName, ".fl") != NULL || strstr(lpFileName, ".fs") != NULL)
+	{
+		if (remastered_edition && (strstr(lpFileName, "field") != NULL || strstr(lpFileName, "magic") != NULL || strstr(lpFileName, "world") != NULL))
+		{
+			strncpy(newPath, lpFileName, MAX_PATH);
+		}
+		else
+		{
+			// Search for the last '\' character and get a pointer to the next char
+			const char* pos = strrchr(lpFileName, 92) + 1;
+
+			get_data_lang_path(newPath);
+			PathAppendA(newPath, pos);
+		}
+	}
+	else if (StrStrIA(lpFileName, R"(SAVE\)") != NULL) // SAVE\SLOTX\saveN or save\chocorpg
+	{
+		CHAR saveFileName[50]{ 0 };
+
+		// Search for the next character pointer after "SAVE\"
+		const char* pos = StrStrIA(lpFileName, R"(SAVE\)") + 5;
+		strcpy(saveFileName, pos);
+		_strlwr(saveFileName);
+		char* posSeparator = strstr(saveFileName, R"(\)");
+		if (posSeparator != NULL)
+		{
+			*posSeparator = '_';
+		}
+		strcat(saveFileName, R"(.ff8)");
+
+		get_userdata_path(newPath, MAX_PATH, true);
+		PathAppendA(newPath, saveFileName);
+	}
+	else
+	{
+		strncpy(newPath, lpFileName, MAX_PATH);
+	}
+
+	ffnx_info("%s %s -> %s\n", __func__, lpFileName, newPath);
+
+	return ret;
 }

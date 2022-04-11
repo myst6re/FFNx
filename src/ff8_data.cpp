@@ -48,6 +48,10 @@ void ff8_find_externals()
 	ff8_externals.manage_time_engine_sub_569971 = get_relative_call(common_externals.winmain, 0x23);
 	ff8_externals.enable_rdtsc_sub_40AA00 = (int (*)(int))get_relative_call(ff8_externals.manage_time_engine_sub_569971, 0x21);
 	common_externals.get_time = (uint64_t (*)(uint64_t*))get_relative_call(common_externals.winmain, 0x20E);
+	ff8_externals.archive_path_prefix_menu = (char *)get_absolute_value(ff8_externals.main_entry, 0x3A);
+	ff8_externals.archive_path_prefix_battle = (char *)get_absolute_value(ff8_externals.main_entry, 0x46);
+	ff8_externals.archive_path_prefix_field = (char *)get_absolute_value(ff8_externals.main_entry, 0x52);
+	ff8_externals.archive_path_prefix_world = (char *)get_absolute_value(ff8_externals.main_entry, 0x5E);
 	common_externals.diff_time = (uint64_t (*)(uint64_t*,uint64_t*,uint64_t*))get_relative_call(common_externals.winmain, 0x41E);
 	ff8_externals.init_config = get_relative_call(ff8_externals.main_entry, 0x73);
 	ff8_externals.pubintro_init = get_absolute_value(ff8_externals.main_entry, 0x158);
@@ -126,9 +130,12 @@ void ff8_find_externals()
 	common_externals.debug_print2 = get_relative_call(uint32_t(ff8_externals.sm_pc_read), 0x16);
 	ff8_externals.moriya_filesytem_open = get_relative_call(uint32_t(ff8_externals.sm_pc_read), 0x21);
 	ff8_externals.moriya_filesytem_seek = get_relative_call(uint32_t(ff8_externals.sm_pc_read), 0x77);
+	ff8_externals._lseek = (int (*)(int,long,int))get_relative_call(uint32_t(ff8_externals.sm_pc_read), 0x8B);
 	ff8_externals.moriya_filesytem_read = get_relative_call(uint32_t(ff8_externals.sm_pc_read), 0xB7);
+	ff8_externals._read = (int (*)(int,void*,unsigned int))get_relative_call(uint32_t(ff8_externals.sm_pc_read), 0xC7);
 	ff8_externals.moriya_filesytem_close = get_relative_call(uint32_t(ff8_externals.sm_pc_read), 0xDD);
 	ff8_externals.free_file_container = (void(*)(ff8_file_container*))get_relative_call(ff8_externals.moriya_filesytem_close, 0x1F);
+	ff8_externals.read_or_uncompress_fs_data = get_relative_call(ff8_externals.moriya_filesytem_read, 0x5C);
 
 	ff8_externals.cdcheck_sub_52F9E0 = get_relative_call(ff8_externals.cdcheck_main_loop, 0x95);
 
@@ -331,6 +338,7 @@ void ff8_find_externals()
 	ff8_externals.read_field_data = get_relative_call(ff8_externals.sub_471F70, 0x23A);
 	ff8_externals.upload_mim_file = get_relative_call(ff8_externals.read_field_data, JP_VERSION ? 0x723 : 0x729);
 	ff8_externals.upload_pmp_file = get_relative_call(ff8_externals.read_field_data, JP_VERSION ? 0x80C : 0x812);
+	ff8_externals.field_filename_concat_extension = get_relative_call(ff8_externals.read_field_data, 0x84);
 	ff8_externals.field_filename = (char *)get_absolute_value(ff8_externals.read_field_data, 0xF0);
 
 	ff8_externals.field_scripts_init = get_relative_call(ff8_externals.read_field_data, JP_VERSION ? 0xEDC : 0xE49);
@@ -563,29 +571,6 @@ void ff8_find_externals()
 	ff8_externals.sub_4A0880 = get_relative_call(ff8_externals.sub_49ACD0, 0x58);
 	ff8_externals.sub_4A0C00 = get_absolute_value(ff8_externals.sub_4A0880, 0x33);
 	ff8_externals.show_dialog = (char(*)(int32_t, uint32_t, int16_t))get_relative_call(ff8_externals.sub_4A0C00, 0x5F);
-
-	// Required by Steam edition
-	switch (version)
-	{
-	case VERSION_FF8_12_US_NV:
-		ff8_externals.requiredDisk = 0xB8EE90;
-		break;
-	case VERSION_FF8_12_FR_NV:
-		ff8_externals.requiredDisk = 0xB8EDB8;
-		break;
-	case VERSION_FF8_12_DE_NV:
-		ff8_externals.requiredDisk = 0xB8EDC0;
-		break;
-	case VERSION_FF8_12_SP_NV:
-		ff8_externals.requiredDisk = 0xB8EDC0;
-		break;
-	case VERSION_FF8_12_IT_NV:
-		ff8_externals.requiredDisk = 0xB8EDB8;
-		break;
-	case VERSION_FF8_12_JP:
-		ff8_externals.requiredDisk = 0xD92BB0;
-		break;
-	}
 }
 
 void ff8_data()

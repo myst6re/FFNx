@@ -145,8 +145,8 @@ struct struc_38
 
 struct ff8_file_fi_infos
 {
-	int pos;
 	int size;
+	int pos;
 	int compression;
 };
 
@@ -1048,6 +1048,7 @@ struct ff8_externals
 	uint32_t read_field_data;
 	uint32_t upload_mim_file;
 	uint32_t upload_pmp_file;
+	uint32_t field_filename_concat_extension;
 	char *field_filename;
 	uint32_t field_scripts_init;
 	uint8_t *field_state_background_count;
@@ -1110,7 +1111,6 @@ struct ff8_externals
 	uint32_t sub_545EA0;
 	uint32_t sub_545F10;
 	uint32_t sub_465720;
-	uint32_t requiredDisk;
 	uint32_t sm_battle_sound;
 	uint32_t sdmusicplay;
 	uint32_t(*sd_music_play)(uint32_t, char*, uint32_t);
@@ -1179,6 +1179,10 @@ struct ff8_externals
 	uint32_t sub_464DB0;
 	uint32_t sub_4649A0;
 	char *archive_path_prefix;
+	char *archive_path_prefix_menu;
+	char *archive_path_prefix_battle;
+	char *archive_path_prefix_field;
+	char *archive_path_prefix_world;
 	int(*fs_archive_search_filename)(const char *, ff8_file_fi_infos *, const ff8_file_container *);
 	int(*ff8_fs_archive_search_filename2)(const char *, ff8_file_fi_infos *, const ff8_file_container *);
 	char *(*fs_archive_get_fl_filepath)(int, const ff8_file_fl *);
@@ -1186,12 +1190,15 @@ struct ff8_externals
 	int(*_sopen)(const char*, int, int, ...);
 	uint32_t fopen;
 	FILE *(*_fsopen)(const char*, const char*, int);
+	int (*_lseek)(int,long,int);
+	int (*_read)(int,void*,unsigned int);
 	uint32_t input_init;
 	uint32_t ff8input_cfg_read;
 	char *(*strcpy_with_malloc)(const char *);
 	uint32_t moriya_filesytem_open;
 	uint32_t moriya_filesytem_seek;
 	uint32_t moriya_filesytem_read;
+	uint32_t read_or_uncompress_fs_data;
 	uint32_t moriya_filesytem_close;
 	void(*free_file_container)(ff8_file_container *);
 	uint32_t field_get_dialog_string;
