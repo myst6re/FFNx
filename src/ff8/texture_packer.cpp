@@ -43,32 +43,14 @@ void TexturePacker::setTexture(const char *name, const uint8_t *source, int x, i
 	Texture tex;
 	ModdedTextureId textureId = INVALID_TEXTURE;
 
-	if (hasNamedTexture)
+	if (hasNamedTexture && !isPal)
 	{
-		if (isPal)
-		{
-			for (std::pair<const ModdedTextureId, Texture> &pair: _moddedTextures)
-			{
-				Texture &t = pair.second;
+		tex = Texture(name, x, y, w, h, bpp);
 
-				if (t.name().compare(name) == 0)
-				{
-					if (trace_all || trace_vram) ffnx_info("TexturePacker::%s: associate palette with existing texture\n", __func__);
-					t.setPal(TextureInfos(x, y, w, h, bpp));
-					_moddedTextures[pair.first] = t;
-					break;
-				}
-			}
-		}
-		else
+		if (tex.createImage())
 		{
-			tex = Texture(name, x, y, w, h, bpp);
-
-			if (tex.createImage() || save_textures)
-			{
-				textureId = x + y * VRAM_WIDTH;
-				_moddedTextures[textureId] = tex;
-			}
+			textureId = x + y * VRAM_WIDTH;
+			_moddedTextures[textureId] = tex;
 		}
 	}
 
@@ -110,6 +92,36 @@ void TexturePacker::setTexture(const char *name, const uint8_t *source, int x, i
 	updateMaxScale();
 }
 
+bool TexturePacker::setTextureRedirection(
+	const TextureInfos &oldTexture,
+	const TextureInfos &newTexture,
+	const TextureInfos &oldPal,
+	const TextureInfos &newPal
+)
+{
+	TextureRedirection redirection(oldTexture, newTexture, oldPal, newPal);
+	if (redirection.isValid())
+	{
+		ModdedTextureId textureId = oldTexture.x() + oldTexture.y() * VRAM_WIDTH;
+		_textureRedirections[textureId] = redirection;
+
+		updateMaxScale();
+
+		return true;
+	}
+
+	return false;
+}
+
+void TexturePacker::clearTextureRedirections()
+{
+	if (! _textureRedirections.empty())
+	{
+		_textureRedirections.clear();
+		updateMaxScale();
+	}
+}
+
 void TexturePacker::updateMaxScale()
 {
 	_maxScaleCached = 1;
@@ -118,6 +130,16 @@ void TexturePacker::updateMaxScale()
 	{
 		const Texture &tex = pair.second;
 		const uint8_t texScale = tex.scale();
+
+		if (texScale > _maxScaleCached) {
+			_maxScaleCached = texScale;
+		}
+	}
+
+	for (const std::pair<ModdedTextureId, TextureRedirection> &pair: _textureRedirections)
+	{
+		const TextureRedirection &redirection = pair.second;
+		const uint8_t texScale = redirection.scale();
 
 		if (texScale > _maxScaleCached) {
 			_maxScaleCached = texScale;
@@ -145,7 +167,7 @@ bool TexturePacker::drawModdedTextures(const uint8_t *texData, uint32_t *target,
 
 bool TexturePacker::drawModdedTextures(uint32_t *target, const TiledTex &tiledTex, int targetW, int targetH, uint8_t scale)
 {
-	if (_moddedTextures.empty())
+	if (_moddedTextures.empty() && _textureRedirections.empty())
 	{
 		return false;
 	}
@@ -177,15 +199,39 @@ bool TexturePacker::drawModdedTextures(uint32_t *target, const TiledTex &tiledTe
 			int vramX = tiledTex.x + x;
 			ModdedTextureId textureId = _vramTextureIds[vramX + vramY * VRAM_WIDTH];
 
-			if (textureId != INVALID_TEXTURE && _moddedTextures.contains(textureId)) {
-				const Texture &texture = _moddedTextures[textureId];
+			if (textureId != INVALID_TEXTURE)
+			{
+				if (_moddedTextures.contains(textureId))
+				{
+					const Texture &texture = _moddedTextures[textureId];
 
-				int textureX = vramX - texture.x(),
-					textureY = vramY - texture.y();
+					int textureX = vramX - texture.x(),
+						textureY = vramY - texture.y();
 
-				texture.copyRect(textureX, textureY, target, x, y, targetW, scale);
+					texture.copyRect(textureX, textureY, target, x, y, targetW, scale);
 
-				hasModdedTexture = true;
+					hasModdedTexture = true;
+				}
+				else if (_textureRedirections.contains(textureId))
+				{
+					const TextureRedirection &redirection = _textureRedirections[textureId];
+
+					int textureX = vramX - redirection.oldTexture().x(),
+						textureY = vramY - redirection.oldTexture().y();
+
+					uint32_t image_data_size = redirection.newTexture().pixelW() * redirection.newTexture().h() * 4;
+					uint32_t *image_data = (uint32_t*)driver_malloc(image_data_size);
+
+					if (image_data != nullptr)
+					{
+						if (toRGBA32(image_data, redirection.newTexture(), redirection.newPalette(), false))
+						{
+							redirection.copyRect(image_data, textureX, textureY, target, x, y, targetW, scale);
+
+							hasModdedTexture = true;
+						}
+					}
+				}
 			}
 		}
 	}
@@ -244,6 +290,71 @@ void TexturePacker::saveVram(const char *fileName, uint8_t bpp) const
 	Tim(bpp, tim_infos).save(fileName, bpp);
 }
 
+bool TexturePacker::toRGBA32(uint32_t *target, const TextureInfos &texture, const TextureInfos &palette, bool withAlpha) const
+{
+	if (texture.bpp() == 0)
+	{
+		uint16_t *pal_data = (uint16_t *)vramSeek(palette.x(), palette.y());
+
+		for (int y = 0; y < texture.h(); ++y)
+		{
+			uint8_t *img_data = vramSeek(texture.x(), texture.y() + y);
+
+			for (int x = 0; x < texture.w() * 2; ++x)
+			{
+				*target = fromR5G5B5Color(pal_data[*img_data & 0xF], withAlpha);
+
+				++target;
+
+				*target = fromR5G5B5Color(pal_data[*img_data >> 4], withAlpha);
+
+				++target;
+				++img_data;
+			}
+		}
+	}
+	else if (texture.bpp() == 1)
+	{
+		uint16_t *pal_data = (uint16_t *)vramSeek(palette.x(), palette.y());
+
+		for (int y = 0; y < texture.h(); ++y)
+		{
+			uint8_t *img_data = vramSeek(texture.x(), texture.y() + y);
+
+			for (int x = 0; x < texture.w() * 2; ++x)
+			{
+				*target = fromR5G5B5Color(pal_data[*img_data], withAlpha);
+
+				++target;
+				++img_data;
+			}
+		}
+	}
+	else if (texture.bpp() == 2)
+	{
+		for (int y = 0; y < texture.h(); ++y)
+		{
+			uint16_t *img_data = (uint16_t *)vramSeek(texture.x(), texture.y() + y);
+
+			for (int x = 0; x < texture.w(); ++x)
+			{
+				*target = fromR5G5B5Color(*img_data, withAlpha);
+
+				++target;
+				++img_data;
+			}
+		}
+	}
+	else
+	{
+		ffnx_error("%s unknown bpp %d\n", __func__, texture.bpp());
+
+		return false;
+	}
+
+	return true;
+}
+
 TexturePacker::TextureInfos::TextureInfos() :
 	_x(0), _y(0), _w(0), _h(0), _bpp(255)
 {
@@ -257,7 +368,7 @@ TexturePacker::TextureInfos::TextureInfos(
 }
 
 TexturePacker::Texture::Texture() :
-	TextureInfos(), _image(nullptr), _name(""), _pal(TextureInfos())
+	TextureInfos(), _image(nullptr), _name(""), _scale(1)
 {
 }
 
@@ -265,7 +376,7 @@ TexturePacker::Texture::Texture(
 	const char *name,
 	int x, int y, int w, int h,
 	uint8_t bpp
-) : TextureInfos(x, y, w, h, bpp), _image(nullptr), _name(name), _pal(TextureInfos())
+) : TextureInfos(x, y, w, h, bpp), _image(nullptr), _name(name), _scale(1)
 {
 }
 
@@ -289,6 +400,17 @@ bool TexturePacker::Texture::createImage(uint8_t palette_index)
 			{
 				if (trace_all || trace_loaders || trace_vram) ffnx_trace("Using texture: %s\n", filename);
 
+				uint8_t scale = computeScale();
+
+				if (scale == 0)
+				{
+					destroyImage();
+
+					return false;
+				}
+
+				_scale = scale;
+
 				return true;
 			}
 			else if (trace_all || trace_loaders || trace_vram)
@@ -310,28 +432,19 @@ void TexturePacker::Texture::destroyImage()
 	}
 }
 
-uint8_t TexturePacker::Texture::scale() const
+uint8_t TexturePacker::Texture::computeScale() const
 {
 	if (_image == nullptr) {
-		return 1;
+		return 0;
 	}
 
-	int w = _w;
-
-	if (_bpp == 0)
-	{
-		w *= 4;
-	}
-	else if (_bpp == 1)
-	{
-		w *= 2;
-	}
+	int w = pixelW();
 
 	if (_image->m_width < w || _image->m_height < _h || _image->m_width % w != 0 || _image->m_height % _h != 0)
 	{
 		ffnx_warning("Texture size must be scaled to the original texture size: %s\n", _name.c_str());
 
-		return 1;
+		return 0;
 	}
 
 	int scaleW = _image->m_width / w, scaleH = _image->m_height / _h;
@@ -340,7 +453,7 @@ uint8_t TexturePacker::Texture::scale() const
 	{
 		ffnx_warning("Texture size must have the same ratio as the original texture: %s (%d / %d)\n", _name.c_str(), w, _h);
 
-		return 1;
+		return 0;
 	}
 
 	if (scaleW > MAX_SCALE)
@@ -353,16 +466,9 @@ uint8_t TexturePacker::Texture::scale() const
 	return scaleW;
 }
 
-uint32_t TexturePacker::Texture::getColor(int scaledX, int scaledY) const
-{
-	return ((uint32_t *)_image->m_data)[scaledX + scaledY * _image->m_width];
-}
-
 void TexturePacker::Texture::copyRect(int textureX, int textureY, uint32_t *target, int targetX, int targetY, int targetW, uint8_t targetScale) const
 {
-	uint8_t textureScale = scale();
-
-	if (targetScale < textureScale)
+	if (targetScale < _scale)
 	{
 		return;
 	}
@@ -370,9 +476,9 @@ void TexturePacker::Texture::copyRect(int textureX, int textureY, uint32_t *targ
 	const uint32_t *textureData = (const uint32_t *)_image->m_data, textureW = _image->m_width;
 	uint8_t targetRectWidth = (4 >> _bpp) * targetScale,
 		targetRectHeight = targetScale,
-		textureRectWidth = (4 >> _bpp) * textureScale,
-		textureRectHeight = textureScale;
-	uint8_t scaleRatio = targetScale / textureScale;
+		textureRectWidth = (4 >> _bpp) * _scale,
+		textureRectHeight = _scale;
+	uint8_t scaleRatio = targetScale / _scale;
 
 	targetX *= targetRectWidth;
 	targetY *= targetRectHeight;
@@ -390,27 +496,6 @@ void TexturePacker::Texture::copyRect(int textureX, int textureY, uint32_t *targ
 	}
 }
 
-Tim TexturePacker::Texture::toTim(uint8_t *imgData, uint16_t *palData) const
-{
-	ff8_tim tim = ff8_tim();
-	tim.img_x = _x;
-	tim.img_y = _y;
-	tim.img_w = _w;
-	tim.img_h = _h;
-	tim.img_data = imgData;
-
-	if (hasPal())
-	{
-		tim.pal_x = _pal.x();
-		tim.pal_y = _pal.y();
-		tim.pal_w = _pal.w();
-		tim.pal_h = _pal.h();
-		tim.pal_data = palData;
-	}
-
-	return Tim(_bpp, tim);
-}
-
 TexturePacker::TiledTex::TiledTex()
  : x(0), y(0), bpp(0)
 {
@@ -420,4 +505,81 @@ TexturePacker::TiledTex::TiledTex(
 	int x, int y, uint8_t bpp
 ) : x(x), y(y), bpp(bpp)
 {
+}
+
+TexturePacker::TextureRedirection::TextureRedirection() : _scale(0)
+{
+}
+
+TexturePacker::TextureRedirection::TextureRedirection(
+	const TextureInfos &oldTexture,
+	const TextureInfos &newTexture,
+	const TextureInfos &oldPal,
+	const TextureInfos &newPal
+) : _oldTexture(oldTexture), _newTexture(newTexture),
+	_oldPal(oldPal), _newPal(newPal), _scale(computeScale())
+{
+}
+
+uint8_t TexturePacker::TextureRedirection::computeScale() const
+{
+	int oldW = _oldTexture.w(), newW = _newTexture.w();
+
+	if (_newTexture.w() < _oldTexture.w()
+		|| _newTexture.h() < _oldTexture.h()
+		|| _newTexture.w() % _oldTexture.w() != 0
+		|| _newTexture.h() % _oldTexture.h() != 0)
+	{
+		ffnx_warning("Texture redirection size must be scaled to the original texture size\n");
+
+		return 0;
+	}
+
+	int scaleW = _newTexture.w() / _oldTexture.w(), scaleH = _newTexture.h() / _oldTexture.h();
+
+	if (scaleW != scaleH)
+	{
+		ffnx_warning("Texture redirection size must have the same ratio as the original texture: (%d / %d)\n", _oldTexture.w(), _oldTexture.h());
+
+		return 0;
+	}
+
+	if (scaleW > MAX_SCALE)
+	{
+		ffnx_warning("Texture redirection size cannot exceed original size * %d\n", MAX_SCALE);
+
+		return MAX_SCALE;
+	}
+
+	return scaleW;
+}
+
+void TexturePacker::TextureRedirection::copyRect(const uint32_t *textureData, int textureX, int textureY, uint32_t *target, int targetX, int targetY, int targetW, uint8_t targetScale) const
+{
+	if (targetScale < _scale)
+	{
+		return;
+	}
+
+	uint32_t textureW = _newTexture.pixelW();
+	uint8_t targetRectWidth = (4 >> _newTexture.bpp()) * targetScale,
+		targetRectHeight = targetScale,
+		textureRectWidth = (4 >> _oldTexture.bpp()) * _scale,
+		textureRectHeight = _scale;
+	uint8_t scaleRatio = targetScale / _scale;
+
+	targetX *= targetRectWidth;
+	targetY *= targetRectHeight;
+	targetW *= targetScale;
+
+	textureX *= textureRectWidth;
+	textureY *= textureRectHeight;
+
+	for (int y = 0; y < targetRectHeight; ++y)
+	{
+		for (int x = 0; x < targetRectWidth; ++x)
+		{
+			*(target + targetX + x + (targetY + y) * targetW) = *(textureData + textureX + x / scaleRatio + (textureY + y / scaleRatio) * textureW);
+		}
+	}
 }

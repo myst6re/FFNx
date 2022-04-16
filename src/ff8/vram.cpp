@@ -256,6 +256,92 @@ void ff8_upload_vram_triple_triad_2_data(int16_t *pos_and_size, uint8_t *texture
 	ff8_upload_vram(pos_and_size, texture_buffer);
 }
 
+void ff8_wm_open_pal1(int16_t *pos_and_size, uint8_t *texture_buffer)
+{
+	if (trace_all || trace_vram) ffnx_trace("%s %p\n", __func__, texture_buffer);
+
+	next_pal_data = (uint16_t *)texture_buffer;
+
+	ff8_upload_vram(pos_and_size, texture_buffer);
+
+	next_pal_data = nullptr;
+}
+
+uint32_t ff8_wm_open_texture1(uint8_t *tim_file_data, ff8_tim *tim_infos)
+{
+	uint8_t bpp = tim_file_data[4] & 0x3;
+	int *wm_section_38_textures_pos = *((int **)0x2040014);
+	int searching_value = int(tim_file_data - (uint8_t *)wm_section_38_textures_pos);
+	int timId = -1;
+	int *dword_C75DB8 = (int *)0xC75DB8;
+
+	if (trace_all || trace_vram) ffnx_trace("%s C75DB8=%d\n", __func__, *dword_C75DB8);
+
+	// Find tim id relative to the start of section 38
+	for (int *cur = wm_section_38_textures_pos; *cur != 0; ++cur) {
+		if (*cur == searching_value) {
+			timId = int(cur - wm_section_38_textures_pos);
+			break;
+		}
+	}
+
+	snprintf(next_texture_name, MAX_PATH, "world/dat/wmset/section38/texture%d", timId);
+
+	next_bpp = bpp;
+
+	uint32_t ret = ((uint32_t(*)(uint8_t*,ff8_tim*))0x541740)(tim_file_data, tim_infos);
+
+	next_pal_data = tim_infos->pal_data;
+
+	if (save_textures) Tim::fromTimData(tim_file_data).save(next_texture_name, 0, 0, true);
+
+	return ret;
+}
+
+void ff8_wm_texl_palette_upload_vram(int16_t *pos_and_size, uint8_t *texture_buffer)
+{
+	int *dword_C75DB8 = (int *)0xC75DB8;
+	int16_t *word_203688E = (int16_t *)0x203688E;
+	int texl_id = (*dword_C75DB8 >> 8) & 0xFF;
+
+	if ((*word_203688E & 1) != 0 && (*dword_C75DB8 == 1284 || *dword_C75DB8 == 1798))
+	{
+		texl_id += 12;
+	}
+
+	bool is_left = pos_and_size[0] == 320;
+
+	if (is_left)
+	{
+		texl_id_left = texl_id;
+	}
+	else
+	{
+		texl_id_right = texl_id;
+	}
+
+	uint16_t oldX = 0, oldY = texl_id & 2 ? 384 : 256;
+
+	if (texl_id < 16)
+	{
+
+	}
+
+	if (trace_all || trace_vram) ffnx_trace("%s texl_id=%d\n", __func__, texl_id);
+
+	ff8_upload_vram(pos_and_size, texture_buffer);
+
+	texturePacker.clearTextureRedirections();
+
+	/* TexturePacker::TextureInfos oldTexture(),
+		newTexture(pos_and_size[0], pos_and_size[1], pos_and_size[2], pos_and_size[3], 1);
+
+	texturePacker.setTextureRedirection(
+		oldTexture,
+		newTexture
+	); */
+}
+
 void read_psxvram_alpha1_ssigpu_select2_sub_467360(int CLUT, uint8_t *rgba, int size)
 {
 	if (trace_all || trace_vram) ffnx_trace("%s CLUT=(%d, %d) rgba=%p size=%d\n", __func__, 16 * (CLUT & 0x3F), (CLUT >> 6) & 0x1FF, rgba, size);
@@ -304,6 +390,12 @@ void vram_init()
 	replace_call(ff8_externals.sub_5391B0 + 0x49, ff8_upload_vram_triple_triad_1);
 	replace_call(ff8_externals.sub_5391B0 + 0x1CC, ff8_upload_vram_triple_triad_2_palette);
 	replace_call(ff8_externals.sub_5391B0 + 0x1E1, ff8_upload_vram_triple_triad_2_data);
+	// worldmap
+	replace_call(0x53F0EC, ff8_wm_open_texture1); // Section 38
+	replace_call(0x53F165, ff8_wm_open_pal1); // Section 38
+	// wm texl project
+	replace_call(0x5533C0 + 0x2EC, ff8_wm_texl_palette_upload_vram);
+	replace_call(0x5533C0 + 0x3F0, ff8_wm_texl_palette_upload_vram);
 
 	replace_function(ff8_externals.upload_psx_vram, ff8_upload_vram);
 

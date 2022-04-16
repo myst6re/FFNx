@@ -82,6 +82,33 @@ class Tim {
 public:
 	Tim(uint8_t bpp, const ff8_tim &tim);
 	uint16_t colorsPerPal() const;
+	inline uint8_t bpp() const {
+		return _bpp;
+	}
+	inline uint16_t imageX() const {
+		return _tim.img_x;
+	}
+	inline uint16_t imageY() const {
+		return _tim.img_y;
+	}
+	inline uint16_t imageWidth() const {
+		return _tim.img_w;
+	}
+	inline uint16_t imageHeight() const {
+		return _tim.img_h;
+	}
+	inline uint16_t paletteX() const {
+		return _tim.pal_x;
+	}
+	inline uint16_t paletteY() const {
+		return _tim.pal_y;
+	}
+	inline uint16_t paletteWidth() const {
+		return _tim.pal_w;
+	}
+	inline uint16_t paletteHeight() const {
+		return _tim.pal_h;
+	}
 	bool save(const char *fileName, uint8_t palX = 0, uint8_t palY = 0, bool withAlpha = false) const;
 	bool saveMultiPaletteGrid(const char *fileName, uint8_t cellCols, uint8_t cellRows, uint8_t palCols = 1, bool withAlpha = false) const;
 	static Tim fromLzsData(uint8_t *uncompressed_data);

@@ -24,7 +24,7 @@
 
 #include <string>
 #include <map>
-#include <unordered_set>
+#include <list>
 #include <bimg/bimg.h>
 
 #include "../ff8.h"
@@ -40,23 +40,6 @@ typedef uint32_t ModdedTextureId;
 
 class TexturePacker {
 public:
-	explicit TexturePacker();
-	inline void setVram(uint8_t *vram) {
-		_vram = vram;
-	}
-	void setTexture(const char *name, const uint8_t *texture, int x, int y, int w, int h, uint8_t bpp, bool isPal);
-	inline uint8_t getMaxScale() const {
-		return _maxScaleCached;
-	}
-	void registerTiledTex(uint8_t *target, int x, int y, uint8_t bpp);
-	bool drawModdedTextures(const uint8_t *texData, uint32_t *target, const uint32_t *originalImageData, int originalW, int originalH, uint8_t scale);
-
-	void saveVram(const char *fileName, uint8_t bpp) const;
-private:
-	inline uint8_t *vramSeek(int x, int y) const {
-		return _vram + VRAM_DEPTH * (x + y * VRAM_WIDTH);
-	}
-	void updateMaxScale();
 	class TextureInfos {
 	public:
 		TextureInfos();
@@ -73,6 +56,9 @@ private:
 		inline int w() const {
 			return _w;
 		}
+		inline int pixelW() const {
+			return _w * (4 >> _bpp);
+		}
 		inline int h() const {
 			return _h;
 		}
@@ -84,6 +70,33 @@ private:
 		int _w, _h;
 		uint8_t _bpp;
 	};
+
+	explicit TexturePacker();
+	inline void setVram(uint8_t *vram) {
+		_vram = vram;
+	}
+	void setTexture(const char *name, const uint8_t *texture, int x, int y, int w, int h, uint8_t bpp, bool isPal);
+	// Override a part of the VRAM from another part of the VRAM, typically with biggest textures (Worldmap)
+	bool setTextureRedirection(
+		const TextureInfos &oldTexture,
+		const TextureInfos &newTexture,
+		const TextureInfos &oldPal,
+		const TextureInfos &newPal
+	);
+	void clearTextureRedirections();
+	inline uint8_t getMaxScale() const {
+		return _maxScaleCached;
+	}
+	void registerTiledTex(uint8_t *target, int x, int y, uint8_t bpp);
+	bool drawModdedTextures(const uint8_t *texData, uint32_t *target, const uint32_t *originalImageData, int originalW, int originalH, uint8_t scale);
+
+	void saveVram(const char *fileName, uint8_t bpp) const;
+	bool toRGBA32(uint32_t *target, const TextureInfos &texture, const TextureInfos &palette, bool withAlpha) const;
+private:
+	inline uint8_t *vramSeek(int x, int y) const {
+		return _vram + VRAM_DEPTH * (x + y * VRAM_WIDTH);
+	}
+	void updateMaxScale();
 	class Texture : public TextureInfos {
 	public:
 		Texture();
@@ -95,34 +108,59 @@ private:
 		inline const std::string &name() const {
 			return _name;
 		}
-		uint8_t scale() const;
+		inline uint8_t scale() const {
+			return _scale;
+		}
 		bool createImage(uint8_t palette_index = 0);
 		void destroyImage();
 		inline bool hasImage() const {
 			return _image != nullptr;
 		}
-		uint32_t getColor(int scaledX, int scaledY) const;
-		inline bool hasPal() const {
-			return _pal.bpp() != 255;
-		}
-		inline const TextureInfos &pal() const {
-			return _pal;
-		}
-		inline void setPal(const TextureInfos &pal) {
-			_pal = pal;
+		inline bool isValid() const {
+			return _scale != 0;
 		}
 		void copyRect(int textureX, int textureY, uint32_t *target, int targetX, int targetY, int targetW, uint8_t targetScale) const;
-		Tim toTim(uint8_t *imgData, uint16_t *palData) const;
 	private:
+		uint8_t computeScale() const;
 		bimg::ImageContainer *_image;
 		std::string _name;
-		TextureInfos _pal;
+		uint8_t _scale;
 	};
 	struct TiledTex {
 		TiledTex();
 		TiledTex(int x, int y, uint8_t bpp);
 		int x, y;
 		uint8_t bpp;
+	};
+	struct TextureRedirection {
+		TextureRedirection();
+		TextureRedirection(
+			const TextureInfos &oldTexture,
+			const TextureInfos &newTexture,
+			const TextureInfos &oldPal,
+			const TextureInfos &newPal
+		);
+		inline bool isValid() const {
+			return _scale != 0;
+		}
+		inline uint8_t scale() const {
+			return _scale;
+		}
+		inline const TextureInfos &oldTexture() const {
+			return _oldTexture;
+		}
+		inline const TextureInfos &newTexture() const {
+			return _newTexture;
+		}
+		inline const TextureInfos &newPalette() const {
+			return _newPal;
+		}
+		void copyRect(const uint32_t *textureData, int textureX, int textureY, uint32_t *target, int targetX, int targetY, int targetW, uint8_t targetScale) const;
+	private:
+		uint8_t computeScale() const;
+		TextureInfos _oldTexture, _newTexture;
+		TextureInfos _oldPal, _newPal;
+		uint8_t _scale;
 	};
 	void getVramRect(uint8_t *target, const TextureInfos &texture) const;
 	bool drawModdedTextures(uint32_t *target, const TiledTex &tiledTex, int w, int h, uint8_t scale);
@@ -131,5 +169,6 @@ private:
 	std::map<const uint8_t *, TiledTex> _tiledTexs;
 	ModdedTextureId _vramTextureIds[VRAM_WIDTH * VRAM_HEIGHT];
 	std::map<ModdedTextureId, Texture> _moddedTextures;
+	std::map<ModdedTextureId, TextureRedirection> _textureRedirections;
 	uint8_t _maxScaleCached;
 };

@@ -190,7 +190,6 @@ bool Tim::save(const char *fileName, PaletteDetectionStrategy *paletteDetectionS
 	// convert source data
 	if (image_data != nullptr)
 	{
-		// TODO: multiple palettes
 		if (toRGBA32(image_data, paletteDetectionStrategy, withAlpha))
 		{
 			// TODO: is animated
