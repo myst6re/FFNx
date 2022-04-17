@@ -87,7 +87,7 @@ public:
 	inline uint8_t getMaxScale() const {
 		return _maxScaleCached;
 	}
-	void registerTiledTex(uint8_t *target, int x, int y, uint8_t bpp);
+	void registerTiledTex(uint8_t *target, int x, int y, uint8_t bpp, int palX = 0, int palY = 0);
 	bool drawModdedTextures(const uint8_t *texData, uint32_t *target, const uint32_t *originalImageData, int originalW, int originalH, uint8_t scale);
 
 	void saveVram(const char *fileName, uint8_t bpp) const;
@@ -128,8 +128,9 @@ private:
 	};
 	struct TiledTex {
 		TiledTex();
-		TiledTex(int x, int y, uint8_t bpp);
+		TiledTex(int x, int y, uint8_t bpp, int palX, int palY);
 		int x, y;
+		int palX, palY;
 		uint8_t bpp;
 	};
 	struct TextureRedirection {

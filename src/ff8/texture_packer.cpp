@@ -66,20 +66,29 @@ void TexturePacker::setTexture(const char *name, const uint8_t *source, int x, i
 			int key = vramX + vramY * VRAM_WIDTH;
 			ModdedTextureId previousTextureId = _vramTextureIds[key];
 
-			if (previousTextureId != INVALID_TEXTURE && _moddedTextures.contains(previousTextureId))
+			if (previousTextureId != INVALID_TEXTURE)
 			{
-				Texture &previousTexture = _moddedTextures[previousTextureId];
-
-				if (trace_all || trace_vram) ffnx_info("TexturePacker::%s: clear texture %s (textureId = %d)\n", __func__, previousTexture.name().c_str(), previousTextureId);
-
-				for (int prevY = 0; prevY < previousTexture.h(); ++prevY)
+				if (_moddedTextures.contains(previousTextureId))
 				{
-					int clearKey = previousTexture.x() + (previousTexture.y() + prevY) * VRAM_WIDTH;
-					std::fill_n(_vramTextureIds + clearKey, previousTexture.w(), INVALID_TEXTURE);
-				}
+					Texture &previousTexture = _moddedTextures[previousTextureId];
 
-				previousTexture.destroyImage();
-				_moddedTextures.erase(previousTextureId);
+					if (trace_all || trace_vram) ffnx_info("TexturePacker::%s: clear texture %s (textureId = %d)\n", __func__, previousTexture.name().c_str(), previousTextureId);
+
+					for (int prevY = 0; prevY < previousTexture.h(); ++prevY)
+					{
+						int clearKey = previousTexture.x() + (previousTexture.y() + prevY) * VRAM_WIDTH;
+						std::fill_n(_vramTextureIds + clearKey, previousTexture.w(), INVALID_TEXTURE);
+					}
+
+					previousTexture.destroyImage();
+					_moddedTextures.erase(previousTextureId);
+				}
+				else if (_textureRedirections.contains(previousTextureId))
+				{
+					if (trace_all || trace_vram) ffnx_info("TexturePacker::%s: clear texture redirection (textureId = %d)\n", __func__, previousTextureId);
+
+					_textureRedirections.erase(previousTextureId);
+				}
 			}
 
 			_vramTextureIds[key] = textureId;
@@ -230,6 +239,8 @@ bool TexturePacker::drawModdedTextures(uint32_t *target, const TiledTex &tiledTe
 
 							hasModdedTexture = true;
 						}
+
+						driver_free(image_data);
 					}
 				}
 			}
@@ -256,11 +267,11 @@ void TexturePacker::getVramRect(uint8_t *target, const TextureInfos &texture) co
 	}
 }
 
-void TexturePacker::registerTiledTex(uint8_t *target, int x, int y, uint8_t bpp)
+void TexturePacker::registerTiledTex(uint8_t *target, int x, int y, uint8_t bpp, int palX, int palY)
 {
-	if (trace_all || trace_vram) ffnx_trace("%s pointer=0x%X x=%d y=%d bpp=%d\n", __func__, target, x, y, bpp);
+	if (trace_all || trace_vram) ffnx_trace("%s pointer=0x%X x=%d y=%d bpp=%d palX=%d palY=%d\n", __func__, target, x, y, bpp, palX, palY);
 
-	_tiledTexs[target] = TiledTex(x, y, bpp);
+	_tiledTexs[target] = TiledTex(x, y, bpp, palX, palY);
 }
 
 void TexturePacker::saveVram(const char *fileName, uint8_t bpp) const
@@ -497,13 +508,13 @@ void TexturePacker::Texture::copyRect(int textureX, int textureY, uint32_t *targ
 }
 
 TexturePacker::TiledTex::TiledTex()
- : x(0), y(0), bpp(0)
+ : x(0), y(0), palette(nullptr), bpp(0)
 {
 }
 
 TexturePacker::TiledTex::TiledTex(
-	int x, int y, uint8_t bpp
-) : x(x), y(y), bpp(bpp)
+	int x, int y, uint8_t bpp, uint16_t *palette
+) : x(x), y(y), palette(palette), bpp(bpp)
 {
 }
 
