@@ -197,6 +197,7 @@ uint32_t reload_buffer_index;
 // when the image data changes
 void texture_reload_hack(struct ff8_texture_set *texture_set)
 {
+	ffnx_trace("texture_reload_hack1: 0x%x\n", texture_set);
 	uint32_t i;
 	uint32_t size;
 	VOBJ(tex_header, tex_header, texture_set->tex_header);
@@ -232,7 +233,7 @@ void texture_reload_hack(struct ff8_texture_set *texture_set)
 
 	stats.texture_reloads++;
 
-	if(trace_all || trace_vram) ffnx_trace("texture_reload_hack: 0x%x\n", texture_set);
+	ffnx_trace("texture_reload_hack2: 0x%x\n", texture_set);
 }
 
 void texture_reload_hack1(struct texture_page *texture_page, uint32_t unknown1, uint32_t unknown2)
@@ -664,6 +665,8 @@ void ff8_init_hooks(struct game_obj *_game_object)
 struct ff8_gfx_driver *ff8_load_driver(void* _game_object)
 {
 	struct ff8_gfx_driver *ret = (ff8_gfx_driver *)external_calloc(1, sizeof(*ret));
+
+	ffnx_info("0x%X\n", ret->load_texture);
 
 	ret->init = common_init;
 	ret->cleanup = common_cleanup;

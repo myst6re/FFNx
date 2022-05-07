@@ -1235,7 +1235,7 @@ void scale_up_image_data_in_place(uint8_t *sourceAndTarget, int w, int h, int sc
 }
 
 // load modpath texture for tex file, returns true if successful
-uint32_t load_external_texture(void* image_data, uint32_t dataSize, struct texture_set *texture_set, struct tex_header *tex_header, uint32_t originalWidth, uint32_t originalHeight)
+uint32_t load_external_texture(void* image_data, uint32_t dataSize, struct texture_set *texture_set, struct tex_header *tex_header, uint32_t originalWidth, uint32_t originalHeight, uint32_t palette_offset)
 {
 	VOBJ(texture_set, texture_set, texture_set);
 	VOBJ(tex_header, tex_header, tex_header);
@@ -1276,7 +1276,7 @@ uint32_t load_external_texture(void* image_data, uint32_t dataSize, struct textu
 	}
 	else if(ff8)
 	{
-		uint8_t scale = texturePacker.getMaxScale();
+		uint8_t scale = texturePacker.getMaxScale(VREF(tex_header, image_data));
 		uint8_t *image_data_scaled = (uint8_t *)image_data;
 
 		if (scale > 1)
@@ -1292,7 +1292,7 @@ uint32_t load_external_texture(void* image_data, uint32_t dataSize, struct textu
 			}
 		}
 
-		if (image_data_scaled != nullptr && texturePacker.drawModdedTextures(VREF(tex_header, image_data), (uint32_t *)image_data_scaled, (uint32_t *)image_data, originalWidth, originalHeight, scale))
+		if (image_data_scaled != nullptr && texturePacker.drawModdedTextures(VREF(tex_header, image_data), tex_format, (uint32_t *)image_data_scaled, (uint32_t *)image_data, originalWidth, originalHeight, scale, palette_offset))
 		{
 			VREF(texture_set, ogl.width) = originalWidth * scale;
 			VREF(texture_set, ogl.height) = originalHeight * scale;
@@ -1314,8 +1314,8 @@ uint32_t load_external_texture(void* image_data, uint32_t dataSize, struct textu
 	{
 		gl_replace_texture(texture_set, VREF(tex_header, palette_index), texture);
 
-		if(!VREF(texture_set, ogl.external)) stats.external_textures++;
-		VRASS(texture_set, ogl.external, true);
+		/* if(!VREF(texture_set, ogl.external)) stats.external_textures++;
+		VRASS(texture_set, ogl.external, true); */
 
 		return true;
 	}
@@ -1353,6 +1353,8 @@ void convert_image_data(const unsigned char *image_data, uint32_t *converted_ima
 			ffnx_glitch("unsupported texture format\n");
 			return;
 		}
+
+		ffnx_trace("%s use palette 0x%X palette_offset=%d color_key=%d reference_alpha=%d\n", __func__, tex_format->palette_data, palette_offset, color_key, reference_alpha);
 
 		for(i = 0; i < w; i++)
 		{
@@ -1438,6 +1440,15 @@ struct texture_set *common_load_texture(struct texture_set *_texture_set, struct
 	struct palette *palette = 0;
 	uint32_t color_key = false;
 	struct texture_format *tex_format = VREFP(tex_header, tex_format);
+
+	/* ffnx_trace("%s %d x %d image_data=0x%X\n", __func__, tex_format->width, tex_format->height, VREF(tex_header, image_data), _tex_header, texture_format);
+
+	std::list<std::string> textureNames;
+	texturePacker.getTextureNames(VREF(tex_header, image_data), textureNames);
+	for (const std::string &textureName: textureNames)
+	{
+		ffnx_trace("%s name=%s\n", __func__, textureName.c_str());
+	} */
 
 	if(trace_all && _texture_set != NULL) ffnx_trace("dll_gfx: load_texture 0x%x\n", _texture_set);
 
@@ -1592,7 +1603,7 @@ struct texture_set *common_load_texture(struct texture_set *_texture_set, struct
 			}
 
 			// check if this texture can be loaded from the modpath, we may not have to do any conversion
-			if (!load_external_texture(image_data, image_data_size, _texture_set, _tex_header, w, h))
+			if (!load_external_texture(image_data, image_data_size, _texture_set, _tex_header, w, h, palette_offset))
 			{
 				// commit PBO and populate texture set
 				gl_upload_texture(_texture_set, VREF(tex_header, palette_index), image_data, RendererTextureType::BGRA);

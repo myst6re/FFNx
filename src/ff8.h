@@ -451,8 +451,9 @@ struct struc_50
 	uint32_t vram_y;
 	uint32_t vram_width;
 	uint32_t vram_height;
-	uint32_t vram_palette_data;
-	uint32_t vram_palette_pos; // 24-bit | 6-bit
+	uint16_t *vram_palette_data;
+	uint16_t vram_palette_pos; // 10-bit | 6-bit
+	uint16_t padding;
 };
 
 struct struc_51

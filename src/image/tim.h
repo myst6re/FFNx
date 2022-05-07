@@ -65,14 +65,19 @@ private:
 // A grid of fixed size cells, with one palette per cell
 class PaletteDetectionStrategyGrid : public PaletteDetectionStrategy {
 public:
-	PaletteDetectionStrategyGrid(const Tim *const tim, uint8_t cellCols, uint8_t cellRows, uint8_t palCols);
+	enum Direction {
+		TopBottomLeftRight,
+		LeftRightTopBottom
+	};
+	PaletteDetectionStrategyGrid(const Tim *const tim, uint8_t cellCols, uint8_t cellRows, uint16_t colorsPerPal, uint8_t palColsPerRow);
 	virtual bool isValid() const override;
 	virtual uint32_t palOffset(uint16_t imgX, uint16_t imgY) const override;
 	virtual uint32_t palIndex() const override;
 private:
 	uint8_t _cellCols, _cellRows;
 	uint16_t _cellWidth, _cellHeight;
-	uint16_t _colorPerPal;
+	uint16_t _colorsPerPal;
+	uint8_t _palColsPerRow;
 	uint8_t _palCols;
 };
 
@@ -110,7 +115,15 @@ public:
 		return _tim.pal_h;
 	}
 	bool save(const char *fileName, uint8_t palX = 0, uint8_t palY = 0, bool withAlpha = false) const;
-	bool saveMultiPaletteGrid(const char *fileName, uint8_t cellCols, uint8_t cellRows, uint8_t palCols = 1, bool withAlpha = false) const;
+	bool saveMultiPaletteGrid(
+		const char *fileName, uint8_t cellCols, uint8_t cellRows, uint8_t colorsPerPal = 0, uint8_t palColsPerRow = 1,
+		bool withAlpha = false
+	) const;
+	bool toRGBA32(uint32_t *target, uint8_t palX = 0, uint8_t palY = 0, bool withAlpha = false) const;
+	bool toRGBA32MultiPaletteGrid(
+		uint32_t *target, uint8_t cellCols, uint8_t cellRows, uint8_t colorsPerPal = 0, uint8_t palColsPerRow = 1,
+		bool withAlpha = false
+	) const;
 	static Tim fromLzsData(uint8_t *uncompressed_data);
 	static Tim fromTimData(uint8_t *data);
 private:

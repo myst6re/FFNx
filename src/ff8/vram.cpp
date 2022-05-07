@@ -56,7 +56,7 @@ void ff8_upload_vram(int16_t *pos_and_size, uint8_t *texture_buffer)
 
 int read_vram_to_buffer_parent_call1(int a1, int structure, int x, int y, int w, int h, int bpp, int rel_pos, int a9, uint8_t *target)
 {
-	if (trace_all || trace_vram) ffnx_trace("%s: x=%d y=%d w=%d h=%d bpp=%d rel_pos=(%d, %d) a9=%d target=%X\n", __func__, x, y, w, h, bpp, rel_pos & 0xF, rel_pos >> 4, a9, target);
+	ffnx_trace("%s: x=%d y=%d w=%d h=%d bpp=%d rel_pos=(%d, %d) a9=%d target=%X\n", __func__, x, y, w, h, bpp, rel_pos & 0xF, rel_pos >> 4, a9, target);
 
 	next_psxvram_x = (x >> (2 - bpp)) + ((rel_pos & 0xF) << 6);
 	next_psxvram_y = y + (((rel_pos >> 4) & 1) << 8);
@@ -71,7 +71,7 @@ int read_vram_to_buffer_parent_call1(int a1, int structure, int x, int y, int w,
 
 int read_vram_to_buffer_parent_call2(texture_page *tex_page, int rel_pos, int a3)
 {
-	if (trace_all || trace_vram) ffnx_trace("%s: x=%d y=%d color_key=%d rel_pos=(%d, %d)\n", __func__, tex_page->x, tex_page->y, tex_page->color_key, rel_pos & 0xF, rel_pos >> 4);
+	ffnx_trace("%s: x=%d y=%d color_key=%d rel_pos=(%d, %d)\n", __func__, tex_page->x, tex_page->y, tex_page->color_key, rel_pos & 0xF, rel_pos >> 4);
 
 	next_psxvram_x = (tex_page->x >> (2 - tex_page->color_key)) + ((rel_pos & 0xF) << 6);
 	next_psxvram_y = tex_page->y + (((rel_pos >> 4) & 1) << 8);
@@ -86,7 +86,7 @@ int read_vram_to_buffer_parent_call2(texture_page *tex_page, int rel_pos, int a3
 
 int read_vram_to_buffer_with_palette1_parent_call1(texture_page *tex_page, int rel_pos, struc_50 *psxvram_structure)
 {
-	if (trace_all || trace_vram) ffnx_trace("%s: x=%d y=%d color_key=%d rel_pos=(%d, %d)\n", __func__, tex_page->x, tex_page->y, tex_page->color_key, rel_pos & 0xF, rel_pos >> 4);
+	ffnx_trace("%s: x=%d y=%d color_key=%d rel_pos=(%d, %d)\n", __func__, tex_page->x, tex_page->y, tex_page->color_key, rel_pos & 0xF, rel_pos >> 4);
 
 	next_psxvram_x = (tex_page->x >> (2 - tex_page->color_key)) + ((rel_pos & 0xF) << 6);
 	next_psxvram_y = tex_page->y + (((rel_pos >> 4) & 1) << 8);
@@ -101,7 +101,7 @@ int read_vram_to_buffer_with_palette1_parent_call1(texture_page *tex_page, int r
 
 int read_vram_to_buffer_with_palette1_parent_call2(texture_page *tex_page, int rel_pos, struc_50 *psxvram_structure)
 {
-	if (trace_all || trace_vram) ffnx_trace("%s: x=%d y=%d color_key=%d rel_pos=(%d, %d)\n", __func__, tex_page->x, tex_page->y, tex_page->color_key, rel_pos & 0xF, rel_pos >> 4);
+	ffnx_trace("%s: x=%d y=%d color_key=%d rel_pos=(%d, %d)\n", __func__, tex_page->x, tex_page->y, tex_page->color_key, rel_pos & 0xF, rel_pos >> 4);
 
 	next_psxvram_x = (tex_page->x >> (2 - tex_page->color_key)) + ((rel_pos & 0xF) << 6);
 	next_psxvram_y = tex_page->y + (((rel_pos >> 4) & 1) << 8);
@@ -116,7 +116,7 @@ int read_vram_to_buffer_with_palette1_parent_call2(texture_page *tex_page, int r
 
 void read_vram_to_buffer(uint8_t *vram, int vram_w_2048, uint8_t *target, int target_w, signed int w, int h, int bpp)
 {
-	if (trace_all || trace_vram) ffnx_trace("%s: vram_pos=(%d, %d) target=%X target_w=%d w=%d h=%d bpp=%d\n", __func__, next_psxvram_x, next_psxvram_y, int(target), target_w, w, h, bpp);
+	ffnx_trace("%s: vram_pos=(%d, %d) target=%X target_w=%d w=%d h=%d bpp=%d\n", __func__, next_psxvram_x, next_psxvram_y, int(target), target_w, w, h, bpp);
 
 	if (next_psxvram_x == -1)
 	{
@@ -132,7 +132,7 @@ void read_vram_to_buffer(uint8_t *vram, int vram_w_2048, uint8_t *target, int ta
 
 void read_vram_to_buffer_with_palette1(uint8_t *vram, int vram_w_2048, uint8_t *target, int target_w, int w, int h, int bpp, uint16_t *vram_palette)
 {
-	if (trace_all || trace_vram) ffnx_trace("%s: vram_pos=(%d, %d) target=%X target_w=%d w=%d h=%d bpp=%d vram_palette=%X\n", __func__, next_psxvram_x, next_psxvram_y, int(target), target_w, w, h, bpp, int(vram_palette));
+	ffnx_trace("%s: vram_pos=(%d, %d) target=%X target_w=%d w=%d h=%d bpp=%d vram_palette=%X\n", __func__, next_psxvram_x, next_psxvram_y, int(target), target_w, w, h, bpp, int(vram_palette));
 
 	if (next_psxvram_x == -1)
 	{
@@ -148,7 +148,7 @@ void read_vram_to_buffer_with_palette1(uint8_t *vram, int vram_w_2048, uint8_t *
 
 void read_vram_to_buffer_with_palette2(uint8_t *vram, uint8_t *target, int w, int h, int bpp, uint16_t *vram_palette)
 {
-	if (trace_all || trace_vram) ffnx_trace("%s: vram_pos=(%d, %d) target=%X w=%d h=%d bpp=%d vram_palette=%X\n", __func__, next_psxvram_x, next_psxvram_y, int(target), w, h, bpp, int(vram_palette));
+	ffnx_trace("%s: vram_pos=(%d, %d) target=%X w=%d h=%d bpp=%d vram_palette=%X\n", __func__, next_psxvram_x, next_psxvram_y, int(target), w, h, bpp, int(vram_palette));
 
 	if (next_psxvram_x == -1)
 	{
@@ -223,7 +223,7 @@ void ff8_upload_vram_triple_triad_2_texture_name(uint8_t *texture_buffer)
 		strncpy(next_texture_name, "cardgame/cards", sizeof(next_texture_name));
 		if (next_pal_data == (uint16_t *)texture_buffer)
 		{
-			if (save_textures) Tim::fromTimData(texture_buffer - 20).saveMultiPaletteGrid(next_texture_name, 28, 4, 2, true);
+			if (save_textures) Tim::fromTimData(texture_buffer - 20).saveMultiPaletteGrid(next_texture_name, 28, 4, 128, 2, true);
 		}
 		next_bpp = 1;
 	}
@@ -295,7 +295,17 @@ uint32_t ff8_wm_open_texture1(uint8_t *tim_file_data, ff8_tim *tim_infos)
 
 	next_pal_data = tim_infos->pal_data;
 
-	if (save_textures) Tim::fromTimData(tim_file_data).save(next_texture_name, 0, 0, true);
+	if (save_textures)
+	{
+		if (timId < 8)
+		{
+			Tim::fromTimData(tim_file_data).saveMultiPaletteGrid(next_texture_name, 8, 4, 0, 4, false);
+		}
+		else
+		{
+			Tim::fromTimData(tim_file_data).save(next_texture_name);
+		}
+	}
 
 	return ret;
 }
@@ -313,26 +323,19 @@ void ff8_wm_texl_palette_upload_vram(int16_t *pos_and_size, uint8_t *texture_buf
 
 	bool is_left = pos_and_size[0] == 320;
 
-	if (is_left)
-	{
-		texl_id_left = texl_id;
-	}
-	else
-	{
-		texl_id_right = texl_id;
-	}
-
 	if (trace_all || trace_vram) ffnx_trace("%s texl_id=%d\n", __func__, texl_id);
 
 	snprintf(next_texture_name, MAX_PATH, "world/dat/texl/texture%d", texl_id);
+
+	Tim tim = Tim::fromTimData(texture_buffer - 20);
+
+	if (save_textures) tim.saveMultiPaletteGrid(next_texture_name, 4, 4, 0, 4, false);
 
 	next_bpp = 1;
 
 	ff8_upload_vram(pos_and_size, texture_buffer);
 
 	// Worldmap texture fix
-
-	texturePacker.clearTextureRedirections();
 
 	uint16_t oldX = 16 * (texl_id - 2 * ((texl_id / 2) & 1) + (texl_id & 1)), oldY = ((texl_id / 2) & 1) ? 384 : 256;
 
@@ -344,22 +347,38 @@ void ff8_wm_texl_palette_upload_vram(int16_t *pos_and_size, uint8_t *texture_buf
 
 	if (texl_id == 16 || texl_id == 17 || texl_id > 19)
 	{
+		if (trace_all || trace_vram) ffnx_warning("%s: texl id not supported %d\n", __func__, texl_id);
 		return; // TODO
 	}
 
-	Tim tim = Tim::fromTimData(texture_buffer - 20);
+	TexturePacker::TextureInfos oldTexture(oldX, oldY, tim.imageWidth() / 8, tim.imageHeight() / 2, 0),
+		newTexture(is_left ? 384 : 640, 256, tim.imageWidth() / 2, tim.imageHeight(), tim.bpp());
 
-	TexturePacker::TextureInfos oldTexture(oldX, oldY, pos_and_size[2] / 2, pos_and_size[3] / 2, 0),
-		newTexture(tim.imageX(), tim.imageY(), pos_and_size[2], pos_and_size[3], 1),
-		oldPal, // TODO
-		newPal(tim.paletteX(), tim.paletteY(), tim.paletteWidth(), tim.paletteHeight(), 2);
+	uint32_t image_data_size = newTexture.pixelW() * newTexture.h() * 4;
+	uint32_t *image = (uint32_t*)driver_malloc(image_data_size);
 
-	texturePacker.setTextureRedirection(
-		oldTexture,
-		newTexture,
-		oldPal,
-		newPal
-	);
+	if (image)
+	{
+		if (! tim.toRGBA32MultiPaletteGrid(image, 4, 4, 0, 4, false))
+		{
+			driver_free(image);
+			return;
+		}
+
+		if (! texturePacker.setTextureRedirection(oldTexture, newTexture, image))
+		{
+			if (trace_all || trace_vram) ffnx_warning("%s: invalid redirection\n");
+			driver_free(image);
+		}
+	}
+
+	ffnx_info("%s: %X\n", __func__, ff8_externals.psx_texture_pages[0].struc_50_array[16].initialized);
+
+	// Reload texture
+	ff8_externals.psx_texture_pages[0].struc_50_array[16].vram_needs_reload = 0xFF;
+	ff8_externals.psx_texture_pages[0].struc_50_array[17].vram_needs_reload = 0xFF;
+	ff8_externals.psx_texture_pages[0].struc_50_array[18].vram_needs_reload = 0xFF;
+	ff8_externals.psx_texture_pages[0].struc_50_array[19].vram_needs_reload = 0xFF;
 }
 
 void read_psxvram_alpha1_ssigpu_select2_sub_467360(int CLUT, uint8_t *rgba, int size)
@@ -378,7 +397,7 @@ void read_psxvram_alpha2_ssigpu_select2_sub_467460(uint16_t CLUT, uint8_t *rgba,
 
 void ssigpu_tx_select_2_sub_465CD0_call1(uint32_t a1, uint32_t header_with_bit_depth, int16_t CLUT_pos_x6y9, int32_t *a4, int32_t *clut_pos_out, int32_t *a6)
 {
-	if (trace_all || trace_vram) ffnx_trace("%s pos=(%d, %d) %d bit_depth=%d CLUT=(%d, %d) image_flags=%X\n", __func__,
+	ffnx_trace("%s pos=(%d, %d) %d bit_depth=%d CLUT=(%d, %d) image_flags=%X\n", __func__,
 		(header_with_bit_depth & 0xF) << 6, 16 * (header_with_bit_depth & 0x10),
 		header_with_bit_depth & 0x1F, (header_with_bit_depth >> 7) & 3,
 		16 * (CLUT_pos_x6y9 & 0x3F), (CLUT_pos_x6y9 >> 6) & 0x1FF,
@@ -392,7 +411,7 @@ void ssigpu_tx_select_2_sub_465CD0_call1(uint32_t a1, uint32_t header_with_bit_d
 
 void ssigpu_tx_select_2_sub_465CD0_call2(uint32_t a1, uint32_t header_with_bit_depth, int16_t CLUT_pos_x6y9, int32_t *a4, int32_t *clut_pos_out, int32_t *a6)
 {
-	if (trace_all || trace_vram) ffnx_trace("%s pos=(%d, %d) %d bit_depth=%d CLUT=(%d, %d) image_flags=%X\n", __func__,
+	ffnx_trace("%s pos=(%d, %d) %d bit_depth=%d CLUT=(%d, %d) image_flags=%X\n", __func__,
 		(header_with_bit_depth & 0xF) << 6, 16 * (header_with_bit_depth & 0x10),
 		header_with_bit_depth & 0x1F, (header_with_bit_depth >> 7) & 3,
 		16 * (CLUT_pos_x6y9 & 0x3F), (CLUT_pos_x6y9 >> 6) & 0x1FF,
@@ -402,6 +421,131 @@ void ssigpu_tx_select_2_sub_465CD0_call2(uint32_t a1, uint32_t header_with_bit_d
 	next_psxvram_pal_y = (CLUT_pos_x6y9 >> 6) & 0x1FF;
 
 	((void(*)(uint32_t,uint32_t,int16_t,int32_t*,int32_t*,int32_t*))0x465CD0)(a1, header_with_bit_depth, CLUT_pos_x6y9, a4, clut_pos_out, a6);
+}
+
+uint32_t test1(struc_50 *a1, int CLUT)
+{
+	ffnx_trace("%s CLUT=(%d, %d)\n", __func__, 16 * (CLUT & 0x3F), (CLUT >> 6) & 0x1FF);
+	return ((uint32_t(*)(struc_50*,int))0x466080)(a1, CLUT);
+}
+
+int copy_rect_tex_psxvram_r_num;
+
+void copy_rect_tex_psxvram_r(int16_t *a1)
+{
+	ffnx_trace("%s\n", __func__);
+
+	unreplace_function(copy_rect_tex_psxvram_r_num);
+
+	((void(*)(int16_t*))0x45BAF0)(a1);
+
+	rereplace_function(copy_rect_tex_psxvram_r_num);
+}
+
+int copy_psxvram_rw_num;
+
+void copy_psxvram_rw(int16_t *a1, int x, int y)
+{
+	ffnx_trace("%s\n", __func__);
+
+	unreplace_function(copy_psxvram_rw_num);
+
+	((void(*)(int16_t*,int,int))0x45BDC0)(a1, x, y);
+
+	rereplace_function(copy_psxvram_rw_num);
+}
+
+int download_psxvram_to_buffer_num;
+
+void download_psxvram_to_buffer(int16_t *a1, uint8_t *target_buffer)
+{
+	ffnx_trace("%s\n", __func__);
+
+	unreplace_function(download_psxvram_to_buffer_num);
+
+	((void(*)(int16_t*,uint8_t*))0x45BE60)(a1, target_buffer);
+
+	rereplace_function(download_psxvram_to_buffer_num);
+}
+
+int read_vram_to_buffer3_with_palette_num;
+
+void read_vram_to_buffer3_with_palette(uint8_t *vram, int output, int w, int h, int bpp, int vram_palette)
+{
+	ffnx_trace("%s\n", __func__);
+
+	unreplace_function(download_psxvram_to_buffer_num);
+
+	((void(*)(uint8_t *, int, int, int, int, int))0x467A00)(vram, output, w, h, bpp, vram_palette);
+
+	rereplace_function(download_psxvram_to_buffer_num);
+}
+
+int read_vram_to_buffer2_with_palette_num;
+
+void read_vram_to_buffer2_with_palette(uint8_t *vram, int vram_w_2048, int16_t *output, int output_w, int w, int h, int bpp, int vram_palette)
+{
+	ffnx_trace("%s\n", __func__);
+
+	unreplace_function(read_vram_to_buffer2_with_palette_num);
+
+	((void(*)(uint8_t *, int, int16_t *, int, int, int, int, int))0x4677C0)(vram, vram_w_2048, output, output_w, w, h, bpp, vram_palette);
+
+	rereplace_function(read_vram_to_buffer2_with_palette_num);
+}
+
+int read_vram_to_buffer1_num;
+
+void read_vram_to_buffer1(uint8_t *vram, int vram_w, char *target_buffer, int target_width, signed int w, int h, int bpp)
+{
+	ffnx_trace("%s\n", __func__);
+
+	unreplace_function(read_vram_to_buffer1_num);
+
+	((void(*)(uint8_t *, int, char *, int, signed int, int, int))0x4675B0)(vram, vram_w, target_buffer, target_width, w, h, bpp);
+
+	rereplace_function(read_vram_to_buffer1_num);
+}
+
+int ssigpu_callback_psxvram_buffer_related_num;
+
+void ssigpu_callback_psxvram_buffer_related(void *color_texture)
+{
+	ffnx_trace("%s\n", __func__);
+
+	unreplace_function(ssigpu_callback_psxvram_buffer_related_num);
+
+	((void(*)(void*))0x466EE0)(color_texture);
+
+	rereplace_function(ssigpu_callback_psxvram_buffer_related_num);
+}
+
+int driver_load_texture_num;
+
+void driver_load_texture(int palette_index, int a2)
+{
+	ffnx_trace("%s\n", __func__);
+
+	unreplace_function(driver_load_texture_num);
+
+	((void(*)(int,int))0x407EB4)(palette_index, a2);
+
+	rereplace_function(driver_load_texture_num);
+}
+
+int gfx_driver_load_texture2_num;
+
+void *gfx_driver_load_texture2(void *data, void *tex_header, ff8_game_obj *game_object)
+{
+	ffnx_trace("%s\n", __func__);
+
+	unreplace_function(gfx_driver_load_texture2_num);
+
+	void *ret = ((void*(*)(void*,void*,ff8_game_obj*))0x419D8F)(data, tex_header, game_object);
+
+	rereplace_function(gfx_driver_load_texture2_num);
+
+	return ret;
 }
 
 void vram_init()
@@ -420,7 +564,7 @@ void vram_init()
 	replace_call(0x53F0EC, ff8_wm_open_texture1); // Section 38
 	replace_call(0x53F165, ff8_wm_open_pal1); // Section 38
 	// wm texl project
-	replace_call(0x5533C0 + 0x2EC, ff8_wm_texl_palette_upload_vram);
+	//replace_call(0x5533C0 + 0x2EC, ff8_wm_texl_palette_upload_vram);
 	replace_call(0x5533C0 + 0x3F0, ff8_wm_texl_palette_upload_vram);
 
 	replace_function(ff8_externals.upload_psx_vram, ff8_upload_vram);
@@ -449,9 +593,20 @@ void vram_init()
 	// Not used?
 	replace_call(ff8_externals.sub_4649A0 + 0x13F, read_vram_to_buffer_with_palette2);
 
-	/* replace_call(0x4661AC, read_psxvram_alpha1_ssigpu_select2_sub_467360);
-	replace_call(0x4661C1, read_psxvram_alpha2_ssigpu_select2_sub_467460); */
+	replace_call(0x465ED4, test1);
+	replace_call(0x4661AC, read_psxvram_alpha1_ssigpu_select2_sub_467360);
+	// replace_call(0x4661C1, read_psxvram_alpha2_ssigpu_select2_sub_467460);
 
-	replace_call(0x461A4C, ssigpu_tx_select_2_sub_465CD0_call1);
-	replace_call(0x462E13, ssigpu_tx_select_2_sub_465CD0_call2);
+	/* replace_call(0x461A4C, ssigpu_tx_select_2_sub_465CD0_call1);
+	replace_call(0x462E13, ssigpu_tx_select_2_sub_465CD0_call2); */
+
+	copy_rect_tex_psxvram_r_num = replace_function(0x45BAF0, copy_rect_tex_psxvram_r);
+	copy_psxvram_rw_num = replace_function(0x45BDC0, copy_psxvram_rw);
+	download_psxvram_to_buffer_num = replace_function(0x45BE60, download_psxvram_to_buffer);
+	read_vram_to_buffer3_with_palette_num = replace_function(0x467A00, read_vram_to_buffer3_with_palette);
+	read_vram_to_buffer2_with_palette_num = replace_function(0x4677C0, read_vram_to_buffer2_with_palette);
+	read_vram_to_buffer1_num = replace_function(0x4675B0, read_vram_to_buffer1);
+	ssigpu_callback_psxvram_buffer_related_num = replace_function(0x466EE0, ssigpu_callback_psxvram_buffer_related);
+	driver_load_texture_num = replace_function(0x407EB4, driver_load_texture);
+	gfx_driver_load_texture2_num = replace_function(0x419D8F, gfx_driver_load_texture2);
 }
