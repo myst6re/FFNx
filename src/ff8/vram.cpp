@@ -31,6 +31,7 @@ int next_psxvram_x = -1;
 int next_psxvram_y = -1;
 int next_psxvram_pal_x = -1;
 int next_psxvram_pal_y = -1;
+int next_texl_id = 0;
 uint8_t next_bpp = 2;
 uint8_t next_scale = 1;
 int8_t texl_id_left = -1;
@@ -44,7 +45,7 @@ void ff8_upload_vram(int16_t *pos_and_size, uint8_t *texture_buffer)
 	const int h = pos_and_size[3];
 	bool isPal = next_pal_data != nullptr && (uint8_t *)next_pal_data == texture_buffer;
 
-	if (trace_all || trace_vram) ffnx_trace("%s x=%d y=%d w=%d h=%d bpp=%d isPal=%d\n", __func__, x, y, w, h, next_bpp, isPal);
+	ffnx_trace("%s x=%d y=%d w=%d h=%d bpp=%d isPal=%d\n", __func__, x, y, w, h, next_bpp, isPal);
 
 	texturePacker.setTexture(next_texture_name, texture_buffer, x, y, w, h, next_bpp, isPal);
 
@@ -310,24 +311,43 @@ uint32_t ff8_wm_open_texture1(uint8_t *tim_file_data, ff8_tim *tim_infos)
 	return ret;
 }
 
+int ff8_texl_open_data(const char *path, int32_t pos, uint32_t size, void *data)
+{
+	if (strstr(path, "texl.obj") != nullptr)
+	{
+		next_texl_id = pos / 0x12800;
+
+		ffnx_info("Next texl ID: %d\n", next_texl_id);
+	}
+
+	return ((int(*)(const char*, int32_t, uint32_t, void *))0x52D020)(path, pos, size, data);
+}
+
+int ff8_texl_open_data1(const char *path, int32_t pos, uint32_t size, void *data)
+{
+	ffnx_trace("%s: %s pos=%d size=%d\n", __func__, path, pos, size);
+
+	return ff8_texl_open_data(path, pos, size, data);
+}
+
+int ff8_texl_open_data2(const char *path, int32_t pos, uint32_t size, void *data)
+{
+	ffnx_trace("%s: %s pos=%d size=%d\n", __func__, path, pos, size);
+
+	return ff8_texl_open_data(path, pos, size, data);
+}
+
 void ff8_wm_texl_palette_upload_vram(int16_t *pos_and_size, uint8_t *texture_buffer)
 {
 	int *dword_C75DB8 = (int *)0xC75DB8;
 	int16_t *word_203688E = (int16_t *)0x203688E;
-	int texl_id = (*dword_C75DB8 >> 8) & 0xFF;
-
-	if ((*word_203688E & 1) != 0 && (*dword_C75DB8 == 1284 || *dword_C75DB8 == 1798))
-	{
-		texl_id += 12;
-	}
-
-	bool is_left = pos_and_size[0] == 320;
-
-	if (trace_all || trace_vram) ffnx_trace("%s texl_id=%d\n", __func__, texl_id);
+	int texl_id = next_texl_id;
 
 	snprintf(next_texture_name, MAX_PATH, "world/dat/texl/texture%d", texl_id);
 
 	Tim tim = Tim::fromTimData(texture_buffer - 20);
+
+	ffnx_trace("%s texl_id=%d pos=(%d, %d) palPos=(%d, %d)\n", __func__, texl_id, tim.imageX(), tim.imageY(), tim.paletteX(), tim.paletteY());
 
 	if (save_textures) tim.saveMultiPaletteGrid(next_texture_name, 4, 4, 0, 4, false);
 
@@ -337,12 +357,32 @@ void ff8_wm_texl_palette_upload_vram(int16_t *pos_and_size, uint8_t *texture_buf
 
 	// Worldmap texture fix
 
+	bool is_left = pos_and_size[1] == 224;
 	uint16_t oldX = 16 * (texl_id - 2 * ((texl_id / 2) & 1) + (texl_id & 1)), oldY = ((texl_id / 2) & 1) ? 384 : 256;
 
 	if (texl_id == 18 || texl_id == 19)
 	{
 		oldX = texl_id & 1 ? 96 : 64;
 		oldY = 384;
+	}
+
+	uint16_t newX = 0;
+
+	if (pos_and_size[0] == 320 && pos_and_size[1] == 224)
+	{
+		newX = 256;
+	}
+	else if (pos_and_size[0] == 320 && pos_and_size[1] == 240)
+	{
+		newX = 384;
+	}
+	else if (pos_and_size[0] == 576 && pos_and_size[1] == 224)
+	{
+		newX = 512;
+	}
+	else if (pos_and_size[0] == 576 && pos_and_size[1] == 240)
+	{
+		newX = 640;
 	}
 
 	if (texl_id == 16 || texl_id == 17 || texl_id > 19)
@@ -352,7 +392,7 @@ void ff8_wm_texl_palette_upload_vram(int16_t *pos_and_size, uint8_t *texture_buf
 	}
 
 	TexturePacker::TextureInfos oldTexture(oldX, oldY, tim.imageWidth() / 8, tim.imageHeight() / 2, 0),
-		newTexture(is_left ? 384 : 640, 256, tim.imageWidth() / 2, tim.imageHeight(), tim.bpp());
+		newTexture(newX, 256, tim.imageWidth() / 2, tim.imageHeight(), tim.bpp());
 
 	uint32_t image_data_size = newTexture.pixelW() * newTexture.h() * 4;
 	uint32_t *image = (uint32_t*)driver_malloc(image_data_size);
@@ -372,13 +412,50 @@ void ff8_wm_texl_palette_upload_vram(int16_t *pos_and_size, uint8_t *texture_buf
 		}
 	}
 
-	ffnx_info("%s: %X\n", __func__, ff8_externals.psx_texture_pages[0].struc_50_array[16].initialized);
+	/* for (int i = 0; i < 32; ++i)
+	{
+		if (ff8_externals.psx_texture_pages[0].struc_50_array[i].initialized)
+		{
+			for (int j = 0; j < 8; ++j)
+			{
+				if (ff8_externals.psx_texture_pages[0].struc_50_array[i].texture_page[j].tex_header && ff8_externals.psx_texture_pages[0].struc_50_array[i].texture_page[j].image_data)
+				{
+					if (ff8_externals.psx_texture_pages[0].struc_50_array[i].texture_page[j].tri_gfxobj)
+					{
+						common_unload_texture(ff8_externals.psx_texture_pages[0].struc_50_array[i].texture_page[j].tri_gfxobj->hundred_data->texture_set);
+						common_load_texture(ff8_externals.psx_texture_pages[0].struc_50_array[i].texture_page[j].tri_gfxobj->hundred_data->texture_set,
+							((struct ff8_texture_set *)ff8_externals.psx_texture_pages[0].struc_50_array[i].texture_page[j].tri_gfxobj->hundred_data->texture_set)->tex_header,
+							((struct ff8_texture_set *)ff8_externals.psx_texture_pages[0].struc_50_array[i].texture_page[j].tri_gfxobj->hundred_data->texture_set)->texture_format);
+					}
+
+					ffnx_info("%s: %d %d texture_page=%X image_data=%X tex_header=%X tex_format=%X\n", __func__,
+						i, j,
+						ff8_externals.psx_texture_pages[0].struc_50_array[i].texture_page + j,
+						ff8_externals.psx_texture_pages[0].struc_50_array[i].texture_page[j].image_data,
+						ff8_externals.psx_texture_pages[0].struc_50_array[i].texture_page[j].tex_header,
+						ff8_externals.psx_texture_pages[0].struc_50_array[i].texture_page[j].tex_header->tex_format);
+					ffnx_info("%s: %X %X %X %X %X %X %X %X %X %X\n", __func__,
+						ff8_externals.psx_texture_pages[0].struc_50_array[i].texture_page[j].tri_gfxobj ? ff8_externals.psx_texture_pages[0].struc_50_array[i].texture_page[j].tri_gfxobj->hundred_data->texture_set : nullptr,
+						ff8_externals.psx_texture_pages[0].struc_50_array[i].texture_page[j].quad_gfxobj ? ff8_externals.psx_texture_pages[0].struc_50_array[i].texture_page[j].quad_gfxobj->hundred_data->texture_set : nullptr,
+						ff8_externals.psx_texture_pages[0].struc_50_array[i].texture_page[j].noblend_tri_gfxobj ? ff8_externals.psx_texture_pages[0].struc_50_array[i].texture_page[j].noblend_tri_gfxobj->hundred_data->texture_set : nullptr,
+						ff8_externals.psx_texture_pages[0].struc_50_array[i].texture_page[j].noblend_quad_gfxobj ? ff8_externals.psx_texture_pages[0].struc_50_array[i].texture_page[j].noblend_quad_gfxobj->hundred_data->texture_set : nullptr,
+						ff8_externals.psx_texture_pages[0].struc_50_array[i].texture_page[j].avg_tri_gfxobj ? ff8_externals.psx_texture_pages[0].struc_50_array[i].texture_page[j].avg_tri_gfxobj->hundred_data->texture_set : nullptr,
+						ff8_externals.psx_texture_pages[0].struc_50_array[i].texture_page[j].avg_quad_gfxobj ? ff8_externals.psx_texture_pages[0].struc_50_array[i].texture_page[j].avg_quad_gfxobj->hundred_data->texture_set : nullptr,
+						ff8_externals.psx_texture_pages[0].struc_50_array[i].texture_page[j].sub_tri_gfxobj ? ff8_externals.psx_texture_pages[0].struc_50_array[i].texture_page[j].sub_tri_gfxobj->hundred_data->texture_set : nullptr,
+						ff8_externals.psx_texture_pages[0].struc_50_array[i].texture_page[j].sub_quad_gfxobj ? ff8_externals.psx_texture_pages[0].struc_50_array[i].texture_page[j].sub_quad_gfxobj->hundred_data->texture_set : nullptr,
+						ff8_externals.psx_texture_pages[0].struc_50_array[i].texture_page[j].mode3_tri_gfxobj ? ff8_externals.psx_texture_pages[0].struc_50_array[i].texture_page[j].mode3_tri_gfxobj->hundred_data->texture_set : nullptr,
+						ff8_externals.psx_texture_pages[0].struc_50_array[i].texture_page[j].mode3_quad_gfxobj ? ff8_externals.psx_texture_pages[0].struc_50_array[i].texture_page[j].mode3_quad_gfxobj->hundred_data->texture_set : nullptr);
+				}
+			}
+		}
+
+	} */// 1CBA1DC
 
 	// Reload texture
-	ff8_externals.psx_texture_pages[0].struc_50_array[16].vram_needs_reload = 0xFF;
+	/* ff8_externals.psx_texture_pages[0].struc_50_array[16].vram_needs_reload = 0xFF;
 	ff8_externals.psx_texture_pages[0].struc_50_array[17].vram_needs_reload = 0xFF;
 	ff8_externals.psx_texture_pages[0].struc_50_array[18].vram_needs_reload = 0xFF;
-	ff8_externals.psx_texture_pages[0].struc_50_array[19].vram_needs_reload = 0xFF;
+	ff8_externals.psx_texture_pages[0].struc_50_array[19].vram_needs_reload = 0xFF; */
 }
 
 void read_psxvram_alpha1_ssigpu_select2_sub_467360(int CLUT, uint8_t *rgba, int size)
@@ -564,8 +641,10 @@ void vram_init()
 	replace_call(0x53F0EC, ff8_wm_open_texture1); // Section 38
 	replace_call(0x53F165, ff8_wm_open_pal1); // Section 38
 	// wm texl project
-	//replace_call(0x5533C0 + 0x2EC, ff8_wm_texl_palette_upload_vram);
+	replace_call(0x5533C0 + 0x2EC, ff8_wm_texl_palette_upload_vram);
 	replace_call(0x5533C0 + 0x3F0, ff8_wm_texl_palette_upload_vram);
+	replace_call(0x55374F, ff8_texl_open_data1);
+	replace_call(0x553A4E, ff8_texl_open_data2);
 
 	replace_function(ff8_externals.upload_psx_vram, ff8_upload_vram);
 

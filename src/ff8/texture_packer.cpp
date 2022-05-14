@@ -392,7 +392,7 @@ bool TexturePacker::drawModdedTextures(uint32_t *target, const TiledTex &tiledTe
 		}
 	}
 
-	/* if (hasModdedTexture)
+	if (hasModdedTexture)
 	{
 		ffnx_info("%s: hasModdedTexture\n", __func__);
 		snprintf(fileName, MAX_PATH, "texture-page-%d-%d-%d-modded.png", tiledTex.x, tiledTex.y, tiledTex.bpp);
@@ -405,7 +405,7 @@ bool TexturePacker::drawModdedTextures(uint32_t *target, const TiledTex &tiledTe
 		);
 
 		saveVram("vram.png", tiledTex.bpp);
-	} */
+	}
 
 	if (trace_all || trace_vram) ffnx_trace("TexturePacker::%s x=%d y=%d bpp=%d w=%d targetW=%d targetH=%d scale=%d hasModdedTexture=%d\n", __func__, tiledTex.x, tiledTex.y, tiledTex.bpp, w, targetW, targetH, scale, hasModdedTexture);
 
