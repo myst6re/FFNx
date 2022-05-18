@@ -399,7 +399,7 @@ void ff8_wm_texl_palette_upload_vram(int16_t *pos_and_size, uint8_t *texture_buf
 
 	if (image)
 	{
-		if (! tim.toRGBA32MultiPaletteGrid(image, 4, 4, 0, 4, false))
+		if (! tim.toRGBA32MultiPaletteGrid(image, 4, 4, 0, 4, true))
 		{
 			driver_free(image);
 			return;
@@ -452,10 +452,10 @@ void ff8_wm_texl_palette_upload_vram(int16_t *pos_and_size, uint8_t *texture_buf
 	} */// 1CBA1DC
 
 	// Reload texture
-	/* ff8_externals.psx_texture_pages[0].struc_50_array[16].vram_needs_reload = 0xFF;
+	ff8_externals.psx_texture_pages[0].struc_50_array[16].vram_needs_reload = 0xFF;
 	ff8_externals.psx_texture_pages[0].struc_50_array[17].vram_needs_reload = 0xFF;
 	ff8_externals.psx_texture_pages[0].struc_50_array[18].vram_needs_reload = 0xFF;
-	ff8_externals.psx_texture_pages[0].struc_50_array[19].vram_needs_reload = 0xFF; */
+	ff8_externals.psx_texture_pages[0].struc_50_array[19].vram_needs_reload = 0xFF;
 }
 
 void read_psxvram_alpha1_ssigpu_select2_sub_467360(int CLUT, uint8_t *rgba, int size)

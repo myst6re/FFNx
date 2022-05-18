@@ -157,6 +157,7 @@ private:
 	};
 	void getVramRect(uint8_t *target, const TextureInfos &texture) const;
 	bool drawModdedTextures(uint32_t *target, const TiledTex &tiledTex, int w, int h, uint8_t scale, uint32_t paletteOffset);
+	void cleanTextures(ModdedTextureId textureId, bool keepMods = false);
 
 	uint8_t *_vram; // uint16_t[VRAM_WIDTH * VRAM_HEIGHT] aka uint8_t[VRAM_WIDTH * VRAM_HEIGHT * VRAM_DEPTH]
 	std::map<const uint8_t *, TiledTex> _tiledTexs;
