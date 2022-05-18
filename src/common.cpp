@@ -1354,8 +1354,6 @@ void convert_image_data(const unsigned char *image_data, uint32_t *converted_ima
 			return;
 		}
 
-		ffnx_trace("%s use palette 0x%X palette_offset=%d color_key=%d reference_alpha=%d\n", __func__, tex_format->palette_data, palette_offset, color_key, reference_alpha);
-
 		for(i = 0; i < w; i++)
 		{
 			for(j = 0; j < h; j++)
@@ -1440,15 +1438,6 @@ struct texture_set *common_load_texture(struct texture_set *_texture_set, struct
 	struct palette *palette = 0;
 	uint32_t color_key = false;
 	struct texture_format *tex_format = VREFP(tex_header, tex_format);
-
-	ffnx_trace("%s %d x %d image_data=0x%X texture_set=%X tex_header=%X texture_format=%X\n", __func__, tex_format->width, tex_format->height, VREF(tex_header, image_data), _texture_set, _tex_header, texture_format);
-
-	std::list<std::string> textureNames;
-	texturePacker.getTextureNames(VREF(tex_header, image_data), textureNames);
-	for (const std::string &textureName: textureNames)
-	{
-		ffnx_trace("%s name=%s\n", __func__, textureName.c_str());
-	}
 
 	if(trace_all && _texture_set != NULL) ffnx_trace("dll_gfx: load_texture 0x%x\n", _texture_set);
 
