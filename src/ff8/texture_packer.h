@@ -65,6 +65,10 @@ public:
 		inline uint8_t bpp() const {
 			return _bpp;
 		}
+		static void copyRect(
+			const uint32_t *sourceRGBA, int sourceX, int sourceY, int sourceW, uint8_t sourceScale, uint8_t sourceDepth,
+			uint32_t *targetRGBA, int targetX, int targetY, int targetW, uint8_t targetScale
+		);
 	protected:
 		int _x, _y;
 		int _w, _h;
@@ -78,13 +82,13 @@ public:
 	void setTexture(const char *name, const uint8_t *texture, int x, int y, int w, int h, uint8_t bpp, bool isPal);
 	// Override a part of the VRAM from another part of the VRAM, typically with biggest textures (Worldmap)
 	bool setTextureRedirection(const TextureInfos &oldTexture, const TextureInfos &newTexture, uint32_t *imageData);
-	void clearTextureRedirections();
 	uint8_t getMaxScale(const uint8_t *texData) const;
 	void getTextureNames(const uint8_t *texData, std::list<std::string> &names) const;
 	void registerTiledTex(const uint8_t *texData, int x, int y, uint8_t bpp, int palX = 0, int palY = 0);
-	bool drawModdedTextures(const uint8_t *texData, struct texture_format *tex_format, uint32_t *target, const uint32_t *originalImageData, int originalW, int originalH, uint8_t scale, uint32_t paletteOffset);
 
-	void saveVram(const char *fileName, uint8_t bpp) const;
+	bool drawModdedTextures(const uint8_t *texData, struct texture_format *tex_format, uint32_t *target, const uint32_t *originalImageData, int originalW, int originalH, uint8_t scale, uint32_t paletteIndex);
+
+	bool saveVram(const char *fileName, uint8_t bpp) const;
 private:
 	inline uint8_t *vramSeek(int x, int y) const {
 		return _vram + VRAM_DEPTH * (x + y * VRAM_WIDTH);
@@ -155,8 +159,8 @@ private:
 		TextureInfos _oldTexture, _newTexture;
 		uint8_t _scale;
 	};
-	void getVramRect(uint8_t *target, const TextureInfos &texture) const;
-	bool drawModdedTextures(uint32_t *target, const TiledTex &tiledTex, int w, int h, uint8_t scale, uint32_t paletteOffset);
+	bool drawModdedTextures(uint32_t *target, const TiledTex &tiledTex, int w, int h, uint8_t scale, uint32_t paletteIndex);
+	void cleanVramTextureIds(const TextureInfos &texture);
 	void cleanTextures(ModdedTextureId textureId, bool keepMods = false);
 
 	uint8_t *_vram; // uint16_t[VRAM_WIDTH * VRAM_HEIGHT] aka uint8_t[VRAM_WIDTH * VRAM_HEIGHT * VRAM_DEPTH]

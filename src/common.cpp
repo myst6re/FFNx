@@ -1235,7 +1235,7 @@ void scale_up_image_data_in_place(uint8_t *sourceAndTarget, int w, int h, int sc
 }
 
 // load modpath texture for tex file, returns true if successful
-uint32_t load_external_texture(void* image_data, uint32_t dataSize, struct texture_set *texture_set, struct tex_header *tex_header, uint32_t originalWidth, uint32_t originalHeight, uint32_t palette_offset)
+uint32_t load_external_texture(void* image_data, uint32_t dataSize, struct texture_set *texture_set, struct tex_header *tex_header, uint32_t originalWidth, uint32_t originalHeight)
 {
 	VOBJ(texture_set, texture_set, texture_set);
 	VOBJ(tex_header, tex_header, tex_header);
@@ -1292,7 +1292,7 @@ uint32_t load_external_texture(void* image_data, uint32_t dataSize, struct textu
 			}
 		}
 
-		if (image_data_scaled != nullptr && texturePacker.drawModdedTextures(VREF(tex_header, image_data), tex_format, (uint32_t *)image_data_scaled, (uint32_t *)image_data, originalWidth, originalHeight, scale, palette_offset))
+		if (image_data_scaled != nullptr && scale > 0 && texturePacker.drawModdedTextures(VREF(tex_header, image_data), tex_format, (uint32_t *)image_data_scaled, (uint32_t *)image_data, originalWidth, originalHeight, scale, VREF(tex_header, palette_index)))
 		{
 			VREF(texture_set, ogl.width) = originalWidth * scale;
 			VREF(texture_set, ogl.height) = originalHeight * scale;
@@ -1314,8 +1314,8 @@ uint32_t load_external_texture(void* image_data, uint32_t dataSize, struct textu
 	{
 		gl_replace_texture(texture_set, VREF(tex_header, palette_index), texture);
 
-		/* if(!VREF(texture_set, ogl.external)) stats.external_textures++;
-		VRASS(texture_set, ogl.external, true); */
+		if(!VREF(texture_set, ogl.external)) stats.external_textures++;
+		VRASS(texture_set, ogl.external, true);
 
 		return true;
 	}
@@ -1592,7 +1592,7 @@ struct texture_set *common_load_texture(struct texture_set *_texture_set, struct
 			}
 
 			// check if this texture can be loaded from the modpath, we may not have to do any conversion
-			if (!load_external_texture(image_data, image_data_size, _texture_set, _tex_header, w, h, palette_offset))
+			if (!load_external_texture(image_data, image_data_size, _texture_set, _tex_header, w, h))
 			{
 				// commit PBO and populate texture set
 				gl_upload_texture(_texture_set, VREF(tex_header, palette_index), image_data, RendererTextureType::BGRA);

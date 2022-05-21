@@ -119,6 +119,7 @@ bool steam_achievements_debug_mode;
 double hdr_max_nits;
 long external_audio_number_of_channels;
 long external_audio_sample_rate;
+bool ff8_worldmap_texture_fix;
 std::string app_path;
 std::string data_drive;
 
@@ -254,6 +255,7 @@ void read_cfg()
 	hdr_max_nits = config["hdr_max_nits"].value_or(0);
 	external_audio_number_of_channels = config["external_audio_number_of_channels"].value_or(2);
 	external_audio_sample_rate = config["external_audio_sample_rate"].value_or(44100);
+	ff8_worldmap_texture_fix = config["ff8_worldmap_texture_fix"].value_or(false);
 	app_path = config["app_path"].value_or("");
 	data_drive = config["data_drive"].value_or("");
 

@@ -550,6 +550,12 @@ save_path = "save"
 # OPTIONS ONLY FOR FF8
 ###############################################################################
 
+## ENHANCEMENTS
+
+# Load higher resolution textures on worldmap
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ff8_worldmap_texture_fix = true
+
 ## GAME INSTALLATION OPTIONS
 
 #[APP PATH]

@@ -276,9 +276,6 @@ uint32_t ff8_wm_open_texture1(uint8_t *tim_file_data, ff8_tim *tim_infos)
 	int *wm_section_38_textures_pos = *((int **)0x2040014);
 	int searching_value = int(tim_file_data - (uint8_t *)wm_section_38_textures_pos);
 	int timId = -1;
-	int *dword_C75DB8 = (int *)0xC75DB8;
-
-	if (trace_all || trace_vram) ffnx_trace("%s C75DB8=%d\n", __func__, *dword_C75DB8);
 
 	// Find tim id relative to the start of section 38
 	for (int *cur = wm_section_38_textures_pos; *cur != 0; ++cur) {
@@ -300,7 +297,7 @@ uint32_t ff8_wm_open_texture1(uint8_t *tim_file_data, ff8_tim *tim_infos)
 	{
 		if (timId < 8)
 		{
-			Tim::fromTimData(tim_file_data).saveMultiPaletteGrid(next_texture_name, 8, 4, 0, 4, false);
+			Tim::fromTimData(tim_file_data).saveMultiPaletteGrid(next_texture_name, 8, 4, 0, 4, true);
 		}
 		else
 		{
@@ -317,7 +314,7 @@ int ff8_texl_open_data(const char *path, int32_t pos, uint32_t size, void *data)
 	{
 		next_texl_id = pos / 0x12800;
 
-		if (trace_all || trace_vram) ffnx_info("Next texl ID: %d\n", next_texl_id);
+		if (trace_all || trace_vram) ffnx_trace("Next texl ID: %d\n", next_texl_id);
 	}
 
 	return ((int(*)(const char*, int32_t, uint32_t, void *))0x52D020)(path, pos, size, data);
@@ -325,30 +322,31 @@ int ff8_texl_open_data(const char *path, int32_t pos, uint32_t size, void *data)
 
 void ff8_wm_texl_palette_upload_vram(int16_t *pos_and_size, uint8_t *texture_buffer)
 {
-	int *dword_C75DB8 = (int *)0xC75DB8;
-	int16_t *word_203688E = (int16_t *)0x203688E;
-	int texl_id = next_texl_id;
-
-	snprintf(next_texture_name, MAX_PATH, "world/dat/texl/texture%d", texl_id);
+	snprintf(next_texture_name, MAX_PATH, "world/dat/texl/texture%d", next_texl_id);
 
 	Tim tim = Tim::fromTimData(texture_buffer - 20);
 
-	ffnx_trace("%s texl_id=%d pos=(%d, %d) palPos=(%d, %d)\n", __func__, texl_id, tim.imageX(), tim.imageY(), tim.paletteX(), tim.paletteY());
+	ffnx_trace("%s texl_id=%d pos=(%d, %d) palPos=(%d, %d)\n", __func__, next_texl_id, tim.imageX(), tim.imageY(), tim.paletteX(), tim.paletteY());
 
-	if (save_textures) tim.saveMultiPaletteGrid(next_texture_name, 4, 4, 0, 4, false);
+	if (save_textures) tim.saveMultiPaletteGrid(next_texture_name, 4, 4, 0, 4, true);
 
 	next_bpp = 1;
 
 	ff8_upload_vram(pos_and_size, texture_buffer);
 
+	if (! ff8_worldmap_texture_fix)
+	{
+		return;
+	}
+
 	// Worldmap texture fix
 
 	bool is_left = pos_and_size[1] == 224;
-	uint16_t oldX = 16 * (texl_id - 2 * ((texl_id / 2) & 1) + (texl_id & 1)), oldY = ((texl_id / 2) & 1) ? 384 : 256;
+	uint16_t oldX = 16 * (next_texl_id - 2 * ((next_texl_id / 2) & 1) + (next_texl_id & 1)), oldY = ((next_texl_id / 2) & 1) ? 384 : 256;
 
-	if (texl_id == 18 || texl_id == 19)
+	if (next_texl_id == 18 || next_texl_id == 19)
 	{
-		oldX = texl_id & 1 ? 96 : 64;
+		oldX = next_texl_id & 1 ? 96 : 64;
 		oldY = 384;
 	}
 
@@ -371,9 +369,9 @@ void ff8_wm_texl_palette_upload_vram(int16_t *pos_and_size, uint8_t *texture_buf
 		newX = 640;
 	}
 
-	if (texl_id == 16 || texl_id == 17 || texl_id > 19)
+	if (next_texl_id == 16 || next_texl_id == 17 || next_texl_id > 19)
 	{
-		if (trace_all || trace_vram) ffnx_warning("%s: texl id not supported %d\n", __func__, texl_id);
+		if (trace_all || trace_vram) ffnx_warning("%s: texl id not supported %d\n", __func__, next_texl_id);
 		return; // TODO
 	}
 
@@ -398,7 +396,7 @@ void ff8_wm_texl_palette_upload_vram(int16_t *pos_and_size, uint8_t *texture_buf
 		}
 	}
 
-	// Reload texture
+	// Reload texture TODO: reload only relevant parts
 	ff8_externals.psx_texture_pages[0].struc_50_array[16].vram_needs_reload = 0xFF;
 	ff8_externals.psx_texture_pages[0].struc_50_array[17].vram_needs_reload = 0xFF;
 	ff8_externals.psx_texture_pages[0].struc_50_array[18].vram_needs_reload = 0xFF;
