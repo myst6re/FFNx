@@ -306,7 +306,7 @@ LPDIJOYSTATE2 ff8_update_gamepad_status()
 	{
 		if (!gamepad.Refresh() || !gamehacks.canInputBeProcessed()) return 0;
 
-		if ((gamepad.leftStickY > 0.5f) || gamepad.IsPressed(XINPUT_GAMEPAD_DPAD_UP))
+		/*if ((gamepad.leftStickY > 0.5f) || gamepad.IsPressed(XINPUT_GAMEPAD_DPAD_UP))
 		{
 			ff8_externals.dinput_gamepad_state->lY = 0xFFFFFFFFFFFFFFFF;
 			ff8_externals.dinput_gamepad_state->rgdwPOV[0] = 0;
@@ -326,7 +326,7 @@ LPDIJOYSTATE2 ff8_update_gamepad_status()
 		{
 			ff8_externals.dinput_gamepad_state->lX = -0xFFFFFFFFFFFFFFFF;
 			ff8_externals.dinput_gamepad_state->rgdwPOV[0] = 9000;
-		}
+		}*/
 
 		if (gamepad.rightStickY > 0.5f)
 			ff8_externals.dinput_gamepad_state->lRy = 0xFFFFFFFFFFFFFFFF;

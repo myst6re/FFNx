@@ -64,9 +64,9 @@ void vibrate(int left, int right)
 {
 	const int port = 0;
 
-	if (trace_all || trace_gamepad) ffnx_trace("%s left=%d right=%d vibrate_option_enabled=%d\n", __func__, left, right, ff8_externals.gamepad_vibration_states[port].vibrate_option_enabled);
+	if (trace_all || (trace_gamepad && (left | right) != 0)) ffnx_trace("%s left=%d right=%d vibrate_option_enabled=%d\n", __func__, left, right, ff8_externals.gamepad_input_states[port].vibrate_option_enabled);
 
-	if (ff8_externals.gamepad_vibration_states[port].vibrate_option_enabled == 255)
+	if (ff8_externals.gamepad_input_states[port].vibrate_option_enabled == 255)
 	{
 		nxVibrationEngine.setLeftMotorValue(left);
 		nxVibrationEngine.setRightMotorValue(right);
@@ -76,7 +76,7 @@ void vibrate(int left, int right)
 
 void apply_vibrate_calc(char port, int left, int right)
 {
-	ff8_gamepad_vibration_state *gamepad_state = ff8_externals.gamepad_vibration_states;
+	ff8_gamepad_input_state *gamepad_state = ff8_externals.gamepad_input_states;
 	if (left < 0) left = 0;
 	if (right < 0) right = 0;
 
@@ -241,6 +241,57 @@ int ff8_set_vibration(const uint8_t *data, int set, int intensity)
 
 	return ret;
 }
+/*
+int ff8_dinput_get_state(int port)
+{
+	//if (trace_all || trace_gamepad) ffnx_trace("%s: port=%d\n", __func__, port);
+
+	uint8_t **ff8_input_state_copy_dword_209CBC0 = (uint8_t **)0x209CBBC;
+
+	(*ff8_input_state_copy_dword_209CBC0)[-2] = ((*ff8_input_state_copy_dword_209CBC0)[-2] & 0xF) | (1 << 4);
+	(*ff8_input_state_copy_dword_209CBC0)[1] = 64;
+
+	return ((int(*)(int))0x4684F0)(port);
+}*/
+
+int ff8_get_analog_value(int port, int type, int offset)
+{
+	int ret = -1;
+
+	if (port != 0) {
+		return -1;
+	}
+
+	ff8_gamepad_input_state *gamepad_state = ff8_externals.gamepad_input_states;
+
+	if (type == 2) {
+		if (gamepad.leftStickY == 0.0f) {
+			ret = 128;
+		} else if (gamepad.leftStickY < -0.5f) {
+			ret = 128 + 127;
+		} else if (gamepad.leftStickY > 0.5f) {
+			ret = 128 - 127;
+		} else {
+			ret = 128;
+		}
+	} else if (type == 3) {
+		if (gamepad.leftStickX == 0.0f) {
+			ret = 128;
+		} else if (gamepad.leftStickX < -0.5f) {
+			ret = 128 - 127;
+		} else if (gamepad.leftStickX > 0.5f) {
+			ret = 128 + 127;
+		} else {
+			ret = 128;
+		}
+	} else {
+		return -1;
+	}
+
+	if (trace_all || trace_gamepad) ffnx_trace("%s: port=%d, type=%d, offset=%d, lX=%d, lY=%d, gamepadX=%f, gamepadY=%f, ret=%d, left_stick_x=%d, left_stick_y=%d\n", __func__, port, type, offset, ff8_externals.dinput_gamepad_state->lX, ff8_externals.dinput_gamepad_state->lY, gamepad.leftStickX, gamepad.leftStickY, ret, gamepad_state->entries[gamepad_state->entries_offset & 0x7].left_stick_x, gamepad_state->entries[gamepad_state->entries_offset & 0x7].left_stick_y);
+
+	return ret;
+}
 
 void vibration_init()
 {
@@ -249,4 +300,7 @@ void vibration_init()
 	replace_function(ff8_externals.vibration_apply, apply_vibrate_calc);
 	replace_function(ff8_externals.vibration_clear_intensity, noop_a1);
 	ff8_set_vibration_replace_id = replace_function(ff8_externals.set_vibration, ff8_set_vibration);
+
+	//replace_call(0x56DD12, ff8_dinput_get_state);
+	replace_function(0x49EA10, ff8_get_analog_value);
 }

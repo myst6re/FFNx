@@ -564,20 +564,20 @@ struct ff8_win_obj
 	uint32_t callback2;
 };
 
-struct ff8_gamepad_vibration_state_entry {
+struct ff8_gamepad_input_state_entry {
 	int16_t field_0;
 	int16_t keyscan;
 	int16_t field_4;
 	int16_t field_6;
-	int16_t field_8;
-	int16_t field_A;
+	int16_t left_stick_y;
+	int16_t left_stick_x;
 	int16_t field_C;
 	int16_t field_E;
 	int16_t keyon;
 	int16_t field_12;
 };
 
-struct ff8_gamepad_vibration_state {
+struct ff8_gamepad_input_state {
 	uint8_t field_0;
 	uint8_t field_1;
 	uint8_t field_2;
@@ -596,7 +596,7 @@ struct ff8_gamepad_vibration_state {
 	uint8_t field_19;
 	uint8_t field_1A;
 	uint8_t vibrate_option_enabled;
-	ff8_gamepad_vibration_state_entry entries[8];
+	ff8_gamepad_input_state_entry entries[8];
 	uint32_t field_BC;
 	uint16_t field_C0;
 	uint8_t sound_volume; // Analog level in PSX version
@@ -1142,7 +1142,7 @@ struct ff8_externals
 	uint32_t vibration_apply;
 	int(*get_keyon)(int, int);
 	uint32_t set_vibration;
-	ff8_gamepad_vibration_state *gamepad_vibration_states;
+	ff8_gamepad_input_state *gamepad_input_states;
 	ff8_vibrate_struc *vibration_objects;
 	uint32_t vibration_clear_intensity;
 	uint8_t *vibrate_data_world;
