@@ -24,12 +24,14 @@
 #include <stdio.h>
 #include <map>
 #include <string>
+#include <windows.h>
 
 struct ZzzTocEntry
 {
-	std::string fileName;
 	uint64_t filePos;
 	uint32_t fileSize;
+	char fileName[128];
+	uint32_t fileNameSize;
 };
 
 class Zzz
@@ -39,37 +41,45 @@ public:
 	{
 	public:
 		bool seek(uint32_t pos);
-		int read(char *data, int size);
-		uint32_t relativePos() const;
+		int read(void *data, unsigned int size);
+		int64_t relativePos() const;
+		uint64_t absolutePos() const;
 		uint32_t size() const;
-		const std::string &fileName() const;
+		const char *fileName() const;
+		uint32_t fileNameSize() const;
+		inline int fd() const {
+			return _fd;
+		}
 	private:
 		friend class Zzz;
-		File(const ZzzTocEntry &tocEntry, Zzz &parent);
-		const ZzzTocEntry &_tocEntry;
-		Zzz &_parent;
-		uint32_t _relativePos;
+		File(const ZzzTocEntry &tocEntry, int fd);
+		~File();
+		const ZzzTocEntry _tocEntry;
+		int _fd;
+		int64_t _pos;
 	};
 
-	explicit Zzz(const char *fileName);
+	Zzz();
 	~Zzz();
-	bool extractFile(const char *source, const char *target);
-	File *openFile(const char *fileName);
-	void closeFile(File *file);
+	errno_t open(const char *fileName);
+	bool isOpen() const;
+	File *openFile(const char *fileName, size_t size) const;
+	static void closeFile(File *file);
+	bool lookup(const char *fileName, size_t size, ZzzTocEntry &tocEntry) const;
+	const char *fileName() const;
+	bool copyFile(const ZzzTocEntry &tocEntry, FILE *out);
 private:
 	friend class File;
-	bool lookup(const char *fileName, ZzzTocEntry &tocEntry);
+	bool openHeader();
 	bool readHeader(uint32_t &fileCount);
 	bool readTocEntry(ZzzTocEntry &tocEntry);
-	bool copyFile(const ZzzTocEntry &tocEntry, FILE *out);
 	bool copyFileBuffered(const ZzzTocEntry &tocEntry, FILE *out);
 	bool readUInt(uint32_t &val);
 	bool readULong(uint64_t &val);
 	bool seekFile(const ZzzTocEntry &tocEntry, int relativePos);
 	int readFile(const ZzzTocEntry &tocEntry, int relativePos, char *data, int size);
-	const char *_fileName;
-	FILE *_f;
-	uint32_t _currentFile;
-	uint32_t _fileCount;
+
 	std::map<std::string, ZzzTocEntry> _toc;
+	char _fileName[MAX_PATH];
+	FILE *_f;
 };

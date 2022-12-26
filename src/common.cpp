@@ -61,6 +61,7 @@
 #include "ff8/vram.h"
 #include "ff8/vibration.h"
 #include "ff8/engine.h"
+#include "ff8/remaster.h"
 
 bool proxyWndProc = false;
 
@@ -884,6 +885,9 @@ int common_create_window(HINSTANCE hInstance, struct game_obj* game_object)
 				{
 					vram_init();
 					vibration_init();
+					if (remastered_edition) {
+						ff8_remaster_init();
+					}
 				}
 
 				// Init Day Night Cycle
@@ -3020,8 +3024,7 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 				memcpy_code(uint32_t(ff8_externals.archive_path_prefix_field), "\\ff8\\data\\x\\field\\", sizeof("\\ff8\\data\\x\\field\\"));
 				memcpy_code(uint32_t(ff8_externals.archive_path_prefix_world), "\\ff8\\data\\x\\world\\", sizeof("\\ff8\\data\\x\\world\\"));
 			}
-
-			if (strstr(dllName, "af3dn.p") != NULL)
+			else if (strstr(dllName, "af3dn.p") != NULL)
 			{
 				ffnx_trace("Detected Steam edition.\n");
 
@@ -3050,6 +3053,8 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 
 				patch_code_dword(mciSendCommandA, (DWORD)dotemuMciSendCommandA);
 			}
+
+			if (external_music_path.empty()) external_music_path = "data/music/dmusic/ogg";
 		}
 
 		// Apply hext patching

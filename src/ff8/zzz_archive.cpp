@@ -21,87 +21,137 @@
 /****************************************************************************/
 #include "zzz_archive.h"
 
+#include <algorithm>
+#include <io.h>
+#include <fcntl.h>
+
+#include "../log.h"
+
 #define CHUNK_SIZE 10485760 // 10 Mio
 
-Zzz::Zzz(const char *fileName) :
-	_fileName(fileName), _currentFile(0), _fileCount(0)
+Zzz::Zzz() :
+	_f(nullptr)
 {
-	_f = fopen(fileName, "rb");
+	memset(_fileName, 0, MAX_PATH);
 }
 
 Zzz::~Zzz()
 {
-	if (_f != nullptr)
-	{
-		fclose(_f);
-	}
 }
 
-bool Zzz::lookup(const char *fileName, ZzzTocEntry &tocEntry)
+errno_t Zzz::open(const char *fileName)
 {
-	if (_f == nullptr)
-	{
+	strncpy(_fileName, fileName, MAX_PATH - 1);
+	errno_t err = fopen_s(&_f, fileName, "rb");
+
+	if (err != 0) {
+		return err;
+	}
+
+	if (!openHeader()) {
+		return EILSEQ;
+	}
+
+	fclose(_f);
+
+	return 0;
+}
+
+bool Zzz::isOpen() const
+{
+	return !_toc.empty();
+}
+
+bool Zzz::lookup(const char *fileName, size_t size, ZzzTocEntry &tocEntry) const
+{
+	ffnx_trace("Zzz::%s: %s %d\n", __func__, fileName, size);
+	char transformedFileName[128];
+	size_t sizeToTransform = std::min(size + 1, size_t(128)) - 1;
+
+	for (int i = 0; i < sizeToTransform; ++i) {
+		if (fileName[i] == '/') {
+			transformedFileName[i] = '\\';
+		} else {
+			transformedFileName[i] = tolower(fileName[i]);
+		}
+	}
+
+	transformedFileName[sizeToTransform] = '\0';
+
+	auto it = _toc.find(transformedFileName);
+
+	if (it == _toc.end()) {
+		ffnx_error("Zzz::%s: file %s not found\n", __func__, fileName);
+
 		return false;
+	}
+
+	tocEntry = it->second;
+
+	return true;
+}
+
+bool Zzz::openHeader()
+{
+	if (!_toc.empty())
+	{
+		return true;
 	}
 
 	uint32_t fileCount;
 
 	if (!readHeader(fileCount))
 	{
+		ffnx_error("Zzz::%s: cannot read header\n", __func__);
+
 		return false;
 	}
 
-	for (uint64_t i = _currentFile; i < fileCount; ++i)
+	ffnx_info("Zzz::%s: found %d files\n", __func__, fileCount);
+
+	for (uint64_t i = 0; i < fileCount; ++i)
 	{
+		ZzzTocEntry tocEntry;
+
 		if (!readTocEntry(tocEntry))
 		{
+			ffnx_error("Zzz::%s: cannot read toc entry %d\n", __func__, i);
+
 			return false;
 		}
 
+		ffnx_info("Zzz::%s: %s %d\n", __func__, tocEntry.fileName, tocEntry.fileSize);
+
 		_toc[tocEntry.fileName] = tocEntry;
-
-		if (stricmp(tocEntry.fileName.c_str(), fileName) == 0)
-		{
-			return true;
-		}
-	}
-
-	return false;
-}
-
-bool Zzz::extractFile(const char *source, const char *target)
-{
-	ZzzTocEntry tocEntry;
-	if (!lookup(source, tocEntry))
-	{
-		return false;
-	}
-
-	// TODO: mkdir -p
-
-	FILE *f = fopen(target, "wb");
-
-	if (f == nullptr)
-	{
-		return false;
-	}
-
-	if (!copyFile(tocEntry, f)) {
-		return false;
 	}
 
 	return true;
 }
 
-Zzz::File *Zzz::openFile(const char *fileName)
+Zzz::File *Zzz::openFile(const char *fileName, size_t size) const
 {
-	ZzzTocEntry tocEntry;
-	if (!lookup(fileName, tocEntry))
+	int fd = 0;
+
+	ffnx_trace("Zzz::%s: %s %d\n", __func__, fileName, size);
+
+	errno_t err = _sopen_s(&fd, _fileName, _O_BINARY, _SH_DENYNO, _S_IREAD);
+	if (err != 0)
 	{
 		return nullptr;
 	}
 
-	return new File(tocEntry, *this);
+	ZzzTocEntry tocEntry;
+	if (!lookup(fileName, size, tocEntry))
+	{
+		return nullptr;
+	}
+
+	if (_lseeki64(fd, tocEntry.filePos, SEEK_SET) != tocEntry.filePos)
+	{
+		return nullptr;
+	}
+
+	return new File(tocEntry, fd);
 }
 
 void Zzz::closeFile(File *file)
@@ -112,21 +162,14 @@ void Zzz::closeFile(File *file)
 	}
 }
 
+const char *Zzz::fileName() const
+{
+	return _fileName;
+}
+
 bool Zzz::readHeader(uint32_t &fileCount)
 {
-	if (_fileCount > 0)
-	{
-		return _fileCount;
-	}
-
-	bool ok = readUInt(fileCount);
-
-	if (ok)
-	{
-		_fileCount = fileCount;
-	}
-
-	return ok;
+	return readUInt(fileCount);
 }
 
 bool Zzz::readTocEntry(ZzzTocEntry &tocEntry)
@@ -137,9 +180,9 @@ bool Zzz::readTocEntry(ZzzTocEntry &tocEntry)
 		return false;
 	}
 
-	char fileName[256];
+	char fileName[128];
 
-	if (size > sizeof(fileName)) {
+	if (size >= sizeof(fileName)) {
 		return false;
 	}
 
@@ -147,7 +190,10 @@ bool Zzz::readTocEntry(ZzzTocEntry &tocEntry)
 		return false;
 	}
 
-	tocEntry.fileName = fileName;
+	fileName[size] = '\0';
+
+	memcpy(tocEntry.fileName, fileName, size + 1);
+	tocEntry.fileNameSize = size;
 
 	uint64_t filePos;
 	uint32_t fileSize;
@@ -169,19 +215,21 @@ bool Zzz::readTocEntry(ZzzTocEntry &tocEntry)
 
 bool Zzz::copyFile(const ZzzTocEntry &tocEntry, FILE *out)
 {
-	// Remember the current pos in the TOC to go back after the file extraction
-	long curPos = ftell(_f);
+	errno_t err = fopen_s(&_f, _fileName, "rb");
+
+	if (err != 0) {
+		return err;
+	}
 
 	if (fseek(_f, tocEntry.filePos, SEEK_SET) != 0) {
+		fclose(_f);
+
 		return false;
 	}
 
 	bool ret = copyFileBuffered(tocEntry, out);
 
-	// Go back to the position in the TOC
-	if (fseek(_f, curPos, SEEK_SET) != 0) {
-		return false;
-	}
+	fclose(_f);
 
 	return ret;
 }
@@ -253,40 +301,62 @@ bool Zzz::readULong(uint64_t &val)
 	return fread(&val, 8, 1, _f) == 1;
 }
 
-Zzz::File::File(const ZzzTocEntry &tocEntry, Zzz &parent) :
-	_tocEntry(tocEntry), _parent(parent), _relativePos(0)
+Zzz::File::File(const ZzzTocEntry &tocEntry, int fd) :
+	_tocEntry(tocEntry), _fd(fd), _pos(tocEntry.filePos)
 {
+}
+
+Zzz::File::~File()
+{
+	ffnx_info("Zzz::File::close: %s\n", _tocEntry.fileName);
+
+	_close(_fd);
 }
 
 bool Zzz::File::seek(uint32_t pos)
 {
-	if (_parent.seekFile(_tocEntry, pos))
-	{
-		_relativePos = pos;
+	ffnx_info("Zzz::File::%s: %u\n", __func__, pos);
 
-		return true;
-	}
+	_pos = _lseeki64(_fd, _tocEntry.filePos + pos, SEEK_SET);
 
-	return false;
+	ffnx_info("Zzz::File::%s: new pos=%lld filePos=%lld\n", __func__, _pos, _tocEntry.filePos);
+
+	return _pos >= _tocEntry.filePos;
 }
 
-int Zzz::File::read(char *data, int size)
+int Zzz::File::read(void *data, unsigned int size)
 {
-	int r = _parent.readFile(_tocEntry, _relativePos, data, size);
+	int64_t pos = relativePos();
 
-	if (r > 0)
-	{
-		_relativePos += r;
+	ffnx_info("Zzz::File::%s: size=%u pos=%lld fileSize=%u\n", __func__, size, pos, _tocEntry.fileSize);
 
-		return r;
+	if (pos < 0) {
+		return -1; // Before the beginning of the file
+	}
+
+	if (pos >= _tocEntry.fileSize) {
+		return 0; // End Of File
+	}
+
+	int r = _read(_fd, data, std::min(size, uint32_t(_tocEntry.fileSize - pos)));
+
+	ffnx_info("Zzz::File::%s: read %d bytes\n", __func__, r);
+
+	if (r > 0) {
+		_pos += r;
 	}
 
 	return r;
 }
 
-uint32_t Zzz::File::relativePos() const
+int64_t Zzz::File::relativePos() const
 {
-	return _relativePos;
+	return int64_t(_pos - _tocEntry.filePos);
+}
+
+uint64_t Zzz::File::absolutePos() const
+{
+	return _tocEntry.filePos;
 }
 
 uint32_t Zzz::File::size() const
@@ -294,7 +364,12 @@ uint32_t Zzz::File::size() const
 	return _tocEntry.fileSize;
 }
 
-const std::string &Zzz::File::fileName() const
+const char *Zzz::File::fileName() const
 {
 	return _tocEntry.fileName;
+}
+
+uint32_t Zzz::File::fileNameSize() const
+{
+	return _tocEntry.fileNameSize;
 }
