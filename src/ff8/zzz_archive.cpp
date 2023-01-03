@@ -313,15 +313,30 @@ Zzz::File::~File()
 	_close(_fd);
 }
 
-bool Zzz::File::seek(uint32_t pos)
+int64_t Zzz::File::seek(int32_t pos, Whence whence)
 {
 	ffnx_info("Zzz::File::%s: %u\n", __func__, pos);
+
+	switch (whence) {
+		case SeekEnd:
+			pos = _tocEntry.fileSize + (pos < 0 ? pos : 0);
+			break;
+		case SeekCur:
+			pos += relativePos();
+			break;
+		case SeekSet:
+			break;
+	}
+
+	if (pos < 0) {
+		return -1;
+	}
 
 	_pos = _lseeki64(_fd, _tocEntry.filePos + pos, SEEK_SET);
 
 	ffnx_info("Zzz::File::%s: new pos=%lld filePos=%lld\n", __func__, _pos, _tocEntry.filePos);
 
-	return _pos >= _tocEntry.filePos;
+	return relativePos();
 }
 
 int Zzz::File::read(void *data, unsigned int size)

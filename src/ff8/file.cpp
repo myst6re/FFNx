@@ -112,7 +112,25 @@ int ff8_fs_archive_search_filename2(const char *fullpath, ff8_file_fi_infos *fi_
 	}
 	else if (ret != 1 && remastered_edition)
 	{
-		ffnx_error("%s: file not found: %s\n", __func__, fullpath);
+		int fullpath_len = strlen(fullpath);
+		if (fullpath_len > 4) {
+			char extension[5] = {};
+			strncpy(extension, fullpath + fullpath_len - 4, 4);
+
+			char *modifiablePath = const_cast<char *>(fullpath);
+			modifiablePath[fullpath_len - 4] = '_';
+			modifiablePath[fullpath_len - 3] = '\0';
+			concat_lang_str(modifiablePath);
+			strcat(modifiablePath, extension);
+
+			ffnx_error("%s: retry with %s...\n", __func__, modifiablePath);
+
+			ret = ff8_externals.ff8_fs_archive_search_filename2(modifiablePath, fi_infos_for_the_path, file_container);
+		}
+
+		if (ret != 1) {
+			ffnx_error("%s: file not found: %s\n", __func__, fullpath);
+		}
 	}
 
 	return ret;
@@ -347,24 +365,19 @@ __int32 ff8_lseek(int fd, __int32 offset, int whence)
 	if (remastered_edition && openedZzzFiles.contains(fd)) {
 		Zzz::File *file = openedZzzFiles.at(fd);
 		uint32_t pos = offset;
+		Zzz::File::Whence zzzWhence = Zzz::File::SeekSet;
 
 		if (whence == SEEK_END) {
-			pos = file->size() + (offset < 0 ? offset : 0);
+			zzzWhence = Zzz::File::SeekEnd;
 		} else if (whence == SEEK_CUR) {
-			pos += file->relativePos();
+			zzzWhence = Zzz::File::SeekCur;
 		} else if (whence != SEEK_SET) {
 			ffnx_error("%s: seek type not supported: %d\n", __func__, whence);
 
 			return -1;
 		}
 
-		if (file->seek(pos)) {
-			return file->relativePos();
-		}
-
-		ffnx_error("%s: Seek before the start of the file: %s %d\n", __func__, file->fileName(), offset);
-
-		return -1;
+		return file->seek(pos, zzzWhence);
 	}
 
 	// Original implementation

@@ -40,7 +40,12 @@ public:
 	class File
 	{
 	public:
-		bool seek(uint32_t pos);
+		enum Whence {
+			SeekSet = SEEK_SET,
+			SeekEnd = SEEK_END,
+			SeekCur = SEEK_CUR
+		};
+		int64_t seek(int32_t pos, Whence whence);
 		int read(void *data, unsigned int size);
 		int64_t relativePos() const;
 		uint64_t absolutePos() const;

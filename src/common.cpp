@@ -3017,6 +3017,9 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 
 				remastered_edition = true;
 
+				// Steam edition contains movies unpacked
+				enable_ffmpeg_videos = true;
+
 				if (app_path.empty()) app_path = "./";
 				data_drive = "CD:";
 

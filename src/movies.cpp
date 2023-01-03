@@ -31,6 +31,7 @@
 #include "video/movies.h"
 #include "redirect.h"
 #include "achievement.h"
+#include "ff8/remaster.h"
 
 enum MovieAudioLayers {
 	MUSIC = 0,
@@ -194,47 +195,131 @@ uint32_t ff7_get_movie_frame()
 
 uint32_t ff8_movie_frames;
 
+void ff8_read_cam_file(uint32_t disc, uint32_t movie)
+{
+	uint32_t camOffset = 0;
+
+	char camName[260];
+	char newCamName[260];
+
+	_snprintf(camName, sizeof(camName), "data\\movies\\disc%02i_%02i.cam", disc, movie);
+
+	if (remastered_edition)
+	{
+		Zzz::File *f = g_FF8ZzzArchiveOther.openFile(camName, sizeof(camName));
+
+		if (f != nullptr)
+		{
+			int r = 0;
+
+			do {
+				r = f->read(&ff8_externals.movie_object->camdata_buffer[camOffset], 4096);
+
+				if(r > 0) camOffset += r;
+			} while (r > 0);
+
+			g_FF8ZzzArchiveOther.closeFile(f);
+
+			return;
+		}
+		else
+		{
+			ffnx_warning("could not load camera data from %s in other.zzz\n", camName);
+		}
+	}
+
+	redirect_path_with_override(camName, newCamName, sizeof(newCamName));
+
+	FILE *camFile = fopen(newCamName, "rb");
+
+	if(!camFile)
+	{
+		ffnx_error("could not load camera data from %s\n", newCamName);
+		return;
+	}
+
+	while(!feof(camFile) && !ferror(camFile))
+	{
+		uint32_t res = fread(&ff8_externals.movie_object->camdata_buffer[camOffset], 1, 4096, camFile);
+
+		if(res > 0) camOffset += res;
+	}
+
+	fclose(camFile);
+}
+
+int ff8_zzz_read(void *opaque, uint8_t *buf, int buf_size)
+{
+	if (trace_all || trace_movies) ffnx_trace("%s: buf_size=%d\n", __func__, buf_size);
+
+	if (opaque == nullptr) {
+		return -1;
+	}
+
+	Zzz::File *f = (Zzz::File *)opaque;
+
+	return f->read(buf, buf_size);
+}
+
+int64_t ff8_zzz_seek(void *opaque, int64_t offset, int whence)
+{
+	if (trace_all || trace_movies) ffnx_trace("%s: offset=%d, whence=%d\n", __func__, offset, whence);
+
+	if (opaque == nullptr) {
+		return -1;
+	}
+
+	Zzz::File *f = (Zzz::File *)opaque;
+
+	Zzz::File::Whence zzzWhence = Zzz::File::SeekSet;
+
+	if (whence == SEEK_END) {
+		zzzWhence = Zzz::File::SeekEnd;
+	} else if (whence == SEEK_CUR) {
+		zzzWhence = Zzz::File::SeekCur;
+	} else if (whence != SEEK_SET) {
+		ffnx_error("%s: seek type not supported: %d\n", __func__, whence);
+
+		return -1;
+	}
+
+	return f->seek(offset, zzzWhence);
+}
+
+void ff8_zzz_close(void *opaque)
+{
+	if (trace_all || trace_movies) ffnx_trace("%s\n", __func__);
+
+	if (opaque == nullptr) {
+		return;
+	}
+
+	Zzz::File *f = (Zzz::File *)opaque;
+
+	g_FF8ZzzArchiveOther.closeFile(f);
+}
+
 void ff8_prepare_movie(uint32_t disc, uint32_t movie)
 {
 	char fmvName[260];
-	char camName[260];
-
 	char newFmvName[260];
-	char newCamName[260];
-
-	uint32_t camOffset = 0;
 
 	// Unexpected cases default to current disk
 	if (disc >= 5u) {
 		disc = ff8_currentdisk - 1;
+
+		if (disc >= 5u) {
+			disc = 0;
+		}
 	}
 
-	_snprintf(fmvName, sizeof(fmvName), "data/movies/disc%02i_%02ih.%s", disc, movie, ffmpeg_video_ext.c_str());
-	_snprintf(camName, sizeof(camName), "data/movies/disc%02i_%02i.cam", disc, movie);
+	_snprintf(fmvName, sizeof(fmvName), "data\\movies\\disc%02i_%02ih.%s", disc, movie, ffmpeg_video_ext.c_str());
 
-	redirect_path_with_override(fmvName, newFmvName, sizeof(newFmvName));
-	redirect_path_with_override(camName, newCamName, sizeof(newCamName));
-
-	if(trace_all || trace_movies) ffnx_trace("prepare_movie %s\n", fmvName);
+	if(trace_all || trace_movies) ffnx_trace("prepare_movie %s disc=%d movie=%d\n", fmvName, disc, movie);
 
 	if(disc != 4)
 	{
-		FILE *camFile = fopen(camName, "rb");
-
-		if(!camFile)
-		{
-			ffnx_error("could not load camera data from %s\n", camName);
-			return;
-		}
-
-		while(!feof(camFile) && !ferror(camFile))
-		{
-			uint32_t res = fread(&ff8_externals.movie_object->camdata_buffer[camOffset], 1, 4096, camFile);
-
-			if(res > 0) camOffset += res;
-		}
-
-		fclose(camFile);
+		ff8_read_cam_file(disc, movie);
 
 		ff8_externals.movie_object->movie_intro_pak = false;
 	}
@@ -244,6 +329,24 @@ void ff8_prepare_movie(uint32_t disc, uint32_t movie)
 	ff8_externals.movie_object->camdata_pointer = ff8_externals.movie_object->camdata_start;
 
 	ff8_externals.movie_object->movie_current_frame = 0;
+
+	ffmpeg_release_movie_objects();
+
+	if (remastered_edition)
+	{
+		Zzz::File *f = g_FF8ZzzArchiveOther.openFile(fmvName, sizeof(fmvName));
+
+		if (f != nullptr)
+		{
+			ff8_movie_frames = ffmpeg_prepare_movie_from_io(fmvName, f, ff8_zzz_read, ff8_zzz_seek, ff8_zzz_close);
+
+			if (ff8_movie_frames > 0) {
+				return;
+			}
+		}
+	}
+
+	redirect_path_with_override(fmvName, newFmvName, sizeof(newFmvName));
 
 	ff8_movie_frames = ffmpeg_prepare_movie(newFmvName);
 }

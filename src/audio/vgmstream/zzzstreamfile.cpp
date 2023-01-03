@@ -94,7 +94,7 @@ size_t zzz_read(ZZZ_STREAMFILE* sf, uint8_t* dst, offv_t offset, size_t length)
         size_t length_to_read;
 
         /* ignore requests at EOF */
-        if (offset >= sf->infile->size() || ! sf->infile->seek(offset))
+        if (offset >= sf->infile->size() || sf->infile->seek(offset, Zzz::File::SeekSet) < 0)
         {
             break;
         }
