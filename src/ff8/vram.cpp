@@ -24,6 +24,7 @@
 #include "../ff8.h"
 #include "../patch.h"
 #include "../image/tim.h"
+#include "field/background.h"
 
 TexturePacker texturePacker;
 
@@ -49,7 +50,8 @@ void ff8_upload_vram(int16_t *pos_and_size, uint8_t *texture_buffer)
 
 	if (trace_all || trace_vram) ffnx_trace("%s x=%d y=%d w=%d h=%d bpp=%d isPal=%d\n", __func__, x, y, w, h, next_bpp, isPal);
 
-	texturePacker.setTexture(next_texture_name, texture_buffer, x, y, w, h, next_bpp, isPal);
+	texturePacker.setVramTexture(texture_buffer, x, y, w, h);
+	texturePacker.setTexture(next_texture_name, x, y, w, h, next_bpp, isPal);
 
 	ff8_externals.sub_464850(x, y, x + w - 1, h + y - 1);
 
@@ -405,6 +407,46 @@ void ff8_wm_texl_palette_upload_vram(int16_t *pos_and_size, uint8_t *texture_buf
 	ff8_externals.psx_texture_pages[0].struc_50_array[19].vram_needs_reload = 0xFF;
 }
 
+uint8_t *mim_texture_buffer = nullptr;
+
+void ff8_field_mim_palette_upload_vram(int16_t *pos_and_size, uint8_t *texture_buffer)
+{
+	snprintf(next_texture_name, MAX_PATH, "field/mapdata/%s-palettes", get_current_field_name());
+
+	if (trace_all || trace_vram) ffnx_trace("%s\n", __func__);
+
+	mim_texture_buffer = texture_buffer;
+
+	ff8_upload_vram(pos_and_size, texture_buffer);
+}
+
+void ff8_field_mim_texture_upload_vram(int16_t *pos_and_size, uint8_t *texture_buffer)
+{
+	int textureId = (int(texture_buffer - mim_texture_buffer) - 12288) / 26624;
+	snprintf(next_texture_name, MAX_PATH, "field/mapdata/%s-%d", get_current_field_name(), textureId);
+
+	if (trace_all || trace_vram) ffnx_trace("%s\n", __func__);
+
+	ff8_upload_vram(pos_and_size, texture_buffer);
+}
+
+uint32_t ff8_field_read_map_data(char *filename, uint8_t *map_data)
+{
+	if (trace_all || trace_vram) ffnx_trace("%s %s\n", __func__, filename);
+
+	uint32_t ret = ff8_externals.sm_pc_read(filename, map_data);
+
+	if (save_textures) {
+		char tex_filename[MAX_PATH] = {};
+
+		snprintf(tex_filename, MAX_PATH, "field/mapdata/%s", get_current_field_name());
+
+		//ff8_background_save_textures(map_data, mim_texture_buffer, tex_filename);
+	}
+
+	return ret;
+}
+
 void vram_init()
 {
 	texturePacker.setVram((uint8_t *)ff8_externals.psxvram_buffer);
@@ -425,6 +467,10 @@ void vram_init()
 	replace_call(ff8_externals.upload_psxvram_texl_pal_call2, ff8_wm_texl_palette_upload_vram);
 	replace_call(ff8_externals.open_file_world_sub_52D670_texl_call1, ff8_wm_open_data);
 	replace_call(ff8_externals.open_file_world_sub_52D670_texl_call2, ff8_wm_open_data);
+	// field
+	replace_call(0x475BD0 + 0x2E, ff8_field_mim_palette_upload_vram);
+	replace_call(0x475BD0 + 0x5C, ff8_field_mim_texture_upload_vram);
+	replace_call(0x471915, ff8_field_read_map_data);
 
 	replace_function(ff8_externals.upload_psx_vram, ff8_upload_vram);
 

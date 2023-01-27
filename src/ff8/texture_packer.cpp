@@ -27,9 +27,8 @@
 #include <set>
 
 TexturePacker::TexturePacker() :
-	_vram(nullptr)
+	_vram(nullptr), _vramTextureIds(VRAM_WIDTH * VRAM_HEIGHT, INVALID_TEXTURE)
 {
-	memset(_vramTextureIds, INVALID_TEXTURE, VRAM_WIDTH * VRAM_HEIGHT * sizeof(ModdedTextureId));
 }
 
 void TexturePacker::cleanVramTextureIds(const TextureInfos &texture)
@@ -37,7 +36,7 @@ void TexturePacker::cleanVramTextureIds(const TextureInfos &texture)
 	for (int prevY = 0; prevY < texture.h(); ++prevY)
 	{
 		int clearKey = texture.x() + (texture.y() + prevY) * VRAM_WIDTH;
-		std::fill_n(_vramTextureIds + clearKey, texture.w(), INVALID_TEXTURE);
+		std::fill_n(_vramTextureIds.begin() + clearKey, texture.w(), INVALID_TEXTURE);
 	}
 }
 
@@ -77,22 +76,36 @@ void TexturePacker::cleanTextures(ModdedTextureId previousTextureId, bool keepMo
 	}
 }
 
-void TexturePacker::setTexture(const char *name, const uint8_t *source, int x, int y, int w, int h, uint8_t bpp, bool isPal)
+void TexturePacker::setVramTexture(const uint8_t *source, int x, int y, int w, int h)
+{
+	if (trace_all || trace_vram) ffnx_trace("TexturePacker::%s x=%d y=%d w=%d h=%d\n", __func__, x, y, w, h);
+
+	uint8_t *vram = vramSeek(x, y);
+	const int vramLineWidth = VRAM_DEPTH * VRAM_WIDTH;
+	const int lineWidth = VRAM_DEPTH * w;
+
+	for (int i = 0; i < h; ++i)
+	{
+		memcpy(vram, source, lineWidth);
+
+		source += lineWidth;
+		vram += vramLineWidth;
+	}
+}
+
+void TexturePacker::setTexture(const char *name, int x, int y, int w, int h, uint8_t bpp, bool isPal)
 {
 	bool hasNamedTexture = name != nullptr && *name != '\0';
 
 	if (trace_all || trace_vram) ffnx_trace("TexturePacker::%s %s x=%d y=%d w=%d h=%d bpp=%d isPal=%d\n", __func__, hasNamedTexture ? name : "N/A", x, y, w, h, bpp, isPal);
 
-	uint8_t *vram = vramSeek(x, y);
-	const int vramLineWidth = VRAM_DEPTH * VRAM_WIDTH;
-	const int lineWidth = VRAM_DEPTH * w;
 	Texture tex;
 	ModdedTextureId textureId = INVALID_TEXTURE;
 
 	if (hasNamedTexture && !isPal)
 	{
 		tex = Texture(name, x, y, w, h, bpp);
-		textureId = x + y * VRAM_WIDTH;
+		textureId = makeTextureId(x, y);
 
 		if (tex.createImage())
 		{
@@ -106,15 +119,13 @@ void TexturePacker::setTexture(const char *name, const uint8_t *source, int x, i
 
 	for (int i = 0; i < h; ++i)
 	{
-		memcpy(vram, source, lineWidth);
-
 		int vramY = y + i;
 
 		for (int j = 0; j < w; ++j)
 		{
 			int vramX = x + j;
 			int key = vramX + vramY * VRAM_WIDTH;
-			ModdedTextureId previousTextureId = _vramTextureIds[key];
+			ModdedTextureId previousTextureId = _vramTextureIds.at(key);
 
 			if (previousTextureId != INVALID_TEXTURE)
 			{
@@ -123,9 +134,6 @@ void TexturePacker::setTexture(const char *name, const uint8_t *source, int x, i
 
 			_vramTextureIds[key] = textureId;
 		}
-
-		source += lineWidth;
-		vram += vramLineWidth;
 	}
 }
 
@@ -138,7 +146,7 @@ bool TexturePacker::setTextureRedirection(const TextureInfos &oldTexture, const 
 	TextureRedirection redirection(oldTexture, newTexture);
 	if (redirection.isValid() && redirection.createImage(imageData))
 	{
-		ModdedTextureId textureId = oldTexture.x() + oldTexture.y() * VRAM_WIDTH;
+		ModdedTextureId textureId = makeTextureId(oldTexture.x(), oldTexture.y());
 		_textureRedirections[textureId] = redirection;
 
 		for (int y = 0; y < oldTexture.h(); ++y)
@@ -149,7 +157,7 @@ bool TexturePacker::setTextureRedirection(const TextureInfos &oldTexture, const 
 			{
 				int vramX = oldTexture.x() + x;
 				int key = vramX + vramY * VRAM_WIDTH;
-				ModdedTextureId previousTextureId = _vramTextureIds[key];
+				ModdedTextureId previousTextureId = _vramTextureIds.at(key);
 
 				if (previousTextureId != INVALID_TEXTURE)
 				{
@@ -191,7 +199,7 @@ uint8_t TexturePacker::getMaxScale(const uint8_t *texData) const
 		for (int x = 0; x < 64; ++x)
 		{
 			int vramX = tiledTex.x + x;
-			ModdedTextureId textureId = _vramTextureIds[vramX + vramY * VRAM_WIDTH];
+			ModdedTextureId textureId = _vramTextureIds.at(vramX + vramY * VRAM_WIDTH);
 
 			if (textureId != INVALID_TEXTURE)
 			{
@@ -241,7 +249,7 @@ void TexturePacker::getTextureNames(const uint8_t *texData, std::list<std::strin
 		for (int x = 0; x < 64; ++x)
 		{
 			int vramX = tiledTex.x + x;
-			ModdedTextureId textureId = _vramTextureIds[vramX + vramY * VRAM_WIDTH];
+			ModdedTextureId textureId = _vramTextureIds.at(vramX + vramY * VRAM_WIDTH);
 
 			if (textureId != INVALID_TEXTURE)
 			{
@@ -265,7 +273,7 @@ void TexturePacker::getTextureNames(const uint8_t *texData, std::list<std::strin
 
 TexturePacker::TextureTypes TexturePacker::drawTextures(const uint8_t *texData, struct texture_format *tex_format, uint32_t *target, const uint32_t *originalImageData, int originalW, int originalH, uint8_t scale, uint32_t paletteIndex)
 {
-	if (trace_all || trace_vram) ffnx_trace("TexturePacker::%s pointer=0x%X\n", __func__, texData);
+	if (trace_all || trace_vram) ffnx_trace("TexturePacker::%s pointer=0x%X bitsperpixel=%d\n", __func__, texData, (tex_format ? tex_format->bitsperpixel : -1));
 
 	if (_tiledTexs.contains(texData))
 	{
@@ -313,7 +321,7 @@ TexturePacker::TextureTypes TexturePacker::drawTextures(uint32_t *target, const 
 		for (int x = 0; x < w; ++x)
 		{
 			int vramX = tiledTex.x + x;
-			ModdedTextureId textureId = _vramTextureIds[vramX + vramY * VRAM_WIDTH];
+			ModdedTextureId textureId = _vramTextureIds.at(vramX + vramY * VRAM_WIDTH);
 
 			if (textureId != INVALID_TEXTURE)
 			{

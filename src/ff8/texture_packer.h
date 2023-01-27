@@ -25,6 +25,7 @@
 #include <string>
 #include <map>
 #include <list>
+#include <vector>
 #include <bimg/bimg.h>
 
 #include "../ff8.h"
@@ -87,7 +88,8 @@ public:
 	inline void setVram(uint8_t *vram) {
 		_vram = vram;
 	}
-	void setTexture(const char *name, const uint8_t *texture, int x, int y, int w, int h, uint8_t bpp, bool isPal);
+	void setVramTexture(const uint8_t *texture, int x, int y, int w, int h);
+	void setTexture(const char *name, int x, int y, int w, int h, uint8_t bpp, bool isPal);
 	// Override a part of the VRAM from another part of the VRAM, typically with biggest textures (Worldmap)
 	bool setTextureRedirection(const TextureInfos &oldTexture, const TextureInfos &newTexture, uint32_t *imageData);
 	uint8_t getMaxScale(const uint8_t *texData) const;
@@ -100,6 +102,9 @@ public:
 private:
 	inline uint8_t *vramSeek(int x, int y) const {
 		return _vram + VRAM_DEPTH * (x + y * VRAM_WIDTH);
+	}
+	inline static ModdedTextureId makeTextureId(int x, int y) {
+		return x + y * VRAM_WIDTH;
 	}
 	class Texture : public TextureInfos {
 	public:
@@ -170,7 +175,7 @@ private:
 
 	uint8_t *_vram; // uint16_t[VRAM_WIDTH * VRAM_HEIGHT] aka uint8_t[VRAM_WIDTH * VRAM_HEIGHT * VRAM_DEPTH]
 	std::map<const uint8_t *, TiledTex> _tiledTexs;
-	ModdedTextureId _vramTextureIds[VRAM_WIDTH * VRAM_HEIGHT];
+	std::vector<ModdedTextureId> _vramTextureIds; // ModdedTextureId[VRAM_WIDTH * VRAM_HEIGHT]
 	std::map<ModdedTextureId, Texture> _textures;
 	std::map<ModdedTextureId, Texture> _externalTextures;
 	std::map<ModdedTextureId, TextureRedirection> _textureRedirections;
