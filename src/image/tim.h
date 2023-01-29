@@ -85,9 +85,15 @@ class Tim {
 	friend class PaletteDetectionStrategyFixed;
 	friend class PaletteDetectionStrategyGrid;
 public:
-	Tim(uint8_t bpp, const ff8_tim &tim);
+	enum Bpp {
+		Bpp4 = 0,
+		Bpp8 = 1,
+		Bpp16 = 2
+	};
+
+	Tim(Bpp bpp, const ff8_tim &tim);
 	uint16_t colorsPerPal() const;
-	inline uint8_t bpp() const {
+	inline Bpp bpp() const {
 		return _bpp;
 	}
 	inline uint16_t imageX() const {
@@ -130,5 +136,5 @@ private:
 	bool save(const char *fileName, PaletteDetectionStrategy *paletteDetectionStrategy, bool withAlpha) const;
 	bool toRGBA32(uint32_t *target, PaletteDetectionStrategy *paletteDetectionStrategy, bool withAlpha) const;
 	ff8_tim _tim;
-	uint8_t _bpp;
+	Bpp _bpp;
 };

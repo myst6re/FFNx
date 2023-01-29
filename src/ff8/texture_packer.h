@@ -30,6 +30,7 @@
 
 #include "../ff8.h"
 #include "../image/tim.h"
+#include "field/background.h"
 
 typedef uint32_t ModdedTextureId;
 
@@ -46,7 +47,7 @@ public:
 		TextureInfos();
 		TextureInfos(
 			int x, int y, int w, int h,
-			uint8_t bpp
+			Tim::Bpp bpp
 		);
 		inline int x() const {
 			return _x;
@@ -63,19 +64,19 @@ public:
 		inline int h() const {
 			return _h;
 		}
-		inline uint8_t bpp() const {
+		inline Tim::Bpp bpp() const {
 			return _bpp;
 		}
 	protected:
 		static uint8_t computeScale(int sourcePixelW, int sourceH, int targetPixelW, int targetH);
 		static void copyRect(
-			const uint32_t *sourceRGBA, int sourceX, int sourceY, int sourceW, uint8_t sourceScale, uint8_t sourceDepth,
+			const uint32_t *sourceRGBA, int sourceX, int sourceY, int sourceW, uint8_t sourceScale, Tim::Bpp sourceDepth,
 			uint32_t *targetRGBA, int targetX, int targetY, int targetW, uint8_t targetScale
 		);
 
 		int _x, _y;
 		int _w, _h;
-		uint8_t _bpp;
+		Tim::Bpp _bpp;
 	};
 
 	enum TextureTypes {
@@ -88,17 +89,17 @@ public:
 	inline void setVram(uint8_t *vram) {
 		_vram = vram;
 	}
-	void setVramTexture(const uint8_t *texture, int x, int y, int w, int h);
-	void setTexture(const char *name, int x, int y, int w, int h, uint8_t bpp, bool isPal);
+	void uploadTexture(const uint8_t *texture, int x, int y, int w, int h);
+	void setTexture(const char *name, int x, int y, int w, int h, Tim::Bpp bpp, bool isPal);
 	// Override a part of the VRAM from another part of the VRAM, typically with biggest textures (Worldmap)
 	bool setTextureRedirection(const TextureInfos &oldTexture, const TextureInfos &newTexture, uint32_t *imageData);
 	uint8_t getMaxScale(const uint8_t *texData) const;
 	void getTextureNames(const uint8_t *texData, std::list<std::string> &names) const;
-	void registerTiledTex(const uint8_t *texData, int x, int y, uint8_t bpp, int palX = 0, int palY = 0);
+	void registerTiledTex(const uint8_t *texData, int x, int y, Tim::Bpp bpp, int palX = 0, int palY = 0);
 
 	TextureTypes drawTextures(const uint8_t *texData, struct texture_format *tex_format, uint32_t *target, const uint32_t *originalImageData, int originalW, int originalH, uint8_t scale, uint32_t paletteIndex);
 
-	bool saveVram(const char *fileName, uint8_t bpp) const;
+	bool saveVram(const char *fileName, Tim::Bpp bpp) const;
 private:
 	inline uint8_t *vramSeek(int x, int y) const {
 		return _vram + VRAM_DEPTH * (x + y * VRAM_WIDTH);
@@ -112,7 +113,7 @@ private:
 		Texture(
 			const char *name,
 			int x, int y, int w, int h,
-			uint8_t bpp
+			Tim::Bpp bpp
 		);
 		inline const std::string &name() const {
 			return _name;
@@ -135,12 +136,23 @@ private:
 		std::string _name;
 		uint8_t _scale;
 	};
+	class BackgroundTexture : public Texture {
+	public:
+		BackgroundTexture();
+		BackgroundTexture(
+			const char *name,
+			int x, int y, int w, int h,
+			const std::unordered_map<uint16_t, Tile> &mapTiles
+		);
+	private:
+		const std::unordered_map<uint16_t, Tile> _mapTiles;
+	};
 	struct TiledTex {
 		TiledTex();
-		TiledTex(int x, int y, uint8_t bpp, int palX, int palY);
+		TiledTex(int x, int y, Tim::Bpp bpp, int palX, int palY);
 		int x, y;
 		int palX, palY;
-		uint8_t bpp;
+		Tim::Bpp bpp;
 	};
 	struct TextureRedirection : public TextureInfos {
 		TextureRedirection();

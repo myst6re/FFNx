@@ -27,15 +27,26 @@
 #include "../../log.h"
 #include <unordered_map>
 
+constexpr int TEXTURE_WIDTH_BYTES = 128; // Real texture width depends on the texture depth (bpp4 => 256, bpp8 => 128, bpp16 => 64)
+constexpr int TEXTURE_WIDTH_BPP4 = 256;
+constexpr int TEXTURE_HEIGHT = 256;
+constexpr int VRAM_PAGE_MIM_MAX_COUNT = 13;
+constexpr int MIM_DATA_WIDTH_BYTES = TEXTURE_WIDTH_BYTES * VRAM_PAGE_MIM_MAX_COUNT;
+constexpr int MIM_DATA_HEIGHT = TEXTURE_HEIGHT;
+constexpr int TILE_SIZE = 16;
+constexpr int PALETTE_SIZE = 256;
+
 bool ff8_background_save_textures(const uint8_t *map_data, const uint8_t *mim_data, const char *filename)
 {
 	if (trace_all || trace_vram) ffnx_trace("%s %s\n", __func__, filename);
 
-	std::unordered_map<uint16_t, Tile> tilesPerPositionInTexture;
-	uint8_t hasBpp = 0;
-	const uint16_t *palettes_data = (const uint16_t *)(mim_data + 0x1000);
+	std::unordered_map<uint16_t, Tile> tiles_per_position_in_texture;
+	std::unordered_map<uint8_t, Tim::Bpp> min_depths_per_texture_id;
+
+	const uint16_t *palettes_data = reinterpret_cast<const uint16_t *>(mim_data + 0x1000);
 	const uint8_t *textures_data = mim_data + 0x3000;
 
+	// Parse MAP tiles
 	while (true) {
 		Tile tile;
 
@@ -46,105 +57,107 @@ bool ff8_background_save_textures(const uint8_t *map_data, const uint8_t *mim_da
 		}
 
 		uint8_t texture_id = tile.texID & 0xF;
-		uint8_t bpp = (tile.texID >> 7) & 3;
+		Tim::Bpp bpp = Tim::Bpp((tile.texID >> 7) & 3);
 
-		ffnx_info("dst %d %d %d src %d %d texid %d\n", tile.x, tile.y, tile.z, tile.srcX, tile.srcY, texture_id);
+		ffnx_info("dst %d %d %d src %d %d texid %d bpp %d\n", tile.x, tile.y, tile.z, tile.srcX, tile.srcY, texture_id, int(bpp));
 
-		tilesPerPositionInTexture[texture_id | ((tile.srcX / 16) << 4) | ((tile.srcY / 16) << 8)] = tile;
+		tiles_per_position_in_texture[texture_id | ((tile.srcX / 16) << 4) | ((tile.srcY / 16) << 8)] = tile;
 
-		hasBpp |= 1 << bpp;
+		auto it = min_depths_per_texture_id.find(texture_id);
+		if (it == min_depths_per_texture_id.end()) {
+			min_depths_per_texture_id[texture_id] = bpp;
+		} else {
+			min_depths_per_texture_id[texture_id] = Tim::Bpp(std::min(int(bpp), int(it->second)));
+		}
 
 		map_data += sizeof(Tile);
 	}
 
-	for (uint8_t bpp = 0; bpp < 3; ++bpp) {
-		if (! (hasBpp & (1 << bpp))) {
-			continue;
-		}
+	uint32_t* const image_data_start = new uint32_t[TEXTURE_WIDTH_BPP4 * TEXTURE_HEIGHT];
 
-		for (int row = 0; row < 16; ++row) {
-			uint8_t width = 13 * 64 * (4 >> bpp);
+	if (image_data_start == nullptr) {
+		return false;
+	}
 
-			ffnx_info("row=%d bpp=%d\n", row, bpp);
-			// allocate PBO
-			uint32_t image_data_size = width * 16 * sizeof(uint32_t);
-			uint32_t *image_data = (uint32_t*)driver_calloc(image_data_size, 1); // Set to 0
+	// Save textures
+	for (const std::pair<uint8_t, Tim::Bpp> &pair: min_depths_per_texture_id) {
+		const uint8_t texture_id = pair.first;
+		const Tim::Bpp min_depth = pair.second;
+		const uint16_t width = TEXTURE_WIDTH_BPP4 >> min_depth;
+		const uint32_t image_data_size = width * TEXTURE_HEIGHT * sizeof(uint32_t);
 
-			if (image_data == nullptr) {
-				return false;
-			}
+		// Fill with zeroes (transparent image)
+		memset(image_data_start, 0, image_data_size);
 
-			uint32_t *target = image_data;
-			char filename_tex[MAX_PATH] = {};
+		char filename_tex[MAX_PATH] = {};
 
-			snprintf(filename_tex, sizeof(filename_tex), "%s-%d-%d", filename, bpp, row);
+		snprintf(filename_tex, sizeof(filename_tex), "%s_%d", filename, texture_id);
 
-			for (uint8_t texture_id = 0; texture_id < 13; ++texture_id) {
-				for (uint8_t col = 0; col < (4 << (2 - bpp)); ++col) {
-					auto it = tilesPerPositionInTexture.find(texture_id | (col << 4) | (row << 8));
-					if (it == tilesPerPositionInTexture.end()) {
-						continue;
+		for (uint8_t row = 0; row < 16; ++row) {
+			for (uint8_t col = 0; col < width / 16; ++col) {
+				auto it = tiles_per_position_in_texture.find(texture_id | (col << 4) | (row << 8));
+				if (it == tiles_per_position_in_texture.end()) {
+					ffnx_info("texture_id=%d row=%d col=%d not found\n", texture_id, row, col);
+					continue;
+				}
+
+				ffnx_info("texture_id=%d row=%d col=%d\n", texture_id, row, col);
+
+				const Tile &tile = it->second;
+				Tim::Bpp bpp = Tim::Bpp((tile.texID >> 7) & 3);
+				uint8_t pal_id = (tile.palID >> 6) & 0xF;
+				const uint8_t *texture_data_start = textures_data + texture_id * TEXTURE_WIDTH_BYTES + tile.srcY * MIM_DATA_WIDTH_BYTES;
+				const uint16_t *palette_data_start = bpp == Tim::Bpp16 ? nullptr : palettes_data + pal_id * PALETTE_SIZE;
+				uint32_t *target = image_data_start + row * TILE_SIZE * width;
+
+				ffnx_info("bpp=%d pal_id=%d srcX=%d srcY=%d palette_data_start=%X texture_data_start=%X\n", bpp, pal_id, tile.srcX,tile.srcY, int(palette_data_start), int(texture_data_start));
+
+				if (bpp == Tim::Bpp16) {
+					const uint16_t *texture_data = reinterpret_cast<const uint16_t *>(texture_data_start) + tile.srcX;
+					target += col * TILE_SIZE;
+
+					for (int y = 0; y < TILE_SIZE; ++y) {
+						for (int x = 0; x < TILE_SIZE; ++x) {
+							*(target + x) = fromR5G5B5Color(*(texture_data + x), true);
+						}
+
+						target += width;
+						texture_data += MIM_DATA_WIDTH_BYTES / 2;
 					}
+				} else if (bpp == Tim::Bpp8) {
+					const uint8_t *texture_data = texture_data_start + tile.srcX;
+					target += col * TILE_SIZE;
 
-					const Tile &tile = it->second;
-					uint8_t bpp_tile = (tile.texID >> 7) & 3;
+					for (int y = 0; y < TILE_SIZE; ++y) {
+						for (int x = 0; x < TILE_SIZE; ++x) {
+							*(target + x) = fromR5G5B5Color(palette_data_start[*(texture_data + x)], true);
+						}
 
-					if (bpp_tile != bpp) {
-						ffnx_error("%s: inconsistent bpp between texture and tile %d != %d\n", __func__, bpp, bpp_tile);
-
-						return false;
+						target += width;
+						texture_data += MIM_DATA_WIDTH_BYTES;
 					}
+				} else {
+					const uint8_t *texture_data = texture_data_start + tile.srcX / 2;
+					target += col * TILE_SIZE;
 
-					uint8_t pal_id = (tile.palID >> 6) & 0xF;
-					const uint8_t *texture_data_start = textures_data + texture_id * 128 + tile.srcY * 1664;
-					const uint16_t *palette_data_start = palettes_data + pal_id * 256;
-
-					if (bpp == 2) {
-						const uint16_t *texture_data = (const uint16_t *)texture_data_start + tile.srcX;
-
-						for (int y = 0; y < 16; ++y) {
-							for (int x = 0; x < 16; ++x) {
-								*(target + x) = fromR5G5B5Color(*(texture_data + x), false);
-							}
-
-							target += width;
-							texture_data += 1664;
+					for (int y = 0; y < TILE_SIZE; ++y) {
+						for (int x = 0; x < TILE_SIZE / 2; ++x) {
+							uint8_t index = *(texture_data + x);
+							*(target + x * 2) = fromR5G5B5Color(palette_data_start[index & 0xF], true);
+							*(target + x * 2 + 1) = fromR5G5B5Color(palette_data_start[index >> 4], true);
 						}
-					} else if (bpp == 1) {
-						const uint8_t *texture_data = texture_data_start + tile.srcX;
 
-						for (int y = 0; y < 16; ++y) {
-							for (int x = 0; x < 16; ++x) {
-								*(target + x) = fromR5G5B5Color(palette_data_start[*(texture_data + x)], false);
-							}
-
-							target += width;
-							texture_data += 1664;
-						}
-					} else {
-						const uint8_t *texture_data = texture_data_start + tile.srcX / 2;
-
-						for (int y = 0; y < 16; ++y) {
-							for (int x = 0; x < 16 / 2; ++x) {
-								uint8_t index = *(texture_data + x);
-								*(target + x) = fromR5G5B5Color(palette_data_start[index & 0xF], false);
-								*(target + x + 1) = fromR5G5B5Color(palette_data_start[index >> 4], false);
-							}
-
-							target += width;
-							texture_data += 1664 / 2;
-						}
+						target += width;
+						texture_data += MIM_DATA_WIDTH_BYTES;
 					}
 				}
 			}
-
-			save_texture(image_data, image_data_size, width, 16, 0, filename_tex, false);
-
-			driver_free(image_data);
 		}
+
+		save_texture(image_data_start, image_data_size, width, TEXTURE_HEIGHT, 0, filename_tex, false);
 	}
 
-
+	delete[] image_data_start;
 
 	return true;
 }

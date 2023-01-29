@@ -76,7 +76,7 @@ void TexturePacker::cleanTextures(ModdedTextureId previousTextureId, bool keepMo
 	}
 }
 
-void TexturePacker::setVramTexture(const uint8_t *source, int x, int y, int w, int h)
+void TexturePacker::uploadTexture(const uint8_t *source, int x, int y, int w, int h)
 {
 	if (trace_all || trace_vram) ffnx_trace("TexturePacker::%s x=%d y=%d w=%d h=%d\n", __func__, x, y, w, h);
 
@@ -93,7 +93,7 @@ void TexturePacker::setVramTexture(const uint8_t *source, int x, int y, int w, i
 	}
 }
 
-void TexturePacker::setTexture(const char *name, int x, int y, int w, int h, uint8_t bpp, bool isPal)
+void TexturePacker::setTexture(const char *name, int x, int y, int w, int h, Tim::Bpp bpp, bool isPal)
 {
 	bool hasNamedTexture = name != nullptr && *name != '\0';
 
@@ -356,14 +356,14 @@ TexturePacker::TextureTypes TexturePacker::drawTextures(uint32_t *target, const 
 	return drawnTextureTypes;
 }
 
-void TexturePacker::registerTiledTex(const uint8_t *texData, int x, int y, uint8_t bpp, int palX, int palY)
+void TexturePacker::registerTiledTex(const uint8_t *texData, int x, int y, Tim::Bpp bpp, int palX, int palY)
 {
 	if (trace_all || trace_vram) ffnx_trace("%s pointer=0x%X x=%d y=%d bpp=%d palX=%d palY=%d\n", __func__, texData, x, y, bpp, palX, palY);
 
 	_tiledTexs[texData] = TiledTex(x, y, bpp, palX, palY);
 }
 
-bool TexturePacker::saveVram(const char *fileName, uint8_t bpp) const
+bool TexturePacker::saveVram(const char *fileName, Tim::Bpp bpp) const
 {
 	uint16_t palette[256] = {};
 
@@ -373,16 +373,16 @@ bool TexturePacker::saveVram(const char *fileName, uint8_t bpp) const
 	tim_infos.img_w = VRAM_WIDTH;
 	tim_infos.img_h = VRAM_HEIGHT;
 
-	if (bpp < 2)
+	if (bpp < Tim::Bpp16)
 	{
 		tim_infos.pal_data = palette;
 		tim_infos.pal_h = 1;
-		tim_infos.pal_w = bpp == 0 ? 16 : 256;
+		tim_infos.pal_w = bpp == Tim::Bpp4 ? 16 : 256;
 
 		// Greyscale palette
 		for (int i = 0; i < tim_infos.pal_w; ++i)
 		{
-			uint8_t color = bpp == 0 ? i * 16 : i;
+			uint8_t color = bpp == Tim::Bpp4 ? i * 16 : i;
 			palette[i] = color | (color << 5) | (color << 10);
 		}
 	}
@@ -391,13 +391,13 @@ bool TexturePacker::saveVram(const char *fileName, uint8_t bpp) const
 }
 
 TexturePacker::TextureInfos::TextureInfos() :
-	_x(0), _y(0), _w(0), _h(0), _bpp(255)
+	_x(0), _y(0), _w(0), _h(0), _bpp(Tim::Bpp4)
 {
 }
 
 TexturePacker::TextureInfos::TextureInfos(
 	int x, int y, int w, int h,
-	uint8_t bpp
+	Tim::Bpp bpp
 ) : _x(x), _y(y), _w(w), _h(h), _bpp(bpp)
 {
 }
@@ -434,7 +434,7 @@ uint8_t TexturePacker::TextureInfos::computeScale(int sourcePixelW, int sourceH,
 }
 
 void TexturePacker::TextureInfos::copyRect(
-	const uint32_t *sourceRGBA, int sourceX, int sourceY, int sourceW, uint8_t sourceScale, uint8_t sourceDepth,
+	const uint32_t *sourceRGBA, int sourceX, int sourceY, int sourceW, uint8_t sourceScale, Tim::Bpp sourceDepth,
 	uint32_t *targetRGBA, int targetX, int targetY, int targetW, uint8_t targetScale)
 {
 	if (targetScale < sourceScale)
@@ -472,7 +472,7 @@ TexturePacker::Texture::Texture() :
 TexturePacker::Texture::Texture(
 	const char *name,
 	int x, int y, int w, int h,
-	uint8_t bpp
+	Tim::Bpp bpp
 ) : TextureInfos(x, y, w, h, bpp), _image(nullptr), _name(name), _scale(1)
 {
 }
@@ -543,13 +543,26 @@ void TexturePacker::Texture::copyRect(int textureX, int textureY, uint32_t *targ
 	);
 }
 
+TexturePacker::BackgroundTexture::BackgroundTexture() :
+	Texture()
+{
+}
+
+TexturePacker::BackgroundTexture::BackgroundTexture(
+	const char *name,
+	int x, int y, int w, int h,
+	const std::unordered_map<uint16_t, Tile> &mapTiles
+) : Texture(name, x, y, w, h, Tim::Bpp4), _mapTiles(mapTiles)
+{
+}
+
 TexturePacker::TiledTex::TiledTex()
- : x(0), y(0), palX(0), palY(0), bpp(0)
+ : x(0), y(0), palX(0), palY(0), bpp(Tim::Bpp4)
 {
 }
 
 TexturePacker::TiledTex::TiledTex(
-	int x, int y, uint8_t bpp, int palX, int palY
+	int x, int y, Tim::Bpp bpp, int palX, int palY
 ) : x(x), y(y), palX(palX), palY(palY), bpp(bpp)
 {
 }
