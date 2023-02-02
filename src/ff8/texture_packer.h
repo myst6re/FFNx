@@ -23,7 +23,7 @@
 #pragma once
 
 #include <string>
-#include <map>
+#include <unordered_map>
 #include <list>
 #include <vector>
 #include <bimg/bimg.h>
@@ -68,12 +68,13 @@ public:
 			return _bpp;
 		}
 	protected:
+		static bimg::ImageContainer *createImageContainer(const char *name, uint8_t palette_index, bool hasPal);
 		static uint8_t computeScale(int sourcePixelW, int sourceH, int targetPixelW, int targetH);
 		static void copyRect(
 			const uint32_t *sourceRGBA, int sourceX, int sourceY, int sourceW, uint8_t sourceScale, Tim::Bpp sourceDepth,
 			uint32_t *targetRGBA, int targetX, int targetY, int targetW, uint8_t targetScale
 		);
-
+	private:
 		int _x, _y;
 		int _w, _h;
 		Tim::Bpp _bpp;
@@ -91,6 +92,7 @@ public:
 	}
 	void uploadTexture(const uint8_t *texture, int x, int y, int w, int h);
 	void setTexture(const char *name, int x, int y, int w, int h, Tim::Bpp bpp, bool isPal);
+	void setTextureBackground(const char *name, int x, int y, int w, int h, const std::vector<Tile> &mapTiles);
 	// Override a part of the VRAM from another part of the VRAM, typically with biggest textures (Worldmap)
 	bool setTextureRedirection(const TextureInfos &oldTexture, const TextureInfos &newTexture, uint32_t *imageData);
 	uint8_t getMaxScale(const uint8_t *texData) const;
@@ -130,22 +132,30 @@ private:
 			return _scale != 0;
 		}
 		void copyRect(int textureX, int textureY, uint32_t *target, int targetX, int targetY, int targetW, uint8_t targetScale) const;
+	protected:
+		const bimg::ImageContainer *image() const {
+			return _image;
+		}
+		virtual uint8_t computeScale() const;
 	private:
-		uint8_t computeScale() const;
 		bimg::ImageContainer *_image;
 		std::string _name;
 		uint8_t _scale;
 	};
-	class BackgroundTexture : public Texture {
+	class TextureBackground : public Texture {
 	public:
-		BackgroundTexture();
-		BackgroundTexture(
+		TextureBackground();
+		TextureBackground(
 			const char *name,
 			int x, int y, int w, int h,
-			const std::unordered_map<uint16_t, Tile> &mapTiles
+			const std::vector<Tile> &mapTiles
 		);
+		void copyRect(int textureX, int textureY, uint32_t *target, int targetX, int targetY, int targetW, uint8_t targetScale) const;
 	private:
-		const std::unordered_map<uint16_t, Tile> _mapTiles;
+		virtual uint8_t computeScale() const override;
+		std::vector<Tile> _mapTiles;
+		std::unordered_map<uint16_t, size_t> _tileIdsByPosition;
+		uint8_t _colsCount;
 	};
 	struct TiledTex {
 		TiledTex();
@@ -181,14 +191,16 @@ private:
 		TextureInfos _oldTexture;
 		uint8_t _scale;
 	};
+	void setVramTextureId(ModdedTextureId textureId, int x, int y, int w, int h, bool keepMods = false);
 	TextureTypes drawTextures(uint32_t *target, const TiledTex &tiledTex, int w, int h, uint8_t scale, uint32_t paletteIndex);
 	void cleanVramTextureIds(const TextureInfos &texture);
 	void cleanTextures(ModdedTextureId textureId, bool keepMods = false);
 
 	uint8_t *_vram; // uint16_t[VRAM_WIDTH * VRAM_HEIGHT] aka uint8_t[VRAM_WIDTH * VRAM_HEIGHT * VRAM_DEPTH]
-	std::map<const uint8_t *, TiledTex> _tiledTexs;
+	std::unordered_map<const uint8_t *, TiledTex> _tiledTexs;
 	std::vector<ModdedTextureId> _vramTextureIds; // ModdedTextureId[VRAM_WIDTH * VRAM_HEIGHT]
-	std::map<ModdedTextureId, Texture> _textures;
-	std::map<ModdedTextureId, Texture> _externalTextures;
-	std::map<ModdedTextureId, TextureRedirection> _textureRedirections;
+	std::unordered_map<ModdedTextureId, Texture> _textures;
+	std::unordered_map<ModdedTextureId, Texture> _externalTextures;
+	std::unordered_map<ModdedTextureId, TextureRedirection> _textureRedirections;
+	std::unordered_map<ModdedTextureId, TextureBackground> _backgroundTextures;
 };

@@ -21,9 +21,22 @@
 //    GNU General Public License for more details.                          //
 /****************************************************************************/
 
+#pragma once
+
 #include "../../common.h"
 
-#pragma once
+#include <vector>
+
+constexpr int TEXTURE_WIDTH_BYTES = 128; // Real texture width depends on the texture depth (bpp4 => 256, bpp8 => 128, bpp16 => 64)
+constexpr int TEXTURE_WIDTH_BPP16 = 64;
+constexpr int TEXTURE_WIDTH_BPP8 = 128;
+constexpr int TEXTURE_WIDTH_BPP4 = 256;
+constexpr int TEXTURE_HEIGHT = 256;
+constexpr int VRAM_PAGE_MIM_MAX_COUNT = 13;
+constexpr int MIM_DATA_WIDTH_BYTES = TEXTURE_WIDTH_BYTES * VRAM_PAGE_MIM_MAX_COUNT;
+constexpr int MIM_DATA_HEIGHT = TEXTURE_HEIGHT;
+constexpr int TILE_SIZE = 16;
+constexpr int PALETTE_SIZE = 256;
 
 struct Tile {
 	int16_t x, y, z;
@@ -35,4 +48,19 @@ struct Tile {
 	uint8_t parameter, state;
 };
 
-bool ff8_background_save_textures(const uint8_t *map_data, const uint8_t *mim_data, const char *filename);
+enum BppFlag {
+	BppNone = 0,
+	Bpp4 = 1,
+	Bpp8 = 2,
+	Bpp16 = 4
+};
+
+typedef int BppFlags;
+
+inline BppFlags operator|(BppFlags flag1, BppFlag flag2) noexcept
+{
+	return flag1 | int(flag2);
+}
+
+std::vector<Tile> ff8_background_parse_tiles(const uint8_t *map_data);
+bool ff8_background_save_textures(const std::vector<Tile> &tiles, const uint8_t *mim_data, const char *filename);

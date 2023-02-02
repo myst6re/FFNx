@@ -417,15 +417,15 @@ void ff8_field_mim_palette_upload_vram(int16_t *pos_and_size, uint8_t *texture_b
 
 	ff8_upload_vram(pos_and_size, texture_buffer);
 
-	snprintf(next_texture_name, MAX_PATH, "field/mapdata/%s", get_current_field_name());
+	// snprintf(next_texture_name, MAX_PATH, "field/mapdata/%s", get_current_field_name());
 
 	// texturePacker.setTexture(next_texture_name, x, y, w, h, Tim::Bpp4 | Tim::Bpp8 | Tim::Bpp16, isPal);
 }
 
 void ff8_field_mim_texture_upload_vram(int16_t *pos_and_size, uint8_t *texture_buffer)
 {
-	int textureId = (int(texture_buffer - mim_texture_buffer) - 12288) / 26624;
-	snprintf(next_texture_name, MAX_PATH, "field/mapdata/%s-%d", get_current_field_name(), textureId);
+	// int textureId = (int(texture_buffer - mim_texture_buffer) - 12288) / 26624;
+	// snprintf(next_texture_name, MAX_PATH, "field/mapdata/%s-%d", get_current_field_name(), textureId);
 
 	if (trace_all || trace_vram) ffnx_trace("%s\n", __func__);
 
@@ -438,13 +438,17 @@ uint32_t ff8_field_read_map_data(char *filename, uint8_t *map_data)
 
 	uint32_t ret = ff8_externals.sm_pc_read(filename, map_data);
 
+	char tex_filename[MAX_PATH] = {};
+
+	snprintf(tex_filename, MAX_PATH, "field/mapdata/%s/%s", get_current_field_name(), get_current_field_name());
+
+	std::vector<Tile> tiles = ff8_background_parse_tiles(map_data);
+
 	if (save_textures) {
-		char tex_filename[MAX_PATH] = {};
-
-		snprintf(tex_filename, MAX_PATH, "field/mapdata/%s/%s", get_current_field_name(), get_current_field_name());
-
-		ff8_background_save_textures(map_data, mim_texture_buffer, tex_filename);
+		ff8_background_save_textures(tiles, mim_texture_buffer, tex_filename);
 	}
+
+	texturePacker.setTextureBackground(tex_filename, 0, 256, VRAM_PAGE_MIM_MAX_COUNT * TEXTURE_WIDTH_BPP16, TEXTURE_HEIGHT, tiles);
 
 	return ret;
 }
