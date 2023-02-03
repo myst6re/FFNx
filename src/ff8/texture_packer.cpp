@@ -632,10 +632,12 @@ TexturePacker::TextureBackground::TextureBackground(
 	size_t tileId = 0;
 	for (const Tile &tile: mapTiles) {
 		const uint8_t textureId = tile.texID & 0xF;
-		_tileIdsByPosition[textureId | ((tile.srcX / 16) << 4) | ((tile.srcY / 16) << 8)] = tileId;
+		_tileIdsByPosition[textureId | ((tile.srcX / TILE_SIZE) << 4) | ((tile.srcY / TILE_SIZE) << 8)] = tileId;
 		++tileId;
 	}
 	_colsCount = mapTiles.size() / (TEXTURE_HEIGHT / TILE_SIZE) + int(mapTiles.size() % (TEXTURE_HEIGHT / TILE_SIZE) != 0);
+
+	ffnx_info("TextureBackground::%s: colsCount=%d\n", __func__, _colsCount);
 }
 
 void TexturePacker::TextureBackground::copyRect(int textureX, int textureY, uint32_t *target, int targetX, int targetY, int targetW, uint8_t targetScale) const
@@ -644,17 +646,22 @@ void TexturePacker::TextureBackground::copyRect(int textureX, int textureY, uint
 		srcX = textureX % TEXTURE_WIDTH_BYTES,
 		srcY = textureY;
 
-	auto it = _tileIdsByPosition.find(textureId | ((srcX / 16) << 4) | ((srcY / 16) << 8));
+	ffnx_trace("%s: textureX=%d, textureY=%d, textureId=%d, srcX=%d, srcY=%d\n", __func__, textureX, textureY, textureId, srcX, srcY);
+
+	auto it = _tileIdsByPosition.find(textureId | ((srcX / TILE_SIZE) << 4) | ((srcY / TILE_SIZE) << 8));
 	if (it == _tileIdsByPosition.end()) {
-		// Tile not found
+		ffnx_warning("%s: tile not found textureId=%d, srcX=%d, srcY=%d\n", __func__, textureId, srcX, srcY);
+
 		return;
 	}
 
 	const size_t tileId = it->second;
 	const Tile &tile = _mapTiles.at(tileId);
 	Tim::Bpp bpp = Tim::Bpp((tile.texID >> 7) & 3);
-	uint8_t row = tileId / _colsCount, col = tileId % _colsCount;
+	uint8_t col = tileId % _colsCount, row = tileId / _colsCount;
 	int imageX = col * TILE_SIZE + textureX % TILE_SIZE, imageY = row * TILE_SIZE + textureY % TILE_SIZE;
+
+	ffnx_trace("%s: tileId=%d, col=%d, row=%d, imageX=%d, imageY=%d\n", __func__, tileId, col, row, imageX, imageY);
 
 	TextureInfos::copyRect(
 		(const uint32_t *)image()->m_data, imageX, imageY, image()->m_width, scale(), bpp,

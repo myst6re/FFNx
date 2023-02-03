@@ -44,8 +44,6 @@ std::vector<Tile> ff8_background_parse_tiles(const uint8_t *map_data)
 
 		ffnx_info("dst %d %d %d src %d %d texid %d bpp %d\n", tile.x, tile.y, tile.z, tile.srcX, tile.srcY, texture_id, int(bpp));
 
-		// tile_ids_by_position.insert(std::pair<uint16_t, int>(texture_id | ((tile.srcX / 16) << 4) | ((tile.srcY / 16) << 8), tiles.size()));
-
 		tiles.push_back(tile);
 
 		map_data += sizeof(Tile);
@@ -130,7 +128,7 @@ bool ff8_background_save_textures(const std::vector<Tile> &tiles, const uint8_t 
 		++tile_id;
 	}
 
-	save_texture(image_data_start, image_data_size, width, TEXTURE_HEIGHT, 0, filename, false);
+	save_texture(image_data_start, image_data_size, width, TEXTURE_HEIGHT, uint32_t(-1), filename, false);
 
 	delete[] image_data_start;
 

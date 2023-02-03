@@ -48,19 +48,5 @@ struct Tile {
 	uint8_t parameter, state;
 };
 
-enum BppFlag {
-	BppNone = 0,
-	Bpp4 = 1,
-	Bpp8 = 2,
-	Bpp16 = 4
-};
-
-typedef int BppFlags;
-
-inline BppFlags operator|(BppFlags flag1, BppFlag flag2) noexcept
-{
-	return flag1 | int(flag2);
-}
-
 std::vector<Tile> ff8_background_parse_tiles(const uint8_t *map_data);
 bool ff8_background_save_textures(const std::vector<Tile> &tiles, const uint8_t *mim_data, const char *filename);
