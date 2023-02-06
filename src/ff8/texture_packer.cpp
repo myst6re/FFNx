@@ -386,7 +386,7 @@ TexturePacker::TextureTypes TexturePacker::drawTextures(uint32_t *target, const 
 					int textureX = vramX - texture.x(),
 						textureY = vramY - texture.y();
 
-					texture.copyRect(textureX, textureY, target, x, y, targetW, scale);
+					texture.copyRect(textureX, textureY, tiledTex.bpp, target, x, y, targetW, scale);
 
 					drawnTextureTypes = TextureTypes(int(drawnTextureTypes) | int(ExternalTexture));
 				}
@@ -534,9 +534,9 @@ void TexturePacker::TextureInfos::copyRect(
 		return;
 	}
 
-	uint8_t targetRectWidth = (4 >> sourceDepth) * targetScale,
+	uint8_t targetRectWidth = (4 >> int(sourceDepth)) * targetScale,
 		targetRectHeight = targetScale,
-		sourceRectWidth = (4 >> sourceDepth) * sourceScale,
+		sourceRectWidth = (4 >> int(sourceDepth)) * sourceScale,
 		sourceRectHeight = sourceScale;
 	uint8_t scaleRatio = targetScale / sourceScale;
 
@@ -640,10 +640,11 @@ TexturePacker::TextureBackground::TextureBackground(
 	ffnx_info("TextureBackground::%s: colsCount=%d\n", __func__, _colsCount);
 }
 
-void TexturePacker::TextureBackground::copyRect(int textureX, int textureY, uint32_t *target, int targetX, int targetY, int targetW, uint8_t targetScale) const
+void TexturePacker::TextureBackground::copyRect(int textureX, int textureY, Tim::Bpp textureBpp, uint32_t *target, int targetX, int targetY, int targetW, uint8_t targetScale) const
 {
-	const uint8_t textureId = textureX / TEXTURE_WIDTH_BYTES,
-		srcX = textureX % TEXTURE_WIDTH_BYTES,
+	const uint8_t textureWidth = TEXTURE_WIDTH_BPP4 >> int(textureBpp);
+	const uint8_t textureId = textureX / textureWidth,
+		srcX = textureX % textureWidth,
 		srcY = textureY;
 
 	ffnx_trace("%s: textureX=%d, textureY=%d, textureId=%d, srcX=%d, srcY=%d\n", __func__, textureX, textureY, textureId, srcX, srcY);
@@ -654,6 +655,7 @@ void TexturePacker::TextureBackground::copyRect(int textureX, int textureY, uint
 
 		return;
 	}
+	// TODO: multi palettes
 
 	const size_t tileId = it->second;
 	const Tile &tile = _mapTiles.at(tileId);

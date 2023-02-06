@@ -150,11 +150,11 @@ private:
 			int x, int y, int w, int h,
 			const std::vector<Tile> &mapTiles
 		);
-		void copyRect(int textureX, int textureY, uint32_t *target, int targetX, int targetY, int targetW, uint8_t targetScale) const;
+		void copyRect(int textureX, int textureY, Tim::Bpp textureBpp, uint32_t *target, int targetX, int targetY, int targetW, uint8_t targetScale) const;
 	private:
 		virtual uint8_t computeScale() const override;
 		std::vector<Tile> _mapTiles;
-		std::unordered_map<uint16_t, size_t> _tileIdsByPosition;
+		std::unordered_multimap<uint16_t, size_t> _tileIdsByPosition;
 		uint8_t _colsCount;
 	};
 	struct TiledTex {
