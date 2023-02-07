@@ -154,25 +154,20 @@ void TexturePacker::setTexture(const char *name, int x, int y, int w, int h, Tim
 
 void TexturePacker::setTextureBackground(const char *name, int x, int y, int w, int h, const std::vector<Tile> &mapTiles)
 {
-	bool hasNamedTexture = name != nullptr && *name != '\0';
+	if (trace_all || trace_vram) ffnx_trace("TexturePacker::%s %s x=%d y=%d w=%d h=%d tileCount=%d\n", __func__, name, x, y, w, h, mapTiles.size());
 
-	if (trace_all || trace_vram) ffnx_trace("TexturePacker::%s %s x=%d y=%d w=%d h=%d tileCount=%d\n", __func__, hasNamedTexture ? name : "N/A", x, y, w, h, mapTiles.size());
+	TextureBackground tex(name, x, y, w, h, mapTiles);
+	ModdedTextureId textureId = makeTextureId(x, y);
 
-	ModdedTextureId textureId = INVALID_TEXTURE;
+	removeMe = 0;
 
-	if (hasNamedTexture)
+	if (tex.createImage())
 	{
-		TextureBackground tex(name, x, y, w, h, mapTiles);
-		textureId = makeTextureId(x, y);
-
-		if (tex.createImage())
-		{
-			_backgroundTextures[textureId] = tex;
-		}
-		else
-		{
-			_textures[textureId] = tex;
-		}
+		_backgroundTextures[textureId] = tex;
+	}
+	else
+	{
+		_textures[textureId] = tex;
 	}
 
 	setVramTextureId(textureId, x, y, w, h);
@@ -324,7 +319,21 @@ TexturePacker::TextureTypes TexturePacker::drawTextures(const uint8_t *texData, 
 
 		if (trace_all || trace_vram) ffnx_trace("TexturePacker::%s tex=(%d, %d) bpp=%d paletteIndex=%d\n", __func__, tex.x, tex.y, tex.bpp, paletteIndex);
 
-		return drawTextures(target, tex, originalW, originalH, scale, paletteIndex);
+		memset(target, 0, originalW * originalH * 4);
+
+		if (drawTextures(target, tex, originalW, originalH, scale, paletteIndex)) {
+			char fileName[255] = {};
+			sprintf(fileName, "backgroundTexture-%d", removeMe++);
+			/* for (int y = 0; y < originalH; ++y) {
+				for (int x = 0; x < originalW; ++x) {
+					target[y * originalW + x] = originalImageData[y * originalW + x] | (0xffu << 24);
+				}
+			} */
+			ffnx_info("TexturePacker::%s pointer=0x%X\n", __func__, texData);
+			save_texture(originalImageData, originalW * originalH * 4, originalW, originalH, paletteIndex, fileName, false);
+		}
+
+		return NoTexture;
 	}
 
 	if (trace_all || trace_vram) ffnx_warning("TexturePacker::%s Unknown tex data\n", __func__);
@@ -339,9 +348,17 @@ TexturePacker::TextureTypes TexturePacker::drawTextures(uint32_t *target, const 
 		return NoTexture;
 	}
 
+	for (int i = 0; i < 32; ++i) {
+		for (int j = 0; j < 8; ++j) {
+			const struc_50 &s50 = ff8_externals.psx_texture_pages[0].struc_50_array[i];
+			const texture_page &page = s50.texture_page[j];
+			ffnx_info("%d %d bpp=%d, pointer=0x%X, field_0=%X, field_20=%X, x=%d, y=%d, palette_data=0x%X, vram_palette_pos=(%d, %d)\n", i, j, page.color_key, page.image_data, page.field_0, page.field_20, page.x, page.y, s50.vram_palette_data, (s50.vram_palette_pos & 0x3F), (s50.vram_palette_pos >> 6));
+		}
+	}
+
 	int w = targetW;
 
-	if (tiledTex.bpp <= 2)
+	if (tiledTex.bpp <= int(Tim::Bpp16))
 	{
 		w /= 4 >> tiledTex.bpp;
 	}
@@ -361,9 +378,20 @@ TexturePacker::TextureTypes TexturePacker::drawTextures(uint32_t *target, const 
 	{
 		int vramY = tiledTex.y + y;
 
+		if (vramY >= VRAM_HEIGHT) {
+			ffnx_warning("%s: vram Y overflow\n", __func__);
+			break;
+		}
+
 		for (int x = 0; x < w; ++x)
 		{
 			int vramX = tiledTex.x + x;
+
+			if (vramX >= VRAM_WIDTH) {
+				ffnx_warning("%s: vram X overflow\n", __func__);
+				break;
+			}
+
 			ModdedTextureId textureId = _vramTextureIds.at(vramX + vramY * VRAM_WIDTH);
 
 			if (textureId != INVALID_TEXTURE)
@@ -382,6 +410,8 @@ TexturePacker::TextureTypes TexturePacker::drawTextures(uint32_t *target, const 
 				else if (_backgroundTextures.contains(textureId))
 				{
 					const TextureBackground &texture = _backgroundTextures.at(textureId);
+
+					//ffnx_info("%s: vram=(%d, %d) bgTexture=(%d, %d) textureId=(%d => %d, %d)\n", __func__, vramX, vramY, texture.x(), texture.y(), textureId, textureId % VRAM_WIDTH, textureId / VRAM_WIDTH);
 
 					int textureX = vramX - texture.x(),
 						textureY = vramY - texture.y();
@@ -412,7 +442,7 @@ TexturePacker::TextureTypes TexturePacker::drawTextures(uint32_t *target, const 
 
 void TexturePacker::registerTiledTex(const uint8_t *texData, int x, int y, Tim::Bpp bpp, int palX, int palY)
 {
-	if (trace_all || trace_vram) ffnx_trace("%s pointer=0x%X x=%d y=%d bpp=%d palX=%d palY=%d\n", __func__, texData, x, y, bpp, palX, palY);
+	if (trace_all || trace_vram) ffnx_trace("%s pointer=0x%X x=%d y=%d bpp=%d palX=%d palY=%d psx_texture_pages=%X\n", __func__, texData, x, y, bpp, palX, palY, ff8_externals.psx_texture_pages);
 
 	_tiledTexs[texData] = TiledTex(x, y, bpp, palX, palY);
 }
@@ -632,7 +662,7 @@ TexturePacker::TextureBackground::TextureBackground(
 	size_t tileId = 0;
 	for (const Tile &tile: mapTiles) {
 		const uint8_t textureId = tile.texID & 0xF;
-		_tileIdsByPosition[textureId | ((tile.srcX / TILE_SIZE) << 4) | ((tile.srcY / TILE_SIZE) << 8)] = tileId;
+		_tileIdsByPosition.insert(std::pair<uint16_t, size_t>(uint16_t(textureId) | (uint16_t(tile.srcX / TILE_SIZE) << 4) | (uint16_t(tile.srcY / TILE_SIZE) << 8), tileId));
 		++tileId;
 	}
 	_colsCount = mapTiles.size() / (TEXTURE_HEIGHT / TILE_SIZE) + int(mapTiles.size() % (TEXTURE_HEIGHT / TILE_SIZE) != 0);
@@ -642,14 +672,13 @@ TexturePacker::TextureBackground::TextureBackground(
 
 void TexturePacker::TextureBackground::copyRect(int textureX, int textureY, Tim::Bpp textureBpp, uint32_t *target, int targetX, int targetY, int targetW, uint8_t targetScale) const
 {
-	const uint8_t textureWidth = TEXTURE_WIDTH_BPP4 >> int(textureBpp);
-	const uint8_t textureId = textureX / textureWidth,
-		srcX = textureX % textureWidth,
-		srcY = textureY;
+	const uint16_t textureXInBytes = textureX * 2;
+	const uint8_t textureId = textureXInBytes / TEXTURE_WIDTH_BYTES;
+	const uint16_t srcX = textureXInBytes % TEXTURE_WIDTH_BYTES, srcY = textureY;
 
-	ffnx_trace("%s: textureX=%d, textureY=%d, textureId=%d, srcX=%d, srcY=%d\n", __func__, textureX, textureY, textureId, srcX, srcY);
+	//ffnx_trace("%s: textureX=%d, textureY=%d, textureId=%d, srcX=%d, srcY=%d\n", __func__, textureX, textureY, textureId, srcX, srcY);
 
-	auto it = _tileIdsByPosition.find(textureId | ((srcX / TILE_SIZE) << 4) | ((srcY / TILE_SIZE) << 8));
+	auto it = _tileIdsByPosition.find(uint16_t(textureId) | (uint16_t(srcX / TILE_SIZE) << 4) | (uint16_t(srcY / TILE_SIZE) << 8));
 	if (it == _tileIdsByPosition.end()) {
 		ffnx_warning("%s: tile not found textureId=%d, srcX=%d, srcY=%d\n", __func__, textureId, srcX, srcY);
 
@@ -659,11 +688,14 @@ void TexturePacker::TextureBackground::copyRect(int textureX, int textureY, Tim:
 
 	const size_t tileId = it->second;
 	const Tile &tile = _mapTiles.at(tileId);
+
 	Tim::Bpp bpp = Tim::Bpp((tile.texID >> 7) & 3);
 	uint8_t col = tileId % _colsCount, row = tileId / _colsCount;
-	int imageX = col * TILE_SIZE + textureX % TILE_SIZE, imageY = row * TILE_SIZE + textureY % TILE_SIZE;
+	int imageX = col * (TILE_SIZE / 2) + textureX % (TILE_SIZE / 2), imageY = row * TILE_SIZE + textureY % TILE_SIZE;
 
-	ffnx_trace("%s: tileId=%d, col=%d, row=%d, imageX=%d, imageY=%d\n", __func__, tileId, col, row, imageX, imageY);
+	//ffnx_trace("%s: textureX=%d, textureY=%d, textureId=%d, srcX=%d, srcY=%d, key=%d (%d, %d => %d, %d => %d)\n", __func__, textureX, textureY, textureId, srcX, srcY, uint16_t(textureId) | (uint16_t(srcX / TILE_SIZE) << 4) | (uint16_t(srcY / TILE_SIZE) << 8), uint16_t(textureId), uint16_t(srcX / TILE_SIZE), (uint16_t(srcX / TILE_SIZE) << 4), uint16_t(srcY / TILE_SIZE), (uint16_t(srcY / TILE_SIZE) << 8));
+
+	//ffnx_trace("%s: tileId=%d, col=%d, row=%d, imageX=%d, imageY=%d, bpp=%d, scale=%d\n", __func__, tileId, col, row, imageX, imageY, int(bpp), scale());
 
 	TextureInfos::copyRect(
 		(const uint32_t *)image()->m_data, imageX, imageY, image()->m_width, scale(), bpp,

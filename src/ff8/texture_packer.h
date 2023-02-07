@@ -203,4 +203,6 @@ private:
 	std::unordered_map<ModdedTextureId, Texture> _externalTextures;
 	std::unordered_map<ModdedTextureId, TextureRedirection> _textureRedirections;
 	std::unordered_map<ModdedTextureId, TextureBackground> _backgroundTextures;
+
+	int removeMe;
 };
