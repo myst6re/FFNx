@@ -436,12 +436,14 @@ void ff8_wm_texl_palette_upload_vram(int16_t *pos_and_size, uint8_t *texture_buf
 }
 
 uint8_t *mim_texture_buffer = nullptr;
+int current_field_model = 0;
 
 void ff8_field_mim_palette_upload_vram(int16_t *pos_and_size, uint8_t *texture_buffer)
 {
 	if (trace_all || trace_vram) ffnx_trace("%s\n", __func__);
 
 	mim_texture_buffer = texture_buffer;
+	current_field_model = 0;
 
 	ff8_upload_vram(pos_and_size, texture_buffer);
 
@@ -479,6 +481,17 @@ uint32_t ff8_field_read_map_data(char *filename, uint8_t *map_data)
 	texturePacker.setTextureBackground(tex_filename, 0, 256, VRAM_PAGE_MIM_MAX_COUNT * TEXTURE_WIDTH_BPP16, TEXTURE_HEIGHT, tiles);
 
 	return ret;
+}
+
+int ff8_field_texture_upload_one(char *image_buffer, int vramX, int vramY)
+{
+	if (trace_all || trace_vram) ffnx_trace("%s vramX=%d vramY=%d\n", __func__, vramX, vramY);
+
+	snprintf(next_texture_name, MAX_PATH, "field/mapdata/%s/chara-%d", get_current_field_name(), current_field_model);
+
+	++current_field_model;
+
+	return ((int(*)(char*,int,int))0x45D6A0)(image_buffer, vramX, vramY);
 }
 
 void ssigpu_callback_psxvram_buffer_related(void *colorTexture)
@@ -687,6 +700,7 @@ void vram_init()
 	replace_call(0x475BD0 + 0x2E, ff8_field_mim_palette_upload_vram);
 	replace_call(0x475BD0 + 0x5C, ff8_field_mim_texture_upload_vram);
 	replace_call(0x471915, ff8_field_read_map_data);
+	replace_call(0x5323F0 + 0xCB4, ff8_field_texture_upload_one);
 
 	replace_function(ff8_externals.upload_psx_vram, ff8_upload_vram);
 

@@ -1847,7 +1847,7 @@ struct texture_set *common_load_texture(struct texture_set *_texture_set, struct
 			uint32_t image_data_size = w * h * 4;
 
 			// Allocate with cache
-			if (image_data_size_cache == 0 || image_data_size > image_data_size_cache) {
+			/* if (image_data_size_cache == 0 || image_data_size > image_data_size_cache) {
 				if (image_data_cache != nullptr) {
 					driver_free(image_data_cache);
 				}
@@ -1855,7 +1855,8 @@ struct texture_set *common_load_texture(struct texture_set *_texture_set, struct
 				image_data_size_cache = image_data_size;
 			} else {
 				memset(image_data_cache, 0, image_data_size);
-			}
+			} */
+			image_data = (uint32_t*)driver_malloc(image_data_size);
 
 			image_data = image_data_cache;
 
