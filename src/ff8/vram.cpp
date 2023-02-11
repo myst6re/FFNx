@@ -74,6 +74,34 @@ int read_vram_to_buffer_parent_call1(int a1, int structure, int x, int y, int w,
 	return ret;
 }
 
+int read_vram_to_buffer_parent_call1a(int a1, int structure, int x, int y, int w, int h, int bpp, int rel_pos, int a9, uint8_t *target)
+{
+	if (trace_all || trace_vram) ffnx_trace("%s\n", __func__);
+
+	return read_vram_to_buffer_parent_call1(a1, structure, x, y, w, h, bpp, rel_pos, a9, target);
+}
+
+int read_vram_to_buffer_parent_call1b(int a1, int structure, int x, int y, int w, int h, int bpp, int rel_pos, int a9, uint8_t *target)
+{
+	if (trace_all || trace_vram) ffnx_trace("%s\n", __func__);
+
+	return read_vram_to_buffer_parent_call1(a1, structure, x, y, w, h, bpp, rel_pos, a9, target);
+}
+
+int read_vram_to_buffer_parent_call1c(int a1, int structure, int x, int y, int w, int h, int bpp, int rel_pos, int a9, uint8_t *target)
+{
+	if (trace_all || trace_vram) ffnx_trace("%s\n", __func__);
+
+	return read_vram_to_buffer_parent_call1(a1, structure, x, y, w, h, bpp, rel_pos, a9, target);
+}
+
+int read_vram_to_buffer_parent_call1d(int a1, int structure, int x, int y, int w, int h, int bpp, int rel_pos, int a9, uint8_t *target)
+{
+	if (trace_all || trace_vram) ffnx_trace("%s\n", __func__);
+
+	return read_vram_to_buffer_parent_call1(a1, structure, x, y, w, h, bpp, rel_pos, a9, target);
+}
+
 int read_vram_to_buffer_parent_call2(texture_page *tex_page, int rel_pos, int a3)
 {
 	if (trace_all || trace_vram) ffnx_trace("%s: x=%d y=%d color_key=%d rel_pos=(%d, %d)\n", __func__, tex_page->x, tex_page->y, tex_page->color_key, rel_pos & 0xF, rel_pos >> 4);
@@ -453,6 +481,188 @@ uint32_t ff8_field_read_map_data(char *filename, uint8_t *map_data)
 	return ret;
 }
 
+void ssigpu_callback_psxvram_buffer_related(void *colorTexture)
+{
+	if (trace_all || trace_vram) ffnx_trace("%s\n", __func__);
+
+	((void(*)(void*))0x466EE0)(colorTexture);
+}
+
+void read_psxvram_alpha1_ssigpu_select2(int CLUT, uint8_t *rgba, int size)
+{
+	if (trace_all || trace_vram) ffnx_trace("%s\n", __func__);
+
+	((void(*)(int,uint8_t*,int))0x467360)(CLUT, rgba, size);
+}
+
+void read_psxvram_alpha2_ssigpu_select2(uint16_t CLUT, uint8_t *rgba, int size)
+{
+	if (trace_all || trace_vram) ffnx_trace("%s\n", __func__);
+
+	((void(*)(uint16_t,uint8_t*,int))0x467460)(CLUT, rgba, size);
+}
+
+void *gfx_driver_load_texture(void *data, ff8_tex_header *tex_header, void *texture_format)
+{
+	if (trace_all || trace_vram) ffnx_trace("%s data=0x%X tex_header=0x%X texture_format=0x%X image_data=0x%X\n", __func__, data, tex_header, texture_format, tex_header->image_data);
+
+	return ((void*(*)(void*,ff8_tex_header*,void*))0x419CBE)(data, tex_header, texture_format);
+}
+
+int load_texture_sub_4221E6(int a1, int a2, void *texture_format, ff8_tex_header *tex_header)
+{
+	if (trace_all || trace_vram) ffnx_trace("%s a1=0x%X a2=0x%X texture_format=0x%X tex_header=0x%X image_data=0x%X\n", __func__, a1, a2, texture_format, tex_header, tex_header->image_data);
+
+	return ((int(*)(int,int,void*,ff8_tex_header*))0x4221E6)(a1, a2, texture_format, tex_header);
+}
+
+ff8_texture_set *gfx_driver_load_texture2_sub_419D8F(void *data, ff8_tex_header *tex_header, ff8_game_obj *game_object)
+{
+	if (trace_all || trace_vram) ffnx_trace("%s data=0x%X tex_header=0x%X image_data=0x%X\n", __func__, data, tex_header, tex_header->image_data);
+
+	return ((ff8_texture_set*(*)(void*,ff8_tex_header*,ff8_game_obj*))0x419D8F)(data, tex_header, game_object);
+}
+
+ff8_texture_set *gfx_driver_load_texture2_sub_419D8F_2(void *data, ff8_tex_header *tex_header, ff8_game_obj *game_object)
+{
+	if (trace_all || trace_vram) ffnx_trace("%s data=0x%X tex_header=0x%X image_data=0x%X\n", __func__, data, tex_header, tex_header->image_data);
+
+	return ((ff8_texture_set*(*)(void*,ff8_tex_header*,ff8_game_obj*))0x419D8F)(data, tex_header, game_object);
+}
+
+ff8_game_obj *driver_load_texture_palette_change_sub_407EB4_get_game_object()
+{
+	if (trace_all || trace_vram) ffnx_trace("%s\n", __func__);
+
+	return ((ff8_game_obj *(*)())0x40A04A)();
+}
+
+DWORD *load_texture_sub_4076B6_call1(int a1, int a2, char *path, void *data, ff8_game_obj *game_object)
+{
+	if (trace_all || trace_vram) ffnx_trace("%s path=%s\n", __func__, path == nullptr ? "(none)" : path);
+
+	return ((DWORD*(*)(int,int,char*,void*,ff8_game_obj*))0x4076B6)(a1, a2, path, data, game_object);
+}
+
+DWORD *load_texture_sub_4076B6_call2(int a1, int a2, char *path, void *data, ff8_game_obj *game_object)
+{
+	if (trace_all || trace_vram) ffnx_trace("%s path=%s\n", __func__, path == nullptr ? "(none)" : path);
+
+	return ((DWORD*(*)(int,int,char*,void*,ff8_game_obj*))0x4076B6)(a1, a2, path, data, game_object);
+}
+
+int removeMe = 0;
+
+struct struc_52 {
+	uint32_t flags;
+	uint32_t field_4;
+	uint32_t field_8;
+	uint32_t field_C;
+	uint32_t field_10;
+	uint32_t field_14;
+	uint32_t field_18;
+	uint32_t field_1C;
+	uint32_t mode;
+	uint32_t directory;
+	ff8_tex_header *tex_header;
+	uint32_t field_2C;
+	uint32_t matrix_set;
+	uint32_t field_34;
+	uint32_t field_38;
+	uint32_t field_3C;
+	uint32_t field_40;
+	uint32_t field_44;
+	uint32_t file_context;
+	uint32_t field_4C;
+	uint32_t field_50;
+	uint32_t field_54;
+	uint32_t field_58;
+	uint32_t field_5C;
+	uint32_t field_60;
+	uint32_t affected_to_tex_header_field_2C_field_64;
+	uint32_t palette_index;
+	uint32_t field_6C;
+	uint32_t field_70;
+	uint32_t field_74;
+	uint32_t field_78;
+	uint32_t field_7C;
+	uint32_t field_80;
+};
+
+void *create_graphics_object_sub_416D82_call1(int a1, int polytype, struc_52 *data, char *path, DWORD *dummy4_39)
+{
+	if (trace_all || trace_vram) ffnx_trace("%s a1=0x%X polytype=0x%X data=0x%X path=%s\n", __func__, a1, polytype, data, path == nullptr ? "(none)" : path);
+
+	/* char fileName[255] = {};
+	sprintf(fileName, "backgroundTexture-before-%d", removeMe++);
+	save_texture(data->tex_header->image_data, originalW * originalH * 4, originalW, originalH, paletteIndex, fileName, false); */
+
+	return ((void*(*)(int,int,struc_52*,char*,DWORD*))0x416D82)(a1, polytype, data, path, dummy4_39);
+}
+
+void *create_graphics_object_sub_416D82_call2(int a1, int polytype, void *data, char *path, DWORD *dummy4_39)
+{
+	if (trace_all || trace_vram) ffnx_trace("%s a1=0x%X polytype=0x%X data=0x%X path=%s\n", __func__, a1, polytype, data, path == nullptr ? "(none)" : path);
+
+	return ((void*(*)(int,int,void*,char*,DWORD*))0x416D82)(a1, polytype, data, path, dummy4_39);
+}
+
+void *create_graphics_object_sub_416D82_call3(int a1, int polytype, void *data, char *path, DWORD *dummy4_39)
+{
+	if (trace_all || trace_vram) ffnx_trace("%s a1=0x%X polytype=0x%X data=0x%X path=%s\n", __func__, a1, polytype, data, path == nullptr ? "(none)" : path);
+
+	return ((void*(*)(int,int,void*,char*,DWORD*))0x416D82)(a1, polytype, data, path, dummy4_39);
+}
+
+void *create_graphics_object_sub_416D82_call4(int a1, int polytype, void *data, char *path, DWORD *dummy4_39)
+{
+	if (trace_all || trace_vram) ffnx_trace("%s a1=0x%X polytype=0x%X data=0x%X path=%s\n", __func__, a1, polytype, data, path == nullptr ? "(none)" : path);
+
+	return ((void*(*)(int,int,void*,char*,DWORD*))0x416D82)(a1, polytype, data, path, dummy4_39);
+}
+
+void *create_graphics_object_sub_416D82_call5(int a1, int polytype, void *data, char *path, DWORD *dummy4_39)
+{
+	if (trace_all || trace_vram) ffnx_trace("%s a1=0x%X polytype=0x%X data=0x%X path=%s\n", __func__, a1, polytype, data, path == nullptr ? "(none)" : path);
+
+	return ((void*(*)(int,int,void*,char*,DWORD*))0x416D82)(a1, polytype, data, path, dummy4_39);
+}
+
+void *create_graphics_object_sub_416D82_call6(int a1, int polytype, void *data, char *path, DWORD *dummy4_39)
+{
+	if (trace_all || trace_vram) ffnx_trace("%s a1=0x%X polytype=0x%X data=0x%X path=%s\n", __func__, a1, polytype, data, path == nullptr ? "(none)" : path);
+
+	return ((void*(*)(int,int,void*,char*,DWORD*))0x416D82)(a1, polytype, data, path, dummy4_39);
+}
+
+void *create_graphics_object_sub_416D82_call7(int a1, int polytype, void *data, char *path, DWORD *dummy4_39)
+{
+	if (trace_all || trace_vram) ffnx_trace("%s a1=0x%X polytype=0x%X data=0x%X path=%s\n", __func__, a1, polytype, data, path == nullptr ? "(none)" : path);
+
+	return ((void*(*)(int,int,void*,char*,DWORD*))0x416D82)(a1, polytype, data, path, dummy4_39);
+}
+
+void *create_graphics_object_sub_416D82_call8(int a1, int polytype, void *data, char *path, DWORD *dummy4_39)
+{
+	if (trace_all || trace_vram) ffnx_trace("%s a1=0x%X polytype=0x%X data=0x%X path=%s\n", __func__, a1, polytype, data, path == nullptr ? "(none)" : path);
+
+	return ((void*(*)(int,int,void*,char*,DWORD*))0x416D82)(a1, polytype, data, path, dummy4_39);
+}
+
+void *create_graphics_object_sub_416D82_call9(int a1, int polytype, void *data, char *path, DWORD *dummy4_39)
+{
+	if (trace_all || trace_vram) ffnx_trace("%s a1=0x%X polytype=0x%X data=0x%X path=%s\n", __func__, a1, polytype, data, path == nullptr ? "(none)" : path);
+
+	return ((void*(*)(int,int,void*,char*,DWORD*))0x416D82)(a1, polytype, data, path, dummy4_39);
+}
+
+void *create_graphics_object_sub_416D82_call10(int a1, int polytype, void *data, char *path, DWORD *dummy4_39)
+{
+	if (trace_all || trace_vram) ffnx_trace("%s a1=0x%X polytype=0x%X data=0x%X path=%s\n", __func__, a1, polytype, data, path == nullptr ? "(none)" : path);
+
+	return ((void*(*)(int,int,void*,char*,DWORD*))0x416D82)(a1, polytype, data, path, dummy4_39);
+}
+
 void vram_init()
 {
 	texturePacker.setVram((uint8_t *)ff8_externals.psxvram_buffer);
@@ -498,8 +708,30 @@ void vram_init()
 	replace_call(uint32_t(ff8_externals.sub_464F70) + 0x2C5, read_vram_to_buffer);
 	replace_call(ff8_externals.sub_4653B0 + 0x9D, read_vram_to_buffer);
 
+	/* patch_code_dword(0xB7DC18 + 0x7, int(ssigpu_callback_psxvram_buffer_related));
+	replace_call(0x466180 + 0x2C, read_psxvram_alpha1_ssigpu_select2);
+	replace_call(0x466180 + 0x41, read_psxvram_alpha2_ssigpu_select2); */
+
 	replace_call(ff8_externals.sub_464DB0 + 0xEC, read_vram_to_buffer_with_palette1);
 	replace_call(ff8_externals.sub_465720 + 0xA5, read_vram_to_buffer_with_palette1);
+
+	/* replace_call(0x419DD7, gfx_driver_load_texture);
+	replace_call(0x407FEF, load_texture_sub_4221E6);
+	replace_call(0x407797, gfx_driver_load_texture2_sub_419D8F);
+	replace_call(0x414AD1, gfx_driver_load_texture2_sub_419D8F_2);
+	replace_call(0x407ECE, driver_load_texture_palette_change_sub_407EB4_get_game_object);
+	replace_call(0x416EEF, load_texture_sub_4076B6_call1);
+	replace_call(0x416FD0, load_texture_sub_4076B6_call2);
+	replace_call(0x46523F, create_graphics_object_sub_416D82_call1);
+	replace_call(0x46526B, create_graphics_object_sub_416D82_call2);
+	replace_call(0x465291, create_graphics_object_sub_416D82_call3);
+	replace_call(0x4652AE, create_graphics_object_sub_416D82_call4);
+	replace_call(0x4652D4, create_graphics_object_sub_416D82_call5);
+	replace_call(0x4652EE, create_graphics_object_sub_416D82_call6);
+	replace_call(0x465317, create_graphics_object_sub_416D82_call7);
+	replace_call(0x465331, create_graphics_object_sub_416D82_call8);
+	replace_call(0x465357, create_graphics_object_sub_416D82_call9);
+	replace_call(0x465374, create_graphics_object_sub_416D82_call10); */
 
 	// Not used?
 	replace_call(ff8_externals.sub_4649A0 + 0x13F, read_vram_to_buffer_with_palette2);

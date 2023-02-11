@@ -1595,6 +1595,12 @@ _inline uint32_t pal2bgra(uint32_t pixel, uint32_t *palette, uint32_t palette_of
 // convert an entire image from its native format to 32-bit BGRA
 void convert_image_data(const unsigned char *image_data, uint32_t *converted_image_data, uint32_t w, uint32_t h, struct texture_format *tex_format, uint32_t invert_alpha, uint32_t color_key, uint32_t palette_offset, uint32_t reference_alpha)
 {
+	ffnx_info("%s: image_data=0x%X w=%u h=%u bytesperpixel=%d use_palette=%d palette_size=%d alpha_mask=%d blue_mask=%d green_mask=%d red_mask=%d invert_alpha=%u color_key=%u palette_offset=%u reference_alpha=%u\n",
+		__func__, image_data, w, h,
+		tex_format->bytesperpixel, tex_format->use_palette, tex_format->palette_size,
+		tex_format->alpha_mask, tex_format->blue_mask, tex_format->green_mask, tex_format->red_mask,
+		invert_alpha, color_key, palette_offset, reference_alpha
+	);
 	uint32_t i, j, o = 0, c = 0;
 
 	// invalid texture in FF8, do not attempt to convert
@@ -1694,7 +1700,7 @@ struct texture_set *common_load_texture(struct texture_set *_texture_set, struct
 	uint32_t color_key = false;
 	struct texture_format *tex_format = VREFP(tex_header, tex_format);
 
-	if(trace_all && _texture_set != NULL) ffnx_trace("dll_gfx: load_texture 0x%x\n", _texture_set);
+	ffnx_trace("dll_gfx: load_texture 0x%x 0x%X\n", _texture_set, VREF(tex_header, image_data));
 
 	// no existing texture set, create one
 	if (!VPTR(texture_set))
@@ -1882,7 +1888,7 @@ uint32_t common_palette_changed(uint32_t palette_entry_mul_index1, uint32_t pale
 {
 	VOBJ(texture_set, texture_set, texture_set);
 
-	if(trace_all) ffnx_trace("dll_gfx: palette_changed 0x%x %i\n", texture_set, VREF(texture_set, palette_index));
+	ffnx_trace("dll_gfx: palette_changed 0x%x %i\n", texture_set, VREF(texture_set, palette_index));
 
 	if(palette == 0 || texture_set == 0) return false;
 
@@ -1912,7 +1918,7 @@ uint32_t common_write_palette(uint32_t source_offset, uint32_t size, void *sourc
 	VOBJ(texture_set, texture_set, texture_set);
 	VOBJ(tex_header, tex_header, VREF(texture_set, tex_header));
 
-	if(trace_all) ffnx_trace("dll_gfx: write_palette 0x%x, %i, %i, %i, 0x%x, 0x%x\n", texture_set, source_offset, dest_offset, size, source, palette->palette_entry);
+	ffnx_trace("dll_gfx: write_palette 0x%x, %i, %i, %i, 0x%x, 0x%x\n", texture_set, source_offset, dest_offset, size, source, palette->palette_entry);
 
 	if(palette == 0) return false;
 
@@ -2420,7 +2426,7 @@ void common_draw_2D(struct polygon_set *polygon_set, struct indexed_vertices *iv
 // called by the game to draw a set of 2D triangles with palette data
 void common_draw_paletted2D(struct polygon_set *polygon_set, struct indexed_vertices *iv, struct game_obj *game_object)
 {
-	if(trace_all) ffnx_trace("dll_gfx: draw_paletted2D\n");
+	ffnx_trace("dll_gfx: draw_paletted2D\n");
 
 	generic_draw_paletted(polygon_set, iv, game_object, TLVERTEX);
 }
@@ -2453,7 +2459,7 @@ void common_draw_3D(struct polygon_set *polygon_set, struct indexed_vertices *iv
 // called by the game to draw a set of 3D triangles with palette data
 void common_draw_paletted3D(struct polygon_set *polygon_set, struct indexed_vertices *iv, struct game_obj *game_object)
 {
-	if(trace_all) ffnx_trace("dll_gfx: draw_paletted3D\n");
+	ffnx_trace("dll_gfx: draw_paletted3D\n");
 
 	generic_draw_paletted(polygon_set, iv, game_object, LVERTEX);
 }

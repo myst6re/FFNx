@@ -71,7 +71,7 @@ public:
 		static bimg::ImageContainer *createImageContainer(const char *name, uint8_t palette_index, bool hasPal);
 		static uint8_t computeScale(int sourcePixelW, int sourceH, int targetPixelW, int targetH);
 		static void copyRect(
-			const uint32_t *sourceRGBA, int sourceX, int sourceY, int sourceW, uint8_t sourceScale, Tim::Bpp sourceDepth,
+			const uint32_t *sourceRGBA, int sourceXBpp2, int sourceYBpp2, int sourceW, uint8_t sourceScale, Tim::Bpp sourceDepth,
 			uint32_t *targetRGBA, int targetX, int targetY, int targetW, uint8_t targetScale
 		);
 	private:
@@ -131,7 +131,7 @@ private:
 		inline bool isValid() const {
 			return _scale != 0;
 		}
-		void copyRect(int textureX, int textureY, uint32_t *target, int targetX, int targetY, int targetW, uint8_t targetScale) const;
+		void copyRect(int sourceXBpp2, int sourceYBpp2, uint32_t *target, int targetX, int targetY, int targetW, uint8_t targetScale) const;
 	protected:
 		const bimg::ImageContainer *image() const {
 			return _image;
@@ -150,7 +150,7 @@ private:
 			int x, int y, int w, int h,
 			const std::vector<Tile> &mapTiles
 		);
-		void copyRect(int textureX, int textureY, Tim::Bpp textureBpp, uint32_t *target, int targetX, int targetY, int targetW, uint8_t targetScale) const;
+		void copyRect(int sourceXBpp2, int sourceYBpp2, Tim::Bpp textureBpp, uint32_t *target, int targetX, int targetY, int targetW, uint8_t targetScale) const;
 	private:
 		virtual uint8_t computeScale() const override;
 		std::vector<Tile> _mapTiles;
@@ -163,6 +163,7 @@ private:
 		int x, y;
 		int palX, palY;
 		Tim::Bpp bpp;
+		bool renderedOnce;
 	};
 	struct TextureRedirection : public TextureInfos {
 		TextureRedirection();
