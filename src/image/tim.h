@@ -130,8 +130,8 @@ public:
 		uint32_t *target, uint8_t cellCols, uint8_t cellRows, uint8_t colorsPerPal = 0, uint8_t palColsPerRow = 1,
 		bool withAlpha = false
 	) const;
-	static Tim fromLzsData(uint8_t *uncompressed_data);
-	static Tim fromTimData(uint8_t *data);
+	static Tim fromLzsData(const uint8_t *uncompressed_data);
+	static Tim fromTimData(const uint8_t *data);
 private:
 	bool save(const char *fileName, PaletteDetectionStrategy *paletteDetectionStrategy, bool withAlpha) const;
 	bool toRGBA32(uint32_t *target, PaletteDetectionStrategy *paletteDetectionStrategy, bool withAlpha) const;

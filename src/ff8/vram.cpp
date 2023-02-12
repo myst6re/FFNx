@@ -25,6 +25,7 @@
 #include "../patch.h"
 #include "../image/tim.h"
 #include "field/background.h"
+#include "field/chara_one.h"
 
 TexturePacker texturePacker;
 
@@ -48,7 +49,7 @@ void ff8_upload_vram(int16_t *pos_and_size, uint8_t *texture_buffer)
 	const int h = pos_and_size[3];
 	bool isPal = next_pal_data != nullptr && (uint8_t *)next_pal_data == texture_buffer;
 
-	if (trace_all || trace_vram) ffnx_trace("%s x=%d y=%d w=%d h=%d bpp=%d isPal=%d\n", __func__, x, y, w, h, next_bpp, isPal);
+	if (trace_all || trace_vram) ffnx_trace("%s x=%d y=%d w=%d h=%d bpp=%d isPal=%d texture_buffer=0x%X\n", __func__, x, y, w, h, next_bpp, isPal, texture_buffer);
 
 	texturePacker.uploadTexture(texture_buffer, x, y, w, h);
 	texturePacker.setTexture(next_texture_name, x, y, w, h, next_bpp, isPal);
@@ -494,6 +495,22 @@ int ff8_field_texture_upload_one(char *image_buffer, int vramX, int vramY)
 	return ((int(*)(char*,int,int))0x45D6A0)(image_buffer, vramX, vramY);
 }
 
+std::vector<Model> chara_one_models;
+
+int ff8_field_chara_one_read_file(int fd, uint8_t *const data, size_t size)
+{
+	int read = ((int(*)(int,uint8_t*const,size_t))0x52CD30)(fd, data, size);
+
+	if (trace_all || trace_vram) ffnx_trace("%s\n", __func__);
+
+	chara_one_models = ff8_chara_one_parse_models(data, size);
+	char filename[MAX_PATH];
+	snprintf(filename, sizeof(filename), "field/mapdata/%s/chara", get_current_field_name());
+	ff8_chara_one_save_textures(chara_one_models, filename);
+
+	return read;
+}
+
 void ssigpu_callback_psxvram_buffer_related(void *colorTexture)
 {
 	if (trace_all || trace_vram) ffnx_trace("%s\n", __func__);
@@ -701,6 +718,7 @@ void vram_init()
 	replace_call(0x475BD0 + 0x5C, ff8_field_mim_texture_upload_vram);
 	replace_call(0x471915, ff8_field_read_map_data);
 	replace_call(0x5323F0 + 0xCB4, ff8_field_texture_upload_one);
+	replace_call(0x5323F0 + 0x15F, ff8_field_chara_one_read_file);
 
 	replace_function(ff8_externals.upload_psx_vram, ff8_upload_vram);
 

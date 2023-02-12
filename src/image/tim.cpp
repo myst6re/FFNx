@@ -219,13 +219,13 @@ bool Tim::save(const char *fileName, PaletteDetectionStrategy *paletteDetectionS
 	return true;
 }
 
-Tim Tim::fromLzsData(uint8_t *uncompressed_data)
+Tim Tim::fromLzsData(const uint8_t *uncompressed_data)
 {
-	uint16_t *header = (uint16_t *)uncompressed_data;
+	const uint16_t *header = (const uint16_t *)uncompressed_data;
 	ff8_tim tim_infos = ff8_tim();
 	tim_infos.img_w = header[2];
 	tim_infos.img_h = header[3];
-	tim_infos.img_data = uncompressed_data + 8;
+	tim_infos.img_data = (uint8_t *)uncompressed_data + 8;
 
 	return Tim(Bpp::Bpp16, tim_infos);
 }
@@ -236,7 +236,7 @@ struct TimDataHeader {
 	uint16_t w, h;
 };
 
-Tim Tim::fromTimData(uint8_t *data)
+Tim Tim::fromTimData(const uint8_t *data)
 {
 	Bpp bpp = Bpp(data[4] & 3);
 	bool hasPal = (data[4] & 8) != 0;
@@ -257,7 +257,7 @@ Tim Tim::fromTimData(uint8_t *data)
 	TimDataHeader imgHeader = TimDataHeader();
 	memcpy(&imgHeader, data + 8 + palHeader.size, sizeof(imgHeader));
 
-	tim_infos.img_data = data + 8 + palHeader.size + sizeof(imgHeader);
+	tim_infos.img_data = (uint8_t *)data + 8 + palHeader.size + sizeof(imgHeader);
 	tim_infos.img_x = imgHeader.x;
 	tim_infos.img_y = imgHeader.y;
 	tim_infos.img_w = imgHeader.w;

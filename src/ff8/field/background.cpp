@@ -26,6 +26,15 @@
 #include "../../saveload.h"
 #include "../../log.h"
 
+bool ff8_background_tiles_looks_alike(const Tile &tile, const Tile &other)
+{
+	return tile.texID == other.texID
+		&& tile.palID == other.palID
+		&& tile.srcX == other.srcX
+		&& tile.srcY == other.srcY
+		&& tile.blendType == other.blendType;
+}
+
 std::vector<Tile> ff8_background_parse_tiles(const uint8_t *map_data)
 {
 	std::vector<Tile> tiles;
@@ -41,8 +50,9 @@ std::vector<Tile> ff8_background_parse_tiles(const uint8_t *map_data)
 
 		uint8_t texture_id = tile.texID & 0xF;
 		Tim::Bpp bpp = Tim::Bpp((tile.texID >> 7) & 3);
+		uint8_t pal_id = (tile.palID >> 6) & 0xF;
 
-		ffnx_info("dst %d %d %d src %d %d texid %d bpp %d\n", tile.x, tile.y, tile.z, tile.srcX, tile.srcY, texture_id, int(bpp));
+		ffnx_info("tile %d dst %d %d %d src %d %d texid %d bpp %d palId %d blendType %d\n", tiles.size(), tile.x, tile.y, tile.z, tile.srcX, tile.srcY, texture_id, int(bpp), pal_id, tile.blendType);
 
 		tiles.push_back(tile);
 

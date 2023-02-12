@@ -313,9 +313,11 @@ TexturePacker::TextureTypes TexturePacker::drawTextures(const uint8_t *texData, 
 {
 	if (trace_all || trace_vram) ffnx_trace("TexturePacker::%s pointer=0x%X bitsperpixel=%d\n", __func__, texData, (tex_format ? tex_format->bitsperpixel : -1));
 
-	if (_tiledTexs.contains(texData))
+	auto it = _tiledTexs.find(texData);
+
+	if (it != _tiledTexs.end())
 	{
-		const TiledTex &tex = _tiledTexs.at(texData);
+		const TiledTex &tex = it->second;
 
 		if (trace_all || trace_vram) ffnx_trace("TexturePacker::%s tex=(%d, %d) bpp=%d paletteIndex=%d\n", __func__, tex.x, tex.y, tex.bpp, paletteIndex);
 
@@ -324,7 +326,7 @@ TexturePacker::TextureTypes TexturePacker::drawTextures(const uint8_t *texData, 
 			return NoTexture;
 		} */
 
-		memset(target, 0, originalW * originalH * 4);
+		//memset(target, 0, originalW * originalH * 4);
 
 		return drawTextures(target, tex, originalW, originalH, scale, paletteIndex);
 
@@ -612,8 +614,6 @@ bool TexturePacker::Texture::createImage(uint8_t palette_index)
 {
 	char filename[MAX_PATH], langPath[16] = {};
 
-	if(trace_all || trace_loaders || trace_vram) ffnx_trace("texture file name (VRAM): %s\n", _name.c_str());
-
 	_image = createImageContainer(_name.c_str(), palette_index, bpp() != Tim::Bpp16);
 
 	if (_image == nullptr)
@@ -667,16 +667,23 @@ TexturePacker::TextureBackground::TextureBackground(
 	const std::vector<Tile> &mapTiles
 ) : Texture(name, x, y, w, h, Tim::Bpp16), _mapTiles(mapTiles)
 {
+	// Build tileIdsByPosition for fast lookup
 	_tileIdsByPosition.reserve(mapTiles.size());
 	size_t tileId = 0;
 	for (const Tile &tile: mapTiles) {
 		const uint8_t textureId = tile.texID & 0xF;
-		_tileIdsByPosition.insert(std::pair<uint16_t, size_t>(uint16_t(textureId) | (uint16_t(tile.srcX / TILE_SIZE) << 4) | (uint16_t(tile.srcY / TILE_SIZE) << 8), tileId));
+		uint16_t key = uint16_t(textureId) | (uint16_t(tile.srcX / TILE_SIZE) << 4) | (uint16_t(tile.srcY / TILE_SIZE) << 8);
+
+		auto it = _tileIdsByPosition.find(key);
+		// Remove some duplicates (but keep those which render differently)
+		if (it == _tileIdsByPosition.end() || ! ff8_background_tiles_looks_alike(tile, mapTiles.at(it->second))) {
+			_tileIdsByPosition.insert(std::pair<uint16_t, size_t>(key, tileId));
+		}
 		++tileId;
 	}
 	_colsCount = mapTiles.size() / (TEXTURE_HEIGHT / TILE_SIZE) + int(mapTiles.size() % (TEXTURE_HEIGHT / TILE_SIZE) != 0);
 
-	// ffnx_info("TextureBackground::%s: colsCount=%d\n", __func__, _colsCount);
+	ffnx_info("TextureBackground::%s: colsCount=%d\n", __func__, _colsCount);
 }
 
 void TexturePacker::TextureBackground::copyRect(int sourceXBpp2, int sourceYBpp2, Tim::Bpp textureBpp, uint32_t *target, int targetX, int targetY, int targetW, uint8_t targetScale) const
@@ -687,29 +694,49 @@ void TexturePacker::TextureBackground::copyRect(int sourceXBpp2, int sourceYBpp2
 
 	//ffnx_trace("%s: sourceXBpp2=%d, sourceYBpp2=%d, textureId=%d, srcX=%d, srcY=%d\n", __func__, sourceXBpp2, sourceYBpp2, textureId, srcX, srcY);
 
-	auto it = _tileIdsByPosition.find(uint16_t(textureId) | (uint16_t(srcX / TILE_SIZE) << 4) | (uint16_t(srcY / TILE_SIZE) << 8));
-	if (it == _tileIdsByPosition.end()) {
+	auto [begin, end] = _tileIdsByPosition.equal_range(uint16_t(textureId) | (uint16_t(srcX / TILE_SIZE) << 4) | (uint16_t(srcY / TILE_SIZE) << 8));
+	if (begin == end) {
 		//ffnx_warning("%s: tile not found textureId=%d, srcX=%d, srcY=%d\n", __func__, textureId, srcX, srcY);
-
 		return;
 	}
-	// TODO: multi palettes
 
-	const size_t tileId = it->second;
-	const Tile &tile = _mapTiles.at(tileId);
+	/* if (_tileIdsByPosition.count(uint16_t(textureId) | (uint16_t(srcX / TILE_SIZE) << 4) | (uint16_t(srcY / TILE_SIZE) << 8)) > 1) {
+		return;
+	} */
 
-	Tim::Bpp bpp = Tim::Bpp((tile.texID >> 7) & 3);
-	uint8_t col = tileId % _colsCount, row = tileId / _colsCount;
-	int imageX = col * (TILE_SIZE / 2) + sourceXBpp2 % (TILE_SIZE / 2), imageY = row * TILE_SIZE + sourceYBpp2 % TILE_SIZE;
+	bool matched = false;
 
-	//ffnx_trace("%s: sourceXBpp2=%d, sourceYBpp2=%d, textureId=%d, srcX=%d, srcY=%d, key=%d (%d, %d => %d, %d => %d)\n", __func__, sourceXBpp2, sourceYBpp2, textureId, srcX, srcY, uint16_t(textureId) | (uint16_t(srcX / TILE_SIZE) << 4) | (uint16_t(srcY / TILE_SIZE) << 8), uint16_t(textureId), uint16_t(srcX / TILE_SIZE), (uint16_t(srcX / TILE_SIZE) << 4), uint16_t(srcY / TILE_SIZE), (uint16_t(srcY / TILE_SIZE) << 8));
+	// Iterate over matching tiles
+	for (const std::pair<uint16_t, size_t> &pair: std::ranges::subrange{begin, end}) {
+		const size_t tileId = pair.second;
+		const Tile &tile = _mapTiles.at(tileId);
 
-	//ffnx_trace("%s: tileId=%d, col=%d, row=%d, imageX=%d, imageY=%d, bpp=%d, scale=%d\n", __func__, tileId, col, row, imageX, imageY, int(bpp), scale());
+		if (tile.parameter != 255) { // FIXME
+			continue;
+		}
 
-	TextureInfos::copyRect(
-		(const uint32_t *)image()->m_data, imageX, imageY, image()->m_width, scale(), bpp,
-		target, targetX, targetY, targetW, targetScale
-	);
+		if (matched) {
+			// FIXME
+			ffnx_warning("%s: multiple tiles found for the same position (tile id %d)\n", __func__, tileId);
+
+			continue;
+		}
+
+		Tim::Bpp bpp = Tim::Bpp((tile.texID >> 7) & 3);
+		uint8_t col = tileId % _colsCount, row = tileId / _colsCount;
+		int imageX = col * (TILE_SIZE / 2) + sourceXBpp2 % (TILE_SIZE / 2), imageY = row * TILE_SIZE + sourceYBpp2 % TILE_SIZE;
+
+		//ffnx_trace("%s: sourceXBpp2=%d, sourceYBpp2=%d, textureId=%d, srcX=%d, srcY=%d, key=%d (%d, %d => %d, %d => %d)\n", __func__, sourceXBpp2, sourceYBpp2, textureId, srcX, srcY, uint16_t(textureId) | (uint16_t(srcX / TILE_SIZE) << 4) | (uint16_t(srcY / TILE_SIZE) << 8), uint16_t(textureId), uint16_t(srcX / TILE_SIZE), (uint16_t(srcX / TILE_SIZE) << 4), uint16_t(srcY / TILE_SIZE), (uint16_t(srcY / TILE_SIZE) << 8));
+
+		//ffnx_trace("%s: tileId=%d, col=%d, row=%d, imageX=%d, imageY=%d, bpp=%d, scale=%d\n", __func__, tileId, col, row, imageX, imageY, int(bpp), scale());
+
+		TextureInfos::copyRect(
+			(const uint32_t *)image()->m_data, imageX, imageY, image()->m_width, scale(), bpp,
+			target, targetX, targetY, targetW, targetScale
+		);
+
+		matched = true;
+	}
 }
 
 uint8_t TexturePacker::TextureBackground::computeScale() const
