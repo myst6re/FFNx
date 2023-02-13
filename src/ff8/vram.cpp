@@ -484,31 +484,126 @@ uint32_t ff8_field_read_map_data(char *filename, uint8_t *map_data)
 	return ret;
 }
 
-int ff8_field_texture_upload_one(char *image_buffer, int vramX, int vramY)
+std::unordered_map<uint32_t, CharaOneModel> chara_one_models;
+std::vector<uint32_t> chara_one_loaded_models;
+int chara_one_current_pos = 0;
+void *chara_one_models_infos_ptr;
+uint32_t chara_one_current_model = 0;
+uint32_t chara_one_current_mch = 0;
+uint32_t chara_one_current_texture = 0;
+
+int ff8_field_open_chara_one(int current_data_pointer, void *models_infos, int a3, int a4, const char *dirName, int field_data_pointer, int allocated_size, int pcb_data_size)
 {
-	if (trace_all || trace_vram) ffnx_trace("%s vramX=%d vramY=%d\n", __func__, vramX, vramY);
+	if (trace_all || trace_vram) ffnx_trace("%s: 0x%X models_infos=0x%X a3=0x%X, a4=0x%X, dirName=%s, allocated_size=%d, pcb_data_size=%d\n", __func__, current_data_pointer, int(models_infos), a3, a4, dirName, allocated_size, pcb_data_size);
 
-	snprintf(next_texture_name, MAX_PATH, "field/mapdata/%s/chara-%d", get_current_field_name(), current_field_model);
+	chara_one_models_infos_ptr = models_infos;
 
-	++current_field_model;
-
-	return ((int(*)(char*,int,int))0x45D6A0)(image_buffer, vramX, vramY);
+	return ((int(*)(int,void*,int,int,const char*,int,int,int))0x5323F0)(current_data_pointer, models_infos, a3, a4, dirName, field_data_pointer, allocated_size, pcb_data_size);
 }
 
-std::vector<Model> chara_one_models;
-
-int ff8_field_chara_one_read_file(int fd, uint8_t *const data, size_t size)
+int ff8_field_chara_one_read_file_header(int fd, uint8_t *const data, size_t size)
 {
 	int read = ((int(*)(int,uint8_t*const,size_t))0x52CD30)(fd, data, size);
 
-	if (trace_all || trace_vram) ffnx_trace("%s\n", __func__);
+	if (trace_all || trace_vram) ffnx_trace("%s: size=%d\n", __func__, size);
 
 	chara_one_models = ff8_chara_one_parse_models(data, size);
-	char filename[MAX_PATH];
-	snprintf(filename, sizeof(filename), "field/mapdata/%s/chara", get_current_field_name());
-	ff8_chara_one_save_textures(chara_one_models, filename);
+	chara_one_loaded_models.clear();
+	chara_one_current_model = 0;
+	chara_one_current_mch = 0;
+	chara_one_current_texture = 0;
 
 	return read;
+}
+
+int ff8_field_chara_one_open_2(char *path, int mode)
+{
+	if (trace_all || trace_vram) ffnx_trace("%s: %s mode=%d\n", __func__, path, mode);
+
+	return ((int(*)(char*,int))0x52CC50)(path, mode);
+}
+
+int ff8_field_chara_one_seek_to_model(int fd, int pos, int whence)
+{
+	if (trace_all || trace_vram) ffnx_trace("%s: pos=0x%X whence=%d\n", __func__, pos, whence);
+
+	chara_one_current_pos = pos;
+
+	return ((int(*)(int,int,int))0x52CCD0)(fd, pos, whence);
+}
+
+int ff8_field_chara_one_read_model(int fd, uint8_t *const data, size_t size)
+{
+	int read = ((int(*)(int,uint8_t*const,size_t))0x52CD30)(fd, data, size);
+
+	if (trace_all || trace_vram) ffnx_trace("%s: size=%d\n", __func__, size);
+
+	if (chara_one_models.contains(chara_one_current_pos)) {
+		char filename[MAX_PATH];
+		snprintf(filename, sizeof(filename), "field/model/second_chr");
+		ff8_chara_one_model_save_textures(chara_one_models[chara_one_current_pos], data, filename);
+
+		chara_one_loaded_models.push_back(chara_one_current_pos);
+	}
+
+	return read;
+}
+
+int ff8_field_chara_one_read_mch(int fd, uint8_t *const data, size_t size)
+{
+	int read = ((int(*)(int,uint8_t*const,size_t))0x52CD30)(fd, data, size);
+
+	if (trace_all || trace_vram) ffnx_trace("%s: size=%d\n", __func__, size);
+
+	int id = 0;
+	for (uint32_t addr: chara_one_loaded_models) {
+		if (chara_one_models[addr].isMch) {
+			if (id == chara_one_current_mch) {
+				ff8_mch_parse_model(chara_one_models[addr], data, size);
+				char filename[MAX_PATH];
+				snprintf(filename, sizeof(filename), "field/model/main_chr");
+				ff8_chara_one_model_save_textures(chara_one_models[addr], data, filename);
+
+				break;
+			}
+			++id;
+		}
+	}
+
+	++chara_one_current_mch;
+
+	return read;
+}
+
+int ff8_field_texture_upload_one(char *image_buffer, char bpp, char a3, int x, int16_t y, int w, int16_t h)
+{
+	if (trace_all || trace_vram) ffnx_trace("%s bpp=%d a3=%d image_buffer=0x%X\n", __func__, bpp, a3, image_buffer);
+
+	while (chara_one_current_model < chara_one_loaded_models.size()) {
+		CharaOneModel model = chara_one_models[chara_one_loaded_models.at(chara_one_current_model)];
+
+		if (chara_one_current_texture < model.texturesData.size()) {
+			next_bpp = Tim::Bpp(bpp);
+			snprintf(next_texture_name, MAX_PATH, "field/model/%s_chr/%s-%d", model.isMch ? "main" : "second", model.name, chara_one_current_texture);
+
+			++chara_one_current_texture;
+			break;
+		}
+
+		++chara_one_current_model;
+		chara_one_current_texture = 0;
+	}
+
+	// snprintf(next_texture_name, MAX_PATH, "field/model/second_chr/chara-%s", );
+
+	return ((int(*)(char*,char,char,int,int16_t,int,int16_t))0x45D610)(image_buffer, bpp, a3, x, y, w, h);
+}
+
+int ff8_field_texture_upload_one_palette(char *image_buffer, int vramX, int vramY)
+{
+	if (trace_all || trace_vram) ffnx_trace("%s vramX=%d vramY=%d image_buffer=0x%X\n", __func__, vramX, vramY, image_buffer);
+
+	return ((int(*)(char*,int,int))0x45D6A0)(image_buffer, vramX, vramY);
 }
 
 void ssigpu_callback_psxvram_buffer_related(void *colorTexture)
@@ -713,12 +808,19 @@ void vram_init()
 	replace_call(ff8_externals.upload_psxvram_texl_pal_call2, ff8_wm_texl_palette_upload_vram);
 	replace_call(ff8_externals.open_file_world_sub_52D670_texl_call1, ff8_wm_open_data);
 	replace_call(ff8_externals.open_file_world_sub_52D670_texl_call2, ff8_wm_open_data);
-	// field
+	// field: mim/map
 	replace_call(0x475BD0 + 0x2E, ff8_field_mim_palette_upload_vram);
 	replace_call(0x475BD0 + 0x5C, ff8_field_mim_texture_upload_vram);
 	replace_call(0x471915, ff8_field_read_map_data);
-	replace_call(0x5323F0 + 0xCB4, ff8_field_texture_upload_one);
-	replace_call(0x5323F0 + 0x15F, ff8_field_chara_one_read_file);
+	// field: chara.one
+	replace_call(0x471F0F, ff8_field_open_chara_one);
+	replace_call(0x5323F0 + 0x15F, ff8_field_chara_one_read_file_header);
+	replace_call(0x5323F0 + 0x4DC, ff8_field_chara_one_open_2);
+	replace_call(0x5323F0 + 0x582, ff8_field_chara_one_seek_to_model);
+	replace_call(0x5323F0 + 0x594, ff8_field_chara_one_read_model);
+	replace_call(0x5323F0 + 0x879, ff8_field_chara_one_read_mch);
+	replace_call(0x532F62, ff8_field_texture_upload_one);
+	replace_call(0x5323F0 + 0xCB4, ff8_field_texture_upload_one_palette);
 
 	replace_function(ff8_externals.upload_psx_vram, ff8_upload_vram);
 

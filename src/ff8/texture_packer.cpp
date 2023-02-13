@@ -503,6 +503,8 @@ bimg::ImageContainer *TexturePacker::TextureInfos::createImageContainer(const ch
 
 	if(trace_all || trace_loaders || trace_vram) ffnx_trace("texture file name (VRAM): %s\n", name);
 
+	if(save_textures) return nullptr;
+
 	ff8_fs_lang_string(langPath);
 	strcat(langPath, "/");
 

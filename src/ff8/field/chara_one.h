@@ -26,11 +26,14 @@
 #include "../../common.h"
 
 #include <vector>
+#include <unordered_map>
 
-struct Model {
-	char name[8];
-	std::vector<const uint8_t *> texturesData;
+struct CharaOneModel {
+	char name[6];
+	bool isMch;
+	std::vector<uint32_t> texturesData;
 };
 
-std::vector<Model> ff8_chara_one_parse_models(const uint8_t *chara_one_data, size_t size);
-bool ff8_chara_one_save_textures(const std::vector<Model> &models, const char *filename);
+std::unordered_map<uint32_t, CharaOneModel> ff8_chara_one_parse_models(const uint8_t *chara_one_data, size_t size);
+void ff8_mch_parse_model(CharaOneModel &model, const uint8_t *mch_data, size_t size);
+bool ff8_chara_one_model_save_textures(const CharaOneModel &models, const uint8_t *chara_one_model_data, const char *dirname);

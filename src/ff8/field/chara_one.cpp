@@ -26,9 +26,9 @@
 #include "../../saveload.h"
 #include "../../log.h"
 
-std::vector<Model> ff8_chara_one_parse_models(const uint8_t *chara_one_data, size_t size)
+std::unordered_map<uint32_t, CharaOneModel> ff8_chara_one_parse_models(const uint8_t *chara_one_data, size_t size)
 {
-	std::vector<Model> models;
+	std::unordered_map<uint32_t, CharaOneModel> models;
 
 	const uint8_t *cur = chara_one_data;
 
@@ -40,6 +40,8 @@ std::vector<Model> ff8_chara_one_parse_models(const uint8_t *chara_one_data, siz
 		uint32_t offset;
 		memcpy(&offset, cur, 4);
 		cur += 4;
+
+		ffnx_info("%s: offset=0x%X\n", __func__, offset);
 
 		if (offset == 0) {
 			break;
@@ -58,7 +60,7 @@ std::vector<Model> ff8_chara_one_parse_models(const uint8_t *chara_one_data, siz
 			cur += 4;
 		}
 
-		Model model = Model();
+		CharaOneModel model = CharaOneModel();
 
 		if (flag >> 24 != 0xd0) { // NPCs (not main characters)
 			uint32_t timOffset;
@@ -66,7 +68,7 @@ std::vector<Model> ff8_chara_one_parse_models(const uint8_t *chara_one_data, siz
 			ffnx_info("%s: %d %d %d\n", __func__, i, int(cur - chara_one_data), size);
 
 			if ((flag & 0xFFFFFF) == 0) {
-				model.texturesData.push_back(chara_one_data + offset + 4);
+				model.texturesData.push_back(0);
 			}
 
 			while (cur - chara_one_data < size) {
@@ -78,8 +80,10 @@ std::vector<Model> ff8_chara_one_parse_models(const uint8_t *chara_one_data, siz
 					break;
 				}
 
-				model.texturesData.push_back(chara_one_data + offset + 4 + (timOffset & 0xFFFFFF));
+				model.texturesData.push_back(timOffset & 0xFFFFFF);
 			}
+		} else {
+			model.isMch = true;
 		}
 
 		if (cur - chara_one_data < 16) {
@@ -99,29 +103,52 @@ std::vector<Model> ff8_chara_one_parse_models(const uint8_t *chara_one_data, siz
 		strncpy(model.name, name, 4);
 		ffnx_info("%s: %d name=%s\n", __func__, i, model.name);
 
-		models.push_back(model);
+		models[offset + 4] = model;
+
 		cur += 12;
 	}
 
 	return models;
 }
 
-bool ff8_chara_one_save_textures(const std::vector<Model> &models, const char *filename)
+void ff8_mch_parse_model(CharaOneModel &model, const uint8_t *mch_data, size_t size)
 {
-	if (trace_all || trace_vram) ffnx_trace("%s %s\n", __func__, filename);
+	if(size < 0x100) {
+		ffnx_warning("%s: empty MCH\n", __func__);
+		return;
+	}
 
-	for (const Model &model: models) {
-		int textureId = 0;
-		for (const uint8_t *texturePointer: model.texturesData) {
-			ffnx_info("%s: texturePointer=0x%X\n", __func__, texturePointer);
-			ffnx_info("%X %X %X %X\n", *(uint32_t *)(texturePointer - 4), *(uint32_t *)texturePointer, *(uint32_t *)(texturePointer + 4), *(uint32_t *)(texturePointer + 8));
-			char name[MAX_PATH] = {};
-			snprintf(name, sizeof(name), "%s-%s-%d", filename, model.name, textureId);
-			if (!Tim::fromTimData(texturePointer).save(name)) {
-				return false;
-			}
-			++textureId;
+	const uint8_t *cur = mch_data;
+	uint32_t tim_offset = 0;
+
+	while (cur - mch_data < 0x100 - 4) {
+		memcpy(&tim_offset, cur, 4);
+		cur += 4;
+
+		if(tim_offset == 0xFFFFFFFF) {
+			break;
 		}
+
+		model.texturesData.push_back(tim_offset & 0xFFFFFF);
+	}
+}
+
+bool ff8_chara_one_model_save_textures(const CharaOneModel &model, const uint8_t *chara_one_model_data, const char *dirname)
+{
+	if (trace_all || trace_vram) ffnx_trace("%s: %s\n", __func__, dirname);
+
+	int texture_id = 0;
+	for (uint32_t texture_pointer: model.texturesData) {
+		ffnx_info("%s: texture_pointer=0x%X\n", __func__, texture_pointer);
+		ffnx_info("0x%X\n", chara_one_model_data + texture_pointer);
+		char name[MAX_PATH] = {};
+		snprintf(name, sizeof(name), "%s/%s-%d", dirname, model.name, texture_id);
+		Tim tim = Tim::fromTimData(chara_one_model_data + texture_pointer);
+		ffnx_info("%s: tim pos=(%d, %d)\n", __func__, tim.imageX(), tim.imageY());
+		if (!tim.save(name)) {
+			return false;
+		}
+		++texture_id;
 	}
 
 	return true;
