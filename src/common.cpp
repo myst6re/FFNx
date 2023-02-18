@@ -1334,7 +1334,7 @@ void common_unload_texture(struct texture_set *texture_set)
 	uint32_t i;
 	VOBJ(texture_set, texture_set, texture_set);
 
-	// ffnx_trace("dll_gfx: unload_texture 0x%x\n", VPTR(texture_set));
+	if(trace_all) ffnx_trace("dll_gfx: unload_texture 0x%x\n", VPTR(texture_set));
 
 	if(!VPTR(texture_set)) return;
 	if(!VREF(texture_set, texturehandle)) return;
@@ -1396,7 +1396,7 @@ uint32_t create_framebuffer_texture(struct texture_set *texture_set, struct tex_
 
 	if(VREF(tex_header, version) != FB_TEX_VERSION) return false;
 
-	ffnx_trace("create_framebuffer_texture: XY(%u,%u) %ux%u\n", VREF(tex_header, fb_tex.x), VREF(tex_header, fb_tex.y), VREF(tex_header, fb_tex.w), VREF(tex_header, fb_tex.h));
+	if(trace_all) ffnx_trace("create_framebuffer_texture: XY(%u,%u) %ux%u\n", VREF(tex_header, fb_tex.x), VREF(tex_header, fb_tex.y), VREF(tex_header, fb_tex.w), VREF(tex_header, fb_tex.h));
 
 	texture = newRenderer.createBlitTexture(
 		VREF(tex_header, fb_tex.x),
@@ -1519,8 +1519,6 @@ uint32_t load_external_texture(void* image_data, uint32_t dataSize, struct textu
 				}
 				image_data_scaled_cache = (uint8_t*)driver_malloc(image_data_size);
 				image_data_scaled_size_cache = image_data_size;
-			} else {
-				memset(image_data_scaled_cache, 0, image_data_size);
 			}
 
 			image_data_scaled = image_data_scaled_cache;
@@ -1700,8 +1698,8 @@ struct texture_set *common_load_texture(struct texture_set *_texture_set, struct
 	struct palette *palette = 0;
 	uint32_t color_key = false;
 	struct texture_format *tex_format = VREFP(tex_header, tex_format);
-	//ffnx_trace("dll_gfx: load_texture\n");
-	//ffnx_trace("dll_gfx: load_texture 0x%x 0x%X\n", _texture_set, VREF(tex_header, image_data));
+
+	if(trace_all && _texture_set != NULL) ffnx_trace("dll_gfx: load_texture 0x%x\n", _texture_set);
 
 	// no existing texture set, create one
 	if (!VPTR(texture_set))
@@ -1854,8 +1852,6 @@ struct texture_set *common_load_texture(struct texture_set *_texture_set, struct
 				}
 				image_data_cache = (uint32_t*)driver_malloc(image_data_size);
 				image_data_size_cache = image_data_size;
-			} else {
-				memset(image_data_cache, 0, image_data_size);
 			}
 
 			image_data = image_data_cache;
@@ -1895,7 +1891,7 @@ uint32_t common_palette_changed(uint32_t palette_entry_mul_index1, uint32_t pale
 {
 	VOBJ(texture_set, texture_set, texture_set);
 
-	// ffnx_trace("dll_gfx: palette_changed 0x%x %i\n", texture_set, VREF(texture_set, palette_index));
+	if(trace_all) ffnx_trace("dll_gfx: palette_changed 0x%x %i\n", texture_set, VREF(texture_set, palette_index));
 
 	if(palette == 0 || texture_set == 0) return false;
 
@@ -1925,7 +1921,7 @@ uint32_t common_write_palette(uint32_t source_offset, uint32_t size, void *sourc
 	VOBJ(texture_set, texture_set, texture_set);
 	VOBJ(tex_header, tex_header, VREF(texture_set, tex_header));
 
-	// ffnx_trace("dll_gfx: write_palette 0x%x, %i, %i, %i, 0x%x, 0x%x\n", texture_set, source_offset, dest_offset, size, source, palette->palette_entry);
+	if(trace_all) ffnx_trace("dll_gfx: write_palette 0x%x, %i, %i, %i, 0x%x, 0x%x\n", texture_set, source_offset, dest_offset, size, source, palette->palette_entry);
 
 	if(palette == 0) return false;
 
@@ -2436,7 +2432,7 @@ void common_draw_2D(struct polygon_set *polygon_set, struct indexed_vertices *iv
 // called by the game to draw a set of 2D triangles with palette data
 void common_draw_paletted2D(struct polygon_set *polygon_set, struct indexed_vertices *iv, struct game_obj *game_object)
 {
-	// ffnx_trace("dll_gfx: draw_paletted2D\n");
+	if(trace_all) ffnx_trace("dll_gfx: draw_paletted2D\n");
 
 	generic_draw_paletted(polygon_set, iv, game_object, TLVERTEX);
 }
@@ -2469,7 +2465,7 @@ void common_draw_3D(struct polygon_set *polygon_set, struct indexed_vertices *iv
 // called by the game to draw a set of 3D triangles with palette data
 void common_draw_paletted3D(struct polygon_set *polygon_set, struct indexed_vertices *iv, struct game_obj *game_object)
 {
-	// ffnx_trace("dll_gfx: draw_paletted3D\n");
+	if(trace_all) ffnx_trace("dll_gfx: draw_paletted3D\n");
 
 	generic_draw_paletted(polygon_set, iv, game_object, LVERTEX);
 }

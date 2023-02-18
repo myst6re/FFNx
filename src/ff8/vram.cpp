@@ -823,14 +823,14 @@ void vram_init()
 	replace_call(0x475BD0 + 0x5C, ff8_field_mim_texture_upload_vram);
 	replace_call(0x471915, ff8_field_read_map_data);
 	// field: chara.one
-	replace_call(0x471F0F, ff8_field_open_chara_one);
+	/* replace_call(0x471F0F, ff8_field_open_chara_one);
 	replace_call(0x5323F0 + 0x15F, ff8_field_chara_one_read_file_header);
 	replace_call(0x5323F0 + 0x4DC, ff8_field_chara_one_open_2);
 	replace_call(0x5323F0 + 0x582, ff8_field_chara_one_seek_to_model);
 	replace_call(0x5323F0 + 0x594, ff8_field_chara_one_read_model);
 	replace_call(0x5323F0 + 0x879, ff8_field_chara_one_read_mch);
 	replace_call(0x532F62, ff8_field_texture_upload_one);
-	replace_call(0x5323F0 + 0xCB4, ff8_field_texture_upload_one_palette);
+	replace_call(0x5323F0 + 0xCB4, ff8_field_texture_upload_one_palette); */
 
 	replace_function(ff8_externals.upload_psx_vram, ff8_upload_vram);
 
