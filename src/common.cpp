@@ -1334,7 +1334,7 @@ void common_unload_texture(struct texture_set *texture_set)
 	uint32_t i;
 	VOBJ(texture_set, texture_set, texture_set);
 
-	if(trace_all) ffnx_trace("dll_gfx: unload_texture 0x%x\n", VPTR(texture_set));
+	// ffnx_trace("dll_gfx: unload_texture 0x%x\n", VPTR(texture_set));
 
 	if(!VPTR(texture_set)) return;
 	if(!VREF(texture_set, texturehandle)) return;
@@ -1396,7 +1396,7 @@ uint32_t create_framebuffer_texture(struct texture_set *texture_set, struct tex_
 
 	if(VREF(tex_header, version) != FB_TEX_VERSION) return false;
 
-	if(trace_all) ffnx_trace("create_framebuffer_texture: XY(%u,%u) %ux%u\n", VREF(tex_header, fb_tex.x), VREF(tex_header, fb_tex.y), VREF(tex_header, fb_tex.w), VREF(tex_header, fb_tex.h));
+	ffnx_trace("create_framebuffer_texture: XY(%u,%u) %ux%u\n", VREF(tex_header, fb_tex.x), VREF(tex_header, fb_tex.y), VREF(tex_header, fb_tex.w), VREF(tex_header, fb_tex.h));
 
 	texture = newRenderer.createBlitTexture(
 		VREF(tex_header, fb_tex.x),
@@ -1700,8 +1700,8 @@ struct texture_set *common_load_texture(struct texture_set *_texture_set, struct
 	struct palette *palette = 0;
 	uint32_t color_key = false;
 	struct texture_format *tex_format = VREFP(tex_header, tex_format);
-	ffnx_trace("dll_gfx: load_texture\n");
-	ffnx_trace("dll_gfx: load_texture 0x%x 0x%X\n", _texture_set, VREF(tex_header, image_data));
+	//ffnx_trace("dll_gfx: load_texture\n");
+	//ffnx_trace("dll_gfx: load_texture 0x%x 0x%X\n", _texture_set, VREF(tex_header, image_data));
 
 	// no existing texture set, create one
 	if (!VPTR(texture_set))
@@ -1879,6 +1879,8 @@ struct texture_set *common_load_texture(struct texture_set *_texture_set, struct
 
 			// free the memory buffer
 			//driver_free(image_data);
+		} else {
+			//ffnx_trace("%s: no upload because palette index %d\n", __func__, VREF(texture_set, texturehandle[VREF(tex_header, palette_index)]));
 		}
 	}
 	else ffnx_unexpected("no texture format specified or no source data\n");
@@ -1993,6 +1995,9 @@ uint32_t common_write_palette(uint32_t source_offset, uint32_t size, void *sourc
 
 				memset(VREFP(texture_set, texturehandle[palette_index]), 0, palettes * sizeof(uint32_t));
 			}
+
+			// this texture changes in time, flag this as animated
+			VRASS(texture_set, ogl.gl_set->is_animated, enable_animated_textures && mode->driver_mode == MODE_FIELD && (std::find(disable_animated_textures_on_field.begin(), disable_animated_textures_on_field.end(), get_current_field_name()) == disable_animated_textures_on_field.end()));
 
 			stats.texture_reloads++;
 		}

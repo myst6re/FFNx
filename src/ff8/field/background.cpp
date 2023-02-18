@@ -52,7 +52,7 @@ std::vector<Tile> ff8_background_parse_tiles(const uint8_t *map_data)
 		Tim::Bpp bpp = Tim::Bpp((tile.texID >> 7) & 3);
 		uint8_t pal_id = (tile.palID >> 6) & 0xF;
 
-		ffnx_info("tile %d dst %d %d %d src %d %d texid %d bpp %d palId %d blendType %d\n", tiles.size(), tile.x, tile.y, tile.z, tile.srcX, tile.srcY, texture_id, int(bpp), pal_id, tile.blendType);
+		ffnx_info("tile %d dst %d %d %d src %d %d texid %d bpp %d palId %d blendType %d param %d %d\n", tiles.size(), tile.x, tile.y, tile.z, tile.srcX, tile.srcY, texture_id, int(bpp), pal_id, tile.blendType, tile.parameter, tile.state);
 
 		tiles.push_back(tile);
 

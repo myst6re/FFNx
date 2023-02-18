@@ -539,9 +539,11 @@ int ff8_field_chara_one_read_model(int fd, uint8_t *const data, size_t size)
 	if (trace_all || trace_vram) ffnx_trace("%s: size=%d\n", __func__, size);
 
 	if (chara_one_models.contains(chara_one_current_pos)) {
-		char filename[MAX_PATH];
-		snprintf(filename, sizeof(filename), "field/model/second_chr");
-		ff8_chara_one_model_save_textures(chara_one_models[chara_one_current_pos], data, filename);
+		if (save_textures) {
+			char filename[MAX_PATH];
+			snprintf(filename, sizeof(filename), "field/model/second_chr");
+			ff8_chara_one_model_save_textures(chara_one_models[chara_one_current_pos], data, filename);
+		}
 
 		chara_one_loaded_models.push_back(chara_one_current_pos);
 	}
@@ -560,9 +562,11 @@ int ff8_field_chara_one_read_mch(int fd, uint8_t *const data, size_t size)
 		if (chara_one_models[addr].isMch) {
 			if (id == chara_one_current_mch) {
 				ff8_mch_parse_model(chara_one_models[addr], data, size);
-				char filename[MAX_PATH];
-				snprintf(filename, sizeof(filename), "field/model/main_chr");
-				ff8_chara_one_model_save_textures(chara_one_models[addr], data, filename);
+				if (save_textures) {
+					char filename[MAX_PATH];
+					snprintf(filename, sizeof(filename), "field/model/main_chr");
+					ff8_chara_one_model_save_textures(chara_one_models[addr], data, filename);
+				}
 
 				break;
 			}
@@ -615,14 +619,14 @@ void ssigpu_callback_psxvram_buffer_related(void *colorTexture)
 
 void read_psxvram_alpha1_ssigpu_select2(int CLUT, uint8_t *rgba, int size)
 {
-	if (trace_all || trace_vram) ffnx_trace("%s\n", __func__);
+	if (trace_all || trace_vram) ffnx_trace("%s CLUT=(%d, %d) size=%d\n", __func__, CLUT & 0x3F, CLUT >> 6, size);
 
 	((void(*)(int,uint8_t*,int))0x467360)(CLUT, rgba, size);
 }
 
 void read_psxvram_alpha2_ssigpu_select2(uint16_t CLUT, uint8_t *rgba, int size)
 {
-	if (trace_all || trace_vram) ffnx_trace("%s\n", __func__);
+	if (trace_all || trace_vram) ffnx_trace("%s CLUT=(%d, %d) size=%d\n", __func__, CLUT & 0x3F, CLUT >> 6, size);
 
 	((void(*)(uint16_t,uint8_t*,int))0x467460)(CLUT, rgba, size);
 }
@@ -673,7 +677,13 @@ DWORD *load_texture_sub_4076B6_call2(int a1, int a2, char *path, void *data, ff8
 {
 	if (trace_all || trace_vram) ffnx_trace("%s path=%s\n", __func__, path == nullptr ? "(none)" : path);
 
-	return ((DWORD*(*)(int,int,char*,void*,ff8_game_obj*))0x4076B6)(a1, a2, path, data, game_object);
+	texturePacker.disableDrawTexturesBackground(true);
+
+	DWORD *ret = ((DWORD*(*)(int,int,char*,void*,ff8_game_obj*))0x4076B6)(a1, a2, path, data, game_object);
+
+	texturePacker.disableDrawTexturesBackground(false);
+
+	return ret;
 }
 
 int removeMe = 0;
@@ -842,9 +852,9 @@ void vram_init()
 	replace_call(uint32_t(ff8_externals.sub_464F70) + 0x2C5, read_vram_to_buffer);
 	replace_call(ff8_externals.sub_4653B0 + 0x9D, read_vram_to_buffer);
 
-	/* patch_code_dword(0xB7DC18 + 0x7, int(ssigpu_callback_psxvram_buffer_related));
-	replace_call(0x466180 + 0x2C, read_psxvram_alpha1_ssigpu_select2);
-	replace_call(0x466180 + 0x41, read_psxvram_alpha2_ssigpu_select2); */
+	/* patch_code_dword(0xB7DC18 + 0x7, int(ssigpu_callback_psxvram_buffer_related)); */
+	//replace_call(0x466180 + 0x2C, read_psxvram_alpha1_ssigpu_select2);
+	//replace_call(0x466180 + 0x41, read_psxvram_alpha2_ssigpu_select2);
 
 	replace_call(ff8_externals.sub_464DB0 + 0xEC, read_vram_to_buffer_with_palette1);
 	replace_call(ff8_externals.sub_465720 + 0xA5, read_vram_to_buffer_with_palette1);
@@ -853,10 +863,10 @@ void vram_init()
 	replace_call(0x407FEF, load_texture_sub_4221E6);
 	replace_call(0x407797, gfx_driver_load_texture2_sub_419D8F);
 	replace_call(0x414AD1, gfx_driver_load_texture2_sub_419D8F_2);
-	replace_call(0x407ECE, driver_load_texture_palette_change_sub_407EB4_get_game_object);
-	replace_call(0x416EEF, load_texture_sub_4076B6_call1);
+	replace_call(0x407ECE, driver_load_texture_palette_change_sub_407EB4_get_game_object); */
+	//replace_call(0x416EEF, load_texture_sub_4076B6_call1);
 	replace_call(0x416FD0, load_texture_sub_4076B6_call2);
-	replace_call(0x46523F, create_graphics_object_sub_416D82_call1);
+	/* replace_call(0x46523F, create_graphics_object_sub_416D82_call1);
 	replace_call(0x46526B, create_graphics_object_sub_416D82_call2);
 	replace_call(0x465291, create_graphics_object_sub_416D82_call3);
 	replace_call(0x4652AE, create_graphics_object_sub_416D82_call4);

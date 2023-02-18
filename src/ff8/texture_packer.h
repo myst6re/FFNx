@@ -99,6 +99,7 @@ public:
 	void getTextureNames(const uint8_t *texData, std::list<std::string> &names) const;
 	void registerTiledTex(const uint8_t *texData, int x, int y, Tim::Bpp bpp, int palX = 0, int palY = 0);
 
+	void disableDrawTexturesBackground(bool disabled);
 	TextureTypes drawTextures(const uint8_t *texData, struct texture_format *tex_format, uint32_t *target, const uint32_t *originalImageData, int originalW, int originalH, uint8_t scale, uint32_t paletteIndex);
 
 	bool saveVram(const char *fileName, Tim::Bpp bpp) const;
@@ -205,5 +206,6 @@ private:
 	std::unordered_map<ModdedTextureId, TextureRedirection> _textureRedirections;
 	std::unordered_map<ModdedTextureId, TextureBackground> _backgroundTextures;
 
+	bool _disableDrawTexturesBackground;
 	int removeMe;
 };
