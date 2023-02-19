@@ -457,9 +457,6 @@ TexturePacker::TextureTypes TexturePacker::drawTextures(uint32_t *target, const 
 	TextureTypes drawnTextureTypes = NoTexture;
 	bool backgroundTex = false;
 
-	const int scaledW = w * scale,
-		scaledH = targetH * scale;
-
 	for (int y = 0; y < targetH; ++y)
 	{
 		int vramY = tiledTex.y + y;
@@ -497,13 +494,13 @@ TexturePacker::TextureTypes TexturePacker::drawTextures(uint32_t *target, const 
 		removeMe++;
 		char fileName[MAX_PATH] = {};
 		sprintf(fileName, "backgroundTexture-%d-abefore", texId);
-		uint32_t *copy = (uint32_t *)driver_malloc(targetW * targetH * 4);
-		for (int y = 0; y < targetH; ++y) {
-			for (int x = 0; x < targetW; ++x) {
-				copy[y * targetW + x] = target[y * targetW + x] | (0xffu << 24);
+		uint32_t *copy = (uint32_t *)driver_malloc(targetW * targetH * scale * scale * 4);
+		for (int y = 0; y < targetH * scale; ++y) {
+			for (int x = 0; x < targetW * scale; ++x) {
+				copy[y * targetW * scale + x] = target[y * targetW * scale + x] | (0xffu << 24);
 			}
 		}
-		save_texture(copy, targetW * targetH * 4, targetW, targetH, -1, fileName, false);
+		save_texture(copy, targetW * targetH * scale * scale * 4, targetW * scale, targetH * scale, -1, fileName, false);
 		driver_free(copy);
 		sprintf(fileName, "backgroundTexture-%d-vram", texId);
 		saveVram(fileName, Tim::Bpp4);
@@ -573,13 +570,13 @@ TexturePacker::TextureTypes TexturePacker::drawTextures(uint32_t *target, const 
 	if (backgroundTex) {
 		char fileName[MAX_PATH] = {};
 		sprintf(fileName, "backgroundTexture-%d-zafter", texId);
-		uint32_t *copy = (uint32_t *)driver_malloc(targetW * targetH * 4);
-		for (int y = 0; y < targetH; ++y) {
-			for (int x = 0; x < targetW; ++x) {
-				copy[y * targetW + x] = target[y * targetW + x] | (0xffu << 24);
+		uint32_t *copy = (uint32_t *)driver_malloc(targetW * targetH * scale * scale * 4);
+		for (int y = 0; y < targetH * scale; ++y) {
+			for (int x = 0; x < targetW * scale; ++x) {
+				copy[y * targetW * scale + x] = target[y * targetW * scale + x] | (0xffu << 24);
 			}
 		}
-		save_texture(copy, targetW * targetH * 4, targetW, targetH, -1, fileName, false);
+		save_texture(copy, targetW * targetH * scale * scale * 4, targetW * scale, targetH * scale, -1, fileName, false);
 		driver_free(copy);
 	}
 
