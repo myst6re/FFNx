@@ -87,34 +87,6 @@ int read_vram_to_buffer_parent_call1(int a1, int structure, int x, int y, int w,
 	return ret;
 }
 
-int read_vram_to_buffer_parent_call1a(int a1, int structure, int x, int y, int w, int h, int bpp, int rel_pos, int a9, uint8_t *target)
-{
-	if (trace_all || trace_vram) ffnx_trace("%s\n", __func__);
-
-	return read_vram_to_buffer_parent_call1(a1, structure, x, y, w, h, bpp, rel_pos, a9, target);
-}
-
-int read_vram_to_buffer_parent_call1b(int a1, int structure, int x, int y, int w, int h, int bpp, int rel_pos, int a9, uint8_t *target)
-{
-	if (trace_all || trace_vram) ffnx_trace("%s\n", __func__);
-
-	return read_vram_to_buffer_parent_call1(a1, structure, x, y, w, h, bpp, rel_pos, a9, target);
-}
-
-int read_vram_to_buffer_parent_call1c(int a1, int structure, int x, int y, int w, int h, int bpp, int rel_pos, int a9, uint8_t *target)
-{
-	if (trace_all || trace_vram) ffnx_trace("%s\n", __func__);
-
-	return read_vram_to_buffer_parent_call1(a1, structure, x, y, w, h, bpp, rel_pos, a9, target);
-}
-
-int read_vram_to_buffer_parent_call1d(int a1, int structure, int x, int y, int w, int h, int bpp, int rel_pos, int a9, uint8_t *target)
-{
-	if (trace_all || trace_vram) ffnx_trace("%s\n", __func__);
-
-	return read_vram_to_buffer_parent_call1(a1, structure, x, y, w, h, bpp, rel_pos, a9, target);
-}
-
 int read_vram_to_buffer_parent_call2(texture_page *tex_page, int rel_pos, int a3)
 {
 	if (trace_all || trace_vram) ffnx_trace("%s: x=%d y=%d color_key=%d rel_pos=(%d, %d)\n", __func__, tex_page->x, tex_page->y, tex_page->color_key, rel_pos & 0xF, rel_pos >> 4);

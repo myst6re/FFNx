@@ -159,8 +159,6 @@ void TexturePacker::setTextureBackground(const char *name, int x, int y, int w, 
 	TextureBackground tex(name, x, y, w, h, mapTiles);
 	ModdedTextureId textureId = makeTextureId(x, y);
 
-	removeMe = 0;
-
 	if (tex.createImage())
 	{
 		_backgroundTextures[textureId] = tex;
@@ -357,14 +355,12 @@ TexturePacker::TextureTypes TexturePacker::drawTextures(uint32_t *target, const 
 	if (_disableDrawTexturesBackground && (trace_all || trace_vram)) ffnx_info("TexturePacker::%s disabled\n", __func__);
 
 	TextureTypes drawnTextureTypes = NoTexture;
-	bool backgroundTex = false;
 
 	for (int y = 0; y < targetH; ++y)
 	{
 		int vramY = tiledTex.y + y;
 
 		if (vramY >= VRAM_HEIGHT) {
-			//ffnx_warning("%s: vram Y overflow\n", __func__);
 			break;
 		}
 
@@ -373,56 +369,6 @@ TexturePacker::TextureTypes TexturePacker::drawTextures(uint32_t *target, const 
 			int vramX = tiledTex.x + x;
 
 			if (vramX >= VRAM_WIDTH) {
-				//ffnx_warning("%s: vram X overflow\n", __func__);
-				break;
-			}
-
-			ModdedTextureId textureId = _vramTextureIds.at(vramX + vramY * VRAM_WIDTH);
-
-			if (textureId != INVALID_TEXTURE)
-			{
-				if (_backgroundTextures.contains(textureId) && ! _disableDrawTexturesBackground)
-				{
-					backgroundTex = true;
-					break;
-				}
-			}
-		}
-	}
-
-	int texId = removeMe;
-
-	if (backgroundTex) {
-		removeMe++;
-		char fileName[MAX_PATH] = {};
-		sprintf(fileName, "backgroundTexture-%d-abefore", texId);
-		uint32_t *copy = (uint32_t *)driver_malloc(targetW * targetH * scale * scale * 4);
-		for (int y = 0; y < targetH * scale; ++y) {
-			for (int x = 0; x < targetW * scale; ++x) {
-				copy[y * targetW * scale + x] = target[y * targetW * scale + x] | (0xffu << 24);
-			}
-		}
-		save_texture(copy, targetW * targetH * scale * scale * 4, targetW * scale, targetH * scale, -1, fileName, false);
-		driver_free(copy);
-		sprintf(fileName, "backgroundTexture-%d-vram", texId);
-		saveVram(fileName, Tim::Bpp4);
-	}
-
-	for (int y = 0; y < targetH; ++y)
-	{
-		int vramY = tiledTex.y + y;
-
-		if (vramY >= VRAM_HEIGHT) {
-			//ffnx_warning("%s: vram Y overflow\n", __func__);
-			break;
-		}
-
-		for (int x = 0; x < w; ++x)
-		{
-			int vramX = tiledTex.x + x;
-
-			if (vramX >= VRAM_WIDTH) {
-				//ffnx_warning("%s: vram X overflow\n", __func__);
 				break;
 			}
 
@@ -445,8 +391,6 @@ TexturePacker::TextureTypes TexturePacker::drawTextures(uint32_t *target, const 
 				{
 					const TextureBackground &texture = _backgroundTextures.at(textureId);
 
-					//ffnx_info("%s: vram=(%d, %d) bgTexture=(%d, %d) textureId=(%d => %d, %d)\n", __func__, vramX, vramY, texture.x(), texture.y(), textureId, textureId % VRAM_WIDTH, textureId / VRAM_WIDTH);
-
 					int textureX = vramX - texture.x(),
 						textureY = vramY - texture.y();
 
@@ -467,19 +411,6 @@ TexturePacker::TextureTypes TexturePacker::drawTextures(uint32_t *target, const 
 				}
 			}
 		}
-	}
-
-	if (backgroundTex) {
-		char fileName[MAX_PATH] = {};
-		sprintf(fileName, "backgroundTexture-%d-zafter", texId);
-		uint32_t *copy = (uint32_t *)driver_malloc(targetW * targetH * scale * scale * 4);
-		for (int y = 0; y < targetH * scale; ++y) {
-			for (int x = 0; x < targetW * scale; ++x) {
-				copy[y * targetW * scale + x] = target[y * targetW * scale + x] | (0xffu << 24);
-			}
-		}
-		save_texture(copy, targetW * targetH * scale * scale * 4, targetW * scale, targetH * scale, -1, fileName, false);
-		driver_free(copy);
 	}
 
 	if (trace_all || trace_vram) ffnx_trace("TexturePacker::%s x=%d y=%d bpp=%d w=%d targetW=%d targetH=%d scale=%d drawnTextureTypes=0x%X\n", __func__, tiledTex.x, tiledTex.y, tiledTex.bpp, w, targetW, targetH, scale, drawnTextureTypes);

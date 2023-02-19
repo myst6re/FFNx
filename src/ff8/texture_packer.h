@@ -207,5 +207,4 @@ private:
 	std::unordered_map<ModdedTextureId, TextureBackground> _backgroundTextures;
 
 	bool _disableDrawTexturesBackground;
-	int removeMe;
 };
