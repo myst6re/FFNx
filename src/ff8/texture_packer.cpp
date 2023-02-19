@@ -577,11 +577,11 @@ TexturePacker::Texture::Texture(
 {
 }
 
-bool TexturePacker::Texture::createImage(uint8_t palette_index)
+bool TexturePacker::Texture::createImage(uint8_t palette_index, bool has_pal)
 {
 	char filename[MAX_PATH], langPath[16] = {};
 
-	_image = createImageContainer(_name.c_str(), palette_index, bpp() != Tim::Bpp16);
+	_image = createImageContainer(_name.c_str(), palette_index, has_pal);
 
 	if (_image == nullptr)
 	{

@@ -209,7 +209,7 @@ bool Tim::save(const char *fileName, PaletteDetectionStrategy *paletteDetectionS
 	{
 		if (toRGBA32(image_data, paletteDetectionStrategy, withAlpha))
 		{
-			save_texture(image_data, image_data_size, _tim.img_w, _tim.img_h, _bpp != Bpp16 ? paletteDetectionStrategy->palIndex() : uint32_t(-1), fileName, false);
+			save_texture(image_data, image_data_size, _tim.img_w, _tim.img_h, paletteDetectionStrategy != nullptr ? paletteDetectionStrategy->palIndex() : 0, fileName, false);
 		}
 
 		driver_free(image_data);

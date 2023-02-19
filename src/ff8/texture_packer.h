@@ -124,7 +124,7 @@ private:
 		inline uint8_t scale() const {
 			return _scale;
 		}
-		bool createImage(uint8_t palette_index = 0);
+		bool createImage(uint8_t palette_index = 0, bool has_pal = true);
 		void destroyImage();
 		inline bool hasImage() const {
 			return _image != nullptr;
@@ -151,6 +151,9 @@ private:
 			int x, int y, int w, int h,
 			const std::vector<Tile> &mapTiles
 		);
+		bool createImage() {
+			return Texture::createImage(0, false);
+		}
 		void copyRect(int sourceXBpp2, int sourceYBpp2, Tim::Bpp textureBpp, uint32_t *target, int targetX, int targetY, int targetW, uint8_t targetScale) const;
 	private:
 		virtual uint8_t computeScale() const override;
