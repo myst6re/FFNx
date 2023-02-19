@@ -52,7 +52,7 @@ std::vector<Tile> ff8_background_parse_tiles(const uint8_t *map_data)
 		Tim::Bpp bpp = Tim::Bpp((tile.texID >> 7) & 3);
 		uint8_t pal_id = (tile.palID >> 6) & 0xF;
 
-		ffnx_info("tile %d dst %d %d %d src %d %d texid %d bpp %d palId %d blendType %d param %d %d\n", tiles.size(), tile.x, tile.y, tile.z, tile.srcX, tile.srcY, texture_id, int(bpp), pal_id, tile.blendType, tile.parameter, tile.state);
+		if (trace_all || trace_vram) ffnx_info("tile %d dst %d %d %d src %d %d texid %d bpp %d palId %d blendType %d param %d %d\n", tiles.size(), tile.x, tile.y, tile.z, tile.srcX, tile.srcY, texture_id, int(bpp), pal_id, tile.blendType, tile.parameter, tile.state);
 
 		tiles.push_back(tile);
 
@@ -92,8 +92,6 @@ bool ff8_background_save_textures(const std::vector<Tile> &tiles, const uint8_t 
 		const uint16_t *palette_data_start = bpp == Tim::Bpp16 ? nullptr : palettes_data + pal_id * PALETTE_SIZE;
 		uint8_t row = tile_id / cols_count, col = tile_id % cols_count;
 		uint32_t *target = image_data_start + row * TILE_SIZE * width;
-
-		ffnx_info("bpp=%d pal_id=%d srcX=%d srcY=%d palette_data_start=%X texture_data_start=%X\n", bpp, pal_id, tile.srcX,tile.srcY, int(palette_data_start), int(texture_data_start));
 
 		if (bpp == Tim::Bpp16) {
 			const uint16_t *texture_data = reinterpret_cast<const uint16_t *>(texture_data_start) + tile.srcX;

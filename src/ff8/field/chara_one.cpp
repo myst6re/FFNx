@@ -41,8 +41,6 @@ std::unordered_map<uint32_t, CharaOneModel> ff8_chara_one_parse_models(const uin
 		memcpy(&offset, cur, 4);
 		cur += 4;
 
-		ffnx_info("%s: offset=0x%X\n", __func__, offset);
-
 		if (offset == 0) {
 			break;
 		}
@@ -74,7 +72,6 @@ std::unordered_map<uint32_t, CharaOneModel> ff8_chara_one_parse_models(const uin
 			while (cur - chara_one_data < size) {
 				memcpy(&timOffset, cur, 4);
 				cur += 4;
-				ffnx_info("%s: %d timOffset=0x%X\n", __func__, i, timOffset);
 
 				if (timOffset == 0xFFFFFFFF) {
 					break;
@@ -101,7 +98,6 @@ std::unordered_map<uint32_t, CharaOneModel> ff8_chara_one_parse_models(const uin
 			name[j] = cur[j];
 		}
 		strncpy(model.name, name, 4);
-		ffnx_info("%s: %d name=%s\n", __func__, i, model.name);
 
 		models[offset + 4] = model;
 
@@ -139,12 +135,10 @@ bool ff8_chara_one_model_save_textures(const CharaOneModel &model, const uint8_t
 
 	int texture_id = 0;
 	for (uint32_t texture_pointer: model.texturesData) {
-		ffnx_info("%s: texture_pointer=0x%X\n", __func__, texture_pointer);
-		ffnx_info("0x%X\n", chara_one_model_data + texture_pointer);
 		char name[MAX_PATH] = {};
 		snprintf(name, sizeof(name), "%s/%s-%d", dirname, model.name, texture_id);
 		Tim tim = Tim::fromTimData(chara_one_model_data + texture_pointer);
-		ffnx_info("%s: tim pos=(%d, %d)\n", __func__, tim.imageX(), tim.imageY());
+
 		if (!tim.save(name)) {
 			return false;
 		}

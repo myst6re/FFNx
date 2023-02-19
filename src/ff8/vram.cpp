@@ -27,6 +27,9 @@
 #include "field/background.h"
 #include "field/chara_one.h"
 
+#include <unordered_map>
+#include <vector>
+
 TexturePacker texturePacker;
 
 char next_texture_name[MAX_PATH] = "";
@@ -40,6 +43,15 @@ Tim::Bpp next_bpp = Tim::Bpp16;
 uint8_t next_scale = 1;
 int8_t texl_id_left = -1;
 int8_t texl_id_right = -1;
+// Field background
+uint8_t *mim_texture_buffer = nullptr;
+// Field models
+std::unordered_map<uint32_t, CharaOneModel> chara_one_models;
+std::vector<uint32_t> chara_one_loaded_models;
+int chara_one_current_pos = 0;
+uint32_t chara_one_current_model = 0;
+uint32_t chara_one_current_mch = 0;
+uint32_t chara_one_current_texture = 0;
 
 void ff8_upload_vram(int16_t *pos_and_size, uint8_t *texture_buffer)
 {
@@ -436,29 +448,11 @@ void ff8_wm_texl_palette_upload_vram(int16_t *pos_and_size, uint8_t *texture_buf
 	ff8_externals.psx_texture_pages[0].struc_50_array[19].vram_needs_reload = 0xFF;
 }
 
-uint8_t *mim_texture_buffer = nullptr;
-int current_field_model = 0;
-
 void ff8_field_mim_palette_upload_vram(int16_t *pos_and_size, uint8_t *texture_buffer)
 {
 	if (trace_all || trace_vram) ffnx_trace("%s\n", __func__);
 
 	mim_texture_buffer = texture_buffer;
-	current_field_model = 0;
-
-	ff8_upload_vram(pos_and_size, texture_buffer);
-
-	// snprintf(next_texture_name, MAX_PATH, "field/mapdata/%s", get_current_field_name());
-
-	// texturePacker.setTexture(next_texture_name, x, y, w, h, Tim::Bpp4 | Tim::Bpp8 | Tim::Bpp16, isPal);
-}
-
-void ff8_field_mim_texture_upload_vram(int16_t *pos_and_size, uint8_t *texture_buffer)
-{
-	// int textureId = (int(texture_buffer - mim_texture_buffer) - 12288) / 26624;
-	// snprintf(next_texture_name, MAX_PATH, "field/mapdata/%s-%d", get_current_field_name(), textureId);
-
-	if (trace_all || trace_vram) ffnx_trace("%s\n", __func__);
 
 	ff8_upload_vram(pos_and_size, texture_buffer);
 }
@@ -484,26 +478,9 @@ uint32_t ff8_field_read_map_data(char *filename, uint8_t *map_data)
 	return ret;
 }
 
-std::unordered_map<uint32_t, CharaOneModel> chara_one_models;
-std::vector<uint32_t> chara_one_loaded_models;
-int chara_one_current_pos = 0;
-void *chara_one_models_infos_ptr;
-uint32_t chara_one_current_model = 0;
-uint32_t chara_one_current_mch = 0;
-uint32_t chara_one_current_texture = 0;
-
-int ff8_field_open_chara_one(int current_data_pointer, void *models_infos, int a3, int a4, const char *dirName, int field_data_pointer, int allocated_size, int pcb_data_size)
-{
-	if (trace_all || trace_vram) ffnx_trace("%s: 0x%X models_infos=0x%X a3=0x%X, a4=0x%X, dirName=%s, allocated_size=%d, pcb_data_size=%d\n", __func__, current_data_pointer, int(models_infos), a3, a4, dirName, allocated_size, pcb_data_size);
-
-	chara_one_models_infos_ptr = models_infos;
-
-	return ((int(*)(int,void*,int,int,const char*,int,int,int))0x5323F0)(current_data_pointer, models_infos, a3, a4, dirName, field_data_pointer, allocated_size, pcb_data_size);
-}
-
 int ff8_field_chara_one_read_file_header(int fd, uint8_t *const data, size_t size)
 {
-	int read = ((int(*)(int,uint8_t*const,size_t))0x52CD30)(fd, data, size);
+	int read = ((int(*)(int,uint8_t*const,size_t))ff8_externals.chara_one_read_file)(fd, data, size);
 
 	if (trace_all || trace_vram) ffnx_trace("%s: size=%d\n", __func__, size);
 
@@ -516,25 +493,18 @@ int ff8_field_chara_one_read_file_header(int fd, uint8_t *const data, size_t siz
 	return read;
 }
 
-int ff8_field_chara_one_open_2(char *path, int mode)
-{
-	if (trace_all || trace_vram) ffnx_trace("%s: %s mode=%d\n", __func__, path, mode);
-
-	return ((int(*)(char*,int))0x52CC50)(path, mode);
-}
-
 int ff8_field_chara_one_seek_to_model(int fd, int pos, int whence)
 {
 	if (trace_all || trace_vram) ffnx_trace("%s: pos=0x%X whence=%d\n", __func__, pos, whence);
 
 	chara_one_current_pos = pos;
 
-	return ((int(*)(int,int,int))0x52CCD0)(fd, pos, whence);
+	return ((int(*)(int,int,int))ff8_externals.chara_one_seek_file)(fd, pos, whence);
 }
 
 int ff8_field_chara_one_read_model(int fd, uint8_t *const data, size_t size)
 {
-	int read = ((int(*)(int,uint8_t*const,size_t))0x52CD30)(fd, data, size);
+	int read = ((int(*)(int,uint8_t*const,size_t))ff8_externals.chara_one_read_file)(fd, data, size);
 
 	if (trace_all || trace_vram) ffnx_trace("%s: size=%d\n", __func__, size);
 
@@ -553,7 +523,7 @@ int ff8_field_chara_one_read_model(int fd, uint8_t *const data, size_t size)
 
 int ff8_field_chara_one_read_mch(int fd, uint8_t *const data, size_t size)
 {
-	int read = ((int(*)(int,uint8_t*const,size_t))0x52CD30)(fd, data, size);
+	int read = ((int(*)(int,uint8_t*const,size_t))ff8_externals.chara_one_read_file)(fd, data, size);
 
 	if (trace_all || trace_vram) ffnx_trace("%s: size=%d\n", __func__, size);
 
@@ -598,204 +568,21 @@ int ff8_field_texture_upload_one(char *image_buffer, char bpp, char a3, int x, i
 		chara_one_current_texture = 0;
 	}
 
-	// snprintf(next_texture_name, MAX_PATH, "field/model/second_chr/chara-%s", );
-
-	return ((int(*)(char*,char,char,int,int16_t,int,int16_t))0x45D610)(image_buffer, bpp, a3, x, y, w, h);
+	return ((int(*)(char*,char,char,int,int16_t,int,int16_t))ff8_externals.chara_one_upload_texture)(image_buffer, bpp, a3, x, y, w, h);
 }
 
-int ff8_field_texture_upload_one_palette(char *image_buffer, int vramX, int vramY)
-{
-	if (trace_all || trace_vram) ffnx_trace("%s vramX=%d vramY=%d image_buffer=0x%X\n", __func__, vramX, vramY, image_buffer);
-
-	return ((int(*)(char*,int,int))0x45D6A0)(image_buffer, vramX, vramY);
-}
-
-void ssigpu_callback_psxvram_buffer_related(void *colorTexture)
-{
-	if (trace_all || trace_vram) ffnx_trace("%s\n", __func__);
-
-	((void(*)(void*))0x466EE0)(colorTexture);
-}
-
-void read_psxvram_alpha1_ssigpu_select2(int CLUT, uint8_t *rgba, int size)
-{
-	if (trace_all || trace_vram) ffnx_trace("%s CLUT=(%d, %d) size=%d\n", __func__, CLUT & 0x3F, CLUT >> 6, size);
-
-	((void(*)(int,uint8_t*,int))0x467360)(CLUT, rgba, size);
-}
-
-void read_psxvram_alpha2_ssigpu_select2(uint16_t CLUT, uint8_t *rgba, int size)
-{
-	if (trace_all || trace_vram) ffnx_trace("%s CLUT=(%d, %d) size=%d\n", __func__, CLUT & 0x3F, CLUT >> 6, size);
-
-	((void(*)(uint16_t,uint8_t*,int))0x467460)(CLUT, rgba, size);
-}
-
-void *gfx_driver_load_texture(void *data, ff8_tex_header *tex_header, void *texture_format)
-{
-	if (trace_all || trace_vram) ffnx_trace("%s data=0x%X tex_header=0x%X texture_format=0x%X image_data=0x%X\n", __func__, data, tex_header, texture_format, tex_header->image_data);
-
-	return ((void*(*)(void*,ff8_tex_header*,void*))0x419CBE)(data, tex_header, texture_format);
-}
-
-int load_texture_sub_4221E6(int a1, int a2, void *texture_format, ff8_tex_header *tex_header)
-{
-	if (trace_all || trace_vram) ffnx_trace("%s a1=0x%X a2=0x%X texture_format=0x%X tex_header=0x%X image_data=0x%X\n", __func__, a1, a2, texture_format, tex_header, tex_header->image_data);
-
-	return ((int(*)(int,int,void*,ff8_tex_header*))0x4221E6)(a1, a2, texture_format, tex_header);
-}
-
-ff8_texture_set *gfx_driver_load_texture2_sub_419D8F(void *data, ff8_tex_header *tex_header, ff8_game_obj *game_object)
-{
-	if (trace_all || trace_vram) ffnx_trace("%s data=0x%X tex_header=0x%X image_data=0x%X\n", __func__, data, tex_header, tex_header->image_data);
-
-	return ((ff8_texture_set*(*)(void*,ff8_tex_header*,ff8_game_obj*))0x419D8F)(data, tex_header, game_object);
-}
-
-ff8_texture_set *gfx_driver_load_texture2_sub_419D8F_2(void *data, ff8_tex_header *tex_header, ff8_game_obj *game_object)
-{
-	if (trace_all || trace_vram) ffnx_trace("%s data=0x%X tex_header=0x%X image_data=0x%X\n", __func__, data, tex_header, tex_header->image_data);
-
-	return ((ff8_texture_set*(*)(void*,ff8_tex_header*,ff8_game_obj*))0x419D8F)(data, tex_header, game_object);
-}
-
-ff8_game_obj *driver_load_texture_palette_change_sub_407EB4_get_game_object()
-{
-	if (trace_all || trace_vram) ffnx_trace("%s\n", __func__);
-
-	return ((ff8_game_obj *(*)())0x40A04A)();
-}
-
-DWORD *load_texture_sub_4076B6_call1(int a1, int a2, char *path, void *data, ff8_game_obj *game_object)
+DWORD *create_graphics_object_load_texture_call2(int a1, int a2, char *path, void *data, ff8_game_obj *game_object)
 {
 	if (trace_all || trace_vram) ffnx_trace("%s path=%s\n", __func__, path == nullptr ? "(none)" : path);
 
-	return ((DWORD*(*)(int,int,char*,void*,ff8_game_obj*))0x4076B6)(a1, a2, path, data, game_object);
-}
-
-DWORD *load_texture_sub_4076B6_call2(int a1, int a2, char *path, void *data, ff8_game_obj *game_object)
-{
-	if (trace_all || trace_vram) ffnx_trace("%s path=%s\n", __func__, path == nullptr ? "(none)" : path);
-
+	// Optimization: when the game creates 3D objects for field background, it does upload textures, but it does not display it
 	texturePacker.disableDrawTexturesBackground(true);
 
-	DWORD *ret = ((DWORD*(*)(int,int,char*,void*,ff8_game_obj*))0x4076B6)(a1, a2, path, data, game_object);
+	DWORD *ret = ((DWORD*(*)(int,int,char*,void*,ff8_game_obj*))ff8_externals.sub_4076B6)(a1, a2, path, data, game_object);
 
 	texturePacker.disableDrawTexturesBackground(false);
 
 	return ret;
-}
-
-int removeMe = 0;
-
-struct struc_52 {
-	uint32_t flags;
-	uint32_t field_4;
-	uint32_t field_8;
-	uint32_t field_C;
-	uint32_t field_10;
-	uint32_t field_14;
-	uint32_t field_18;
-	uint32_t field_1C;
-	uint32_t mode;
-	uint32_t directory;
-	ff8_tex_header *tex_header;
-	uint32_t field_2C;
-	uint32_t matrix_set;
-	uint32_t field_34;
-	uint32_t field_38;
-	uint32_t field_3C;
-	uint32_t field_40;
-	uint32_t field_44;
-	uint32_t file_context;
-	uint32_t field_4C;
-	uint32_t field_50;
-	uint32_t field_54;
-	uint32_t field_58;
-	uint32_t field_5C;
-	uint32_t field_60;
-	uint32_t affected_to_tex_header_field_2C_field_64;
-	uint32_t palette_index;
-	uint32_t field_6C;
-	uint32_t field_70;
-	uint32_t field_74;
-	uint32_t field_78;
-	uint32_t field_7C;
-	uint32_t field_80;
-};
-
-void *create_graphics_object_sub_416D82_call1(int a1, int polytype, struc_52 *data, char *path, DWORD *dummy4_39)
-{
-	if (trace_all || trace_vram) ffnx_trace("%s a1=0x%X polytype=0x%X data=0x%X path=%s\n", __func__, a1, polytype, data, path == nullptr ? "(none)" : path);
-
-	/* char fileName[255] = {};
-	sprintf(fileName, "backgroundTexture-before-%d", removeMe++);
-	save_texture(data->tex_header->image_data, originalW * originalH * 4, originalW, originalH, paletteIndex, fileName, false); */
-
-	return ((void*(*)(int,int,struc_52*,char*,DWORD*))0x416D82)(a1, polytype, data, path, dummy4_39);
-}
-
-void *create_graphics_object_sub_416D82_call2(int a1, int polytype, void *data, char *path, DWORD *dummy4_39)
-{
-	if (trace_all || trace_vram) ffnx_trace("%s a1=0x%X polytype=0x%X data=0x%X path=%s\n", __func__, a1, polytype, data, path == nullptr ? "(none)" : path);
-
-	return ((void*(*)(int,int,void*,char*,DWORD*))0x416D82)(a1, polytype, data, path, dummy4_39);
-}
-
-void *create_graphics_object_sub_416D82_call3(int a1, int polytype, void *data, char *path, DWORD *dummy4_39)
-{
-	if (trace_all || trace_vram) ffnx_trace("%s a1=0x%X polytype=0x%X data=0x%X path=%s\n", __func__, a1, polytype, data, path == nullptr ? "(none)" : path);
-
-	return ((void*(*)(int,int,void*,char*,DWORD*))0x416D82)(a1, polytype, data, path, dummy4_39);
-}
-
-void *create_graphics_object_sub_416D82_call4(int a1, int polytype, void *data, char *path, DWORD *dummy4_39)
-{
-	if (trace_all || trace_vram) ffnx_trace("%s a1=0x%X polytype=0x%X data=0x%X path=%s\n", __func__, a1, polytype, data, path == nullptr ? "(none)" : path);
-
-	return ((void*(*)(int,int,void*,char*,DWORD*))0x416D82)(a1, polytype, data, path, dummy4_39);
-}
-
-void *create_graphics_object_sub_416D82_call5(int a1, int polytype, void *data, char *path, DWORD *dummy4_39)
-{
-	if (trace_all || trace_vram) ffnx_trace("%s a1=0x%X polytype=0x%X data=0x%X path=%s\n", __func__, a1, polytype, data, path == nullptr ? "(none)" : path);
-
-	return ((void*(*)(int,int,void*,char*,DWORD*))0x416D82)(a1, polytype, data, path, dummy4_39);
-}
-
-void *create_graphics_object_sub_416D82_call6(int a1, int polytype, void *data, char *path, DWORD *dummy4_39)
-{
-	if (trace_all || trace_vram) ffnx_trace("%s a1=0x%X polytype=0x%X data=0x%X path=%s\n", __func__, a1, polytype, data, path == nullptr ? "(none)" : path);
-
-	return ((void*(*)(int,int,void*,char*,DWORD*))0x416D82)(a1, polytype, data, path, dummy4_39);
-}
-
-void *create_graphics_object_sub_416D82_call7(int a1, int polytype, void *data, char *path, DWORD *dummy4_39)
-{
-	if (trace_all || trace_vram) ffnx_trace("%s a1=0x%X polytype=0x%X data=0x%X path=%s\n", __func__, a1, polytype, data, path == nullptr ? "(none)" : path);
-
-	return ((void*(*)(int,int,void*,char*,DWORD*))0x416D82)(a1, polytype, data, path, dummy4_39);
-}
-
-void *create_graphics_object_sub_416D82_call8(int a1, int polytype, void *data, char *path, DWORD *dummy4_39)
-{
-	if (trace_all || trace_vram) ffnx_trace("%s a1=0x%X polytype=0x%X data=0x%X path=%s\n", __func__, a1, polytype, data, path == nullptr ? "(none)" : path);
-
-	return ((void*(*)(int,int,void*,char*,DWORD*))0x416D82)(a1, polytype, data, path, dummy4_39);
-}
-
-void *create_graphics_object_sub_416D82_call9(int a1, int polytype, void *data, char *path, DWORD *dummy4_39)
-{
-	if (trace_all || trace_vram) ffnx_trace("%s a1=0x%X polytype=0x%X data=0x%X path=%s\n", __func__, a1, polytype, data, path == nullptr ? "(none)" : path);
-
-	return ((void*(*)(int,int,void*,char*,DWORD*))0x416D82)(a1, polytype, data, path, dummy4_39);
-}
-
-void *create_graphics_object_sub_416D82_call10(int a1, int polytype, void *data, char *path, DWORD *dummy4_39)
-{
-	if (trace_all || trace_vram) ffnx_trace("%s a1=0x%X polytype=0x%X data=0x%X path=%s\n", __func__, a1, polytype, data, path == nullptr ? "(none)" : path);
-
-	return ((void*(*)(int,int,void*,char*,DWORD*))0x416D82)(a1, polytype, data, path, dummy4_39);
 }
 
 void vram_init()
@@ -819,18 +606,14 @@ void vram_init()
 	replace_call(ff8_externals.open_file_world_sub_52D670_texl_call1, ff8_wm_open_data);
 	replace_call(ff8_externals.open_file_world_sub_52D670_texl_call2, ff8_wm_open_data);
 	// field: mim/map
-	replace_call(0x475BD0 + 0x2E, ff8_field_mim_palette_upload_vram);
-	replace_call(0x475BD0 + 0x5C, ff8_field_mim_texture_upload_vram);
-	replace_call(0x471915, ff8_field_read_map_data);
+	replace_call(ff8_externals.upload_mim_file + 0x2E, ff8_field_mim_palette_upload_vram);
+	replace_call(ff8_externals.read_field_data + (JP_VERSION ? 0x990 : 0x915), ff8_field_read_map_data);
 	// field: chara.one
-	/* replace_call(0x471F0F, ff8_field_open_chara_one);
-	replace_call(0x5323F0 + 0x15F, ff8_field_chara_one_read_file_header);
-	replace_call(0x5323F0 + 0x4DC, ff8_field_chara_one_open_2);
-	replace_call(0x5323F0 + 0x582, ff8_field_chara_one_seek_to_model);
-	replace_call(0x5323F0 + 0x594, ff8_field_chara_one_read_model);
-	replace_call(0x5323F0 + 0x879, ff8_field_chara_one_read_mch);
-	replace_call(0x532F62, ff8_field_texture_upload_one);
-	replace_call(0x5323F0 + 0xCB4, ff8_field_texture_upload_one_palette); */
+	replace_call(ff8_externals.load_field_models + 0x15F, ff8_field_chara_one_read_file_header);
+	replace_call(ff8_externals.load_field_models + 0x582, ff8_field_chara_one_seek_to_model);
+	replace_call(ff8_externals.load_field_models + 0x594, ff8_field_chara_one_read_model);
+	replace_call(ff8_externals.load_field_models + 0x879, ff8_field_chara_one_read_mch);
+	replace_call(ff8_externals.load_field_models + 0xB72, ff8_field_texture_upload_one);
 
 	replace_function(ff8_externals.upload_psx_vram, ff8_upload_vram);
 
@@ -852,30 +635,10 @@ void vram_init()
 	replace_call(uint32_t(ff8_externals.sub_464F70) + 0x2C5, read_vram_to_buffer);
 	replace_call(ff8_externals.sub_4653B0 + 0x9D, read_vram_to_buffer);
 
-	/* patch_code_dword(0xB7DC18 + 0x7, int(ssigpu_callback_psxvram_buffer_related)); */
-	//replace_call(0x466180 + 0x2C, read_psxvram_alpha1_ssigpu_select2);
-	//replace_call(0x466180 + 0x41, read_psxvram_alpha2_ssigpu_select2);
-
 	replace_call(ff8_externals.sub_464DB0 + 0xEC, read_vram_to_buffer_with_palette1);
 	replace_call(ff8_externals.sub_465720 + 0xA5, read_vram_to_buffer_with_palette1);
 
-	/* replace_call(0x419DD7, gfx_driver_load_texture);
-	replace_call(0x407FEF, load_texture_sub_4221E6);
-	replace_call(0x407797, gfx_driver_load_texture2_sub_419D8F);
-	replace_call(0x414AD1, gfx_driver_load_texture2_sub_419D8F_2);
-	replace_call(0x407ECE, driver_load_texture_palette_change_sub_407EB4_get_game_object); */
-	//replace_call(0x416EEF, load_texture_sub_4076B6_call1);
-	replace_call(0x416FD0, load_texture_sub_4076B6_call2);
-	/* replace_call(0x46523F, create_graphics_object_sub_416D82_call1);
-	replace_call(0x46526B, create_graphics_object_sub_416D82_call2);
-	replace_call(0x465291, create_graphics_object_sub_416D82_call3);
-	replace_call(0x4652AE, create_graphics_object_sub_416D82_call4);
-	replace_call(0x4652D4, create_graphics_object_sub_416D82_call5);
-	replace_call(0x4652EE, create_graphics_object_sub_416D82_call6);
-	replace_call(0x465317, create_graphics_object_sub_416D82_call7);
-	replace_call(0x465331, create_graphics_object_sub_416D82_call8);
-	replace_call(0x465357, create_graphics_object_sub_416D82_call9);
-	replace_call(0x465374, create_graphics_object_sub_416D82_call10); */
+	replace_call(ff8_externals._load_texture + 0x24E, create_graphics_object_load_texture_call2);
 
 	// Not used?
 	replace_call(ff8_externals.sub_4649A0 + 0x13F, read_vram_to_buffer_with_palette2);
