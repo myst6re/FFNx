@@ -1522,7 +1522,6 @@ uint32_t load_external_texture(void* image_data, uint32_t dataSize, struct textu
 			}
 
 			image_data_scaled = image_data_scaled_cache;
-			//image_data_scaled = (uint8_t*)driver_malloc(image_data_size);
 
 			// convert source data
 			if (image_data_scaled != nullptr)
@@ -1550,11 +1549,6 @@ uint32_t load_external_texture(void* image_data, uint32_t dataSize, struct textu
 			if(VREF(texture_set, ogl.external)) stats.external_textures--;
 			VRASS(texture_set, ogl.external, false);
 		}
-
-		/* if (image_data_scaled != nullptr && image_data_scaled != image_data)
-		{
-			driver_free(image_data_scaled);
-		} */
 
 		if (textureType == TexturePacker::InternalTexture)
 		{
@@ -1594,12 +1588,6 @@ _inline uint32_t pal2bgra(uint32_t pixel, uint32_t *palette, uint32_t palette_of
 // convert an entire image from its native format to 32-bit BGRA
 void convert_image_data(const unsigned char *image_data, uint32_t *converted_image_data, uint32_t w, uint32_t h, struct texture_format *tex_format, uint32_t invert_alpha, uint32_t color_key, uint32_t palette_offset, uint32_t reference_alpha)
 {
-	/* ffnx_info("%s: image_data=0x%X w=%u h=%u bytesperpixel=%d use_palette=%d palette_size=%d alpha_mask=%d blue_mask=%d green_mask=%d red_mask=%d invert_alpha=%u color_key=%u palette_offset=%u reference_alpha=%u\n",
-		__func__, image_data, w, h,
-		tex_format->bytesperpixel, tex_format->use_palette, tex_format->palette_size,
-		tex_format->alpha_mask, tex_format->blue_mask, tex_format->green_mask, tex_format->red_mask,
-		invert_alpha, color_key, palette_offset, reference_alpha
-	); */
 	uint32_t i, j, o = 0, c = 0;
 
 	// invalid texture in FF8, do not attempt to convert
@@ -1855,7 +1843,6 @@ struct texture_set *common_load_texture(struct texture_set *_texture_set, struct
 			}
 
 			image_data = image_data_cache;
-			//image_data = (uint32_t*)driver_malloc(image_data_size);
 
 			// convert source data
 			if (image_data != NULL) convert_image_data(VREF(tex_header, image_data), image_data, w, h, tex_format, invert_alpha, color_key, palette_offset, reference_alpha);
@@ -1872,11 +1859,6 @@ struct texture_set *common_load_texture(struct texture_set *_texture_set, struct
 				// commit PBO and populate texture set
 				gl_upload_texture(_texture_set, VREF(tex_header, palette_index), image_data, RendererTextureType::BGRA);
 			}
-
-			// free the memory buffer
-			//driver_free(image_data);
-		} else {
-			//ffnx_trace("%s: no upload because palette index %d\n", __func__, VREF(texture_set, texturehandle[VREF(tex_header, palette_index)]));
 		}
 	}
 	else ffnx_unexpected("no texture format specified or no source data\n");
@@ -1991,9 +1973,6 @@ uint32_t common_write_palette(uint32_t source_offset, uint32_t size, void *sourc
 
 				memset(VREFP(texture_set, texturehandle[palette_index]), 0, palettes * sizeof(uint32_t));
 			}
-
-			// this texture changes in time, flag this as animated
-			VRASS(texture_set, ogl.gl_set->is_animated, enable_animated_textures && mode->driver_mode == MODE_FIELD && (std::find(disable_animated_textures_on_field.begin(), disable_animated_textures_on_field.end(), get_current_field_name()) == disable_animated_textures_on_field.end()));
 
 			stats.texture_reloads++;
 		}
@@ -3353,8 +3332,6 @@ void ffnx_inject_driver(struct game_obj* game_object)
 
 void drawFFNxLogo(struct game_obj* game_object)
 {
-	return;
-
 	VOBJ(game_obj, game_object, game_object);
 
 	static time_t last_gametime;
