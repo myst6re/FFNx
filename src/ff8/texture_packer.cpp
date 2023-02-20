@@ -152,16 +152,18 @@ void TexturePacker::setTexture(const char *name, int x, int y, int w, int h, Tim
 	setVramTextureId(textureId, x, y, w, h);
 }
 
-void TexturePacker::setTextureBackground(const char *name, int x, int y, int w, int h, const std::vector<Tile> &mapTiles)
+bool TexturePacker::setTextureBackground(const char *name, int x, int y, int w, int h, const std::vector<Tile> &mapTiles, int bgTexId)
 {
-	if (trace_all || trace_vram) ffnx_trace("TexturePacker::%s %s x=%d y=%d w=%d h=%d tileCount=%d\n", __func__, name, x, y, w, h, mapTiles.size());
+	if (trace_all || trace_vram) ffnx_trace("TexturePacker::%s %s x=%d y=%d w=%d h=%d tileCount=%d bgTexId=%d\n", __func__, name, x, y, w, h, mapTiles.size(), bgTexId);
 
-	TextureBackground tex(name, x, y, w, h, mapTiles);
+	TextureBackground tex(name, x, y, w, h, mapTiles, bgTexId);
 	ModdedTextureId textureId = makeTextureId(x, y);
+	bool imageFound = false;
 
 	if (tex.createImage())
 	{
 		_backgroundTextures[textureId] = tex;
+		imageFound = true;
 	}
 	else
 	{
@@ -169,6 +171,8 @@ void TexturePacker::setTextureBackground(const char *name, int x, int y, int w, 
 	}
 
 	setVramTextureId(textureId, x, y, w, h);
+
+	return imageFound;
 }
 
 bool TexturePacker::setTextureRedirection(const TextureInfos &oldTexture, const TextureInfos &newTexture, uint32_t *imageData)
@@ -631,20 +635,23 @@ TexturePacker::TextureBackground::TextureBackground() :
 TexturePacker::TextureBackground::TextureBackground(
 	const char *name,
 	int x, int y, int w, int h,
-	const std::vector<Tile> &mapTiles
-) : Texture(name, x, y, w, h, Tim::Bpp16), _mapTiles(mapTiles)
+	const std::vector<Tile> &mapTiles,
+	int textureId
+) : Texture(name, x, y, w, h, Tim::Bpp16), _mapTiles(mapTiles), _textureId(textureId)
 {
 	// Build tileIdsByPosition for fast lookup
 	_tileIdsByPosition.reserve(mapTiles.size());
 	size_t tileId = 0;
 	for (const Tile &tile: mapTiles) {
-		const uint8_t textureId = tile.texID & 0xF;
-		const uint16_t key = uint16_t(textureId) | (uint16_t(tile.srcX / TILE_SIZE) << 4) | (uint16_t(tile.srcY / TILE_SIZE) << 8) | (((uint16_t(tile.texID) >> 7) & 3) << 12);
+		const uint8_t texId = tile.texID & 0xF;
+		if (_textureId < 0 || _textureId == texId) {
+			const uint16_t key = uint16_t(texId) | (uint16_t(tile.srcX / TILE_SIZE) << 4) | (uint16_t(tile.srcY / TILE_SIZE) << 8) | (((uint16_t(tile.texID) >> 7) & 3) << 12);
 
-		auto it = _tileIdsByPosition.find(key);
-		// Remove some duplicates (but keep those which render differently)
-		if (it == _tileIdsByPosition.end() || ! ff8_background_tiles_looks_alike(tile, mapTiles.at(it->second))) {
-			_tileIdsByPosition.insert(std::pair<uint16_t, size_t>(key, tileId));
+			auto it = _tileIdsByPosition.find(key);
+			// Remove some duplicates (but keep those which render differently)
+			if (it == _tileIdsByPosition.end() || ! ff8_background_tiles_looks_alike(tile, mapTiles.at(it->second))) {
+				_tileIdsByPosition.insert(std::pair<uint16_t, size_t>(key, tileId));
+			}
 		}
 		++tileId;
 	}
@@ -656,6 +663,12 @@ void TexturePacker::TextureBackground::copyRect(int sourceXBpp2, int sourceY, Ti
 	const uint8_t textureId = sourceXBpp2 / TEXTURE_WIDTH_BPP16;
 	const uint16_t sourceX = (sourceXBpp2 % TEXTURE_WIDTH_BPP16) << (2 - int(textureBpp));
 	const uint16_t key = uint16_t(textureId) | (uint16_t(sourceX / TILE_SIZE) << 4) | (uint16_t(sourceY / TILE_SIZE) << 8) | (uint16_t(textureBpp) << 12);
+
+	if (_textureId >= 0 && _textureId != textureId) {
+		ffnx_warning("%s: Inconsistent texture id %d %d\n", __func__, textureId, _textureId);
+
+		return;
+	}
 
 	auto [begin, end] = _tileIdsByPosition.equal_range(key);
 	if (begin == end) {
@@ -691,7 +704,8 @@ void TexturePacker::TextureBackground::copyRect(int sourceXBpp2, int sourceY, Ti
 
 		const Tim::Bpp bpp = Tim::Bpp((tile.texID >> 7) & 3);
 		const int col = tileId % _colsCount, row = tileId / _colsCount;
-		const int imageXBpp2 = col * TILE_SIZE / (4 >> int(bpp)) + sourceXBpp2 % (4 << int(bpp)), imageY = row * TILE_SIZE + sourceY % TILE_SIZE;
+		const int srcX = _textureId >= 0 ? tile.srcX : col * TILE_SIZE, srcY = _textureId >= 0 ? tile.srcY : row * TILE_SIZE;
+		const int imageXBpp2 = srcX / (4 >> int(bpp)) + sourceXBpp2 % (4 << int(bpp)), imageY = srcY + sourceY % TILE_SIZE;
 
 		TextureInfos::copyRect(
 			(const uint32_t *)image()->m_data, imageXBpp2, imageY, image()->m_width, scale(), bpp,
@@ -708,7 +722,9 @@ void TexturePacker::TextureBackground::copyRect(int sourceXBpp2, int sourceY, Ti
 
 uint8_t TexturePacker::TextureBackground::computeScale() const
 {
-	return TextureInfos::computeScale(_colsCount * TILE_SIZE, TEXTURE_HEIGHT, image()->m_width, image()->m_height);
+	return _textureId >= 0
+		? TextureInfos::computeScale(TEXTURE_HEIGHT, TEXTURE_HEIGHT, image()->m_height, image()->m_height)
+		: TextureInfos::computeScale(_colsCount * TILE_SIZE, TEXTURE_HEIGHT, image()->m_width, image()->m_height);
 }
 
 TexturePacker::TiledTex::TiledTex()

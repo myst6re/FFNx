@@ -92,7 +92,7 @@ public:
 	}
 	void uploadTexture(const uint8_t *texture, int x, int y, int w, int h);
 	void setTexture(const char *name, int x, int y, int w, int h, Tim::Bpp bpp, bool isPal);
-	void setTextureBackground(const char *name, int x, int y, int w, int h, const std::vector<Tile> &mapTiles);
+	bool setTextureBackground(const char *name, int x, int y, int w, int h, const std::vector<Tile> &mapTiles, int bgTexId = -1);
 	// Override a part of the VRAM from another part of the VRAM, typically with biggest textures (Worldmap)
 	bool setTextureRedirection(const TextureInfos &oldTexture, const TextureInfos &newTexture, uint32_t *imageData);
 	uint8_t getMaxScale(const uint8_t *texData) const;
@@ -149,7 +149,8 @@ private:
 		TextureBackground(
 			const char *name,
 			int x, int y, int w, int h,
-			const std::vector<Tile> &mapTiles
+			const std::vector<Tile> &mapTiles,
+			int textureId
 		);
 		bool createImage() {
 			return Texture::createImage(0, false);
@@ -160,6 +161,7 @@ private:
 		std::vector<Tile> _mapTiles;
 		std::unordered_multimap<uint16_t, size_t> _tileIdsByPosition;
 		uint8_t _colsCount;
+		int _textureId;
 	};
 	struct TiledTex {
 		TiledTex();

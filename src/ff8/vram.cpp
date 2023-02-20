@@ -445,7 +445,13 @@ uint32_t ff8_field_read_map_data(char *filename, uint8_t *map_data)
 		ff8_background_save_textures(tiles, mim_texture_buffer, tex_filename);
 	}
 
-	texturePacker.setTextureBackground(tex_filename, 0, 256, VRAM_PAGE_MIM_MAX_COUNT * TEXTURE_WIDTH_BPP16, TEXTURE_HEIGHT, tiles);
+	if (!texturePacker.setTextureBackground(tex_filename, 0, 256, VRAM_PAGE_MIM_MAX_COUNT * TEXTURE_WIDTH_BPP16, TEXTURE_HEIGHT, tiles)) {
+		for (int i = 0; i < VRAM_PAGE_MIM_MAX_COUNT; ++i) {
+			snprintf(tex_filename, MAX_PATH, "field/mapdata/%s/%s_%d", get_current_field_name(), get_current_field_name(), i);
+
+			texturePacker.setTextureBackground(tex_filename, i * TEXTURE_WIDTH_BPP16, 256, TEXTURE_WIDTH_BPP16, TEXTURE_HEIGHT, tiles, i);
+		}
+	}
 
 	return ret;
 }
