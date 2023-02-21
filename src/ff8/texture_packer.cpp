@@ -136,7 +136,9 @@ void TexturePacker::setTexture(const char *name, int x, int y, int w, int h, Tim
 
 	if (hasNamedTexture && !isPal)
 	{
+		ffnx_info("here");
 		Texture tex(name, x, y, w, h, bpp);
+		ffnx_info("here2");
 		textureId = makeTextureId(x, y);
 
 		if (tex.createImage())
@@ -475,46 +477,6 @@ TexturePacker::TextureInfos::TextureInfos(
 {
 }
 
-bimg::ImageContainer *TexturePacker::TextureInfos::createImageContainer(const char *name, uint8_t palette_index, bool hasPal)
-{
-	char filename[MAX_PATH] = {}, langPath[16] = {};
-
-	if(trace_all || trace_loaders || trace_vram) ffnx_trace("texture file name (VRAM): %s\n", name);
-
-	if(save_textures) return nullptr;
-
-	ff8_fs_lang_string(langPath);
-	strcat(langPath, "/");
-
-	for (uint8_t lang = 0; lang < 2; lang++)
-	{
-		for (size_t idx = 0; idx < mod_ext.size(); idx++)
-		{
-			if (hasPal) {
-				_snprintf(filename, sizeof(filename), "%s/%s/%s%s_%02i.%s", basedir, mod_path.c_str(), langPath, name, palette_index, mod_ext[idx].c_str());
-			} else {
-				_snprintf(filename, sizeof(filename), "%s/%s/%s%s.%s", basedir, mod_path.c_str(), langPath, name, mod_ext[idx].c_str());
-			}
-			bimg::ImageContainer *image = newRenderer.createImageContainer(filename, bimg::TextureFormat::BGRA8);
-
-			if (image != nullptr)
-			{
-				if (trace_all || trace_loaders || trace_vram) ffnx_trace("Using texture: %s\n", filename);
-
-				return image;
-			}
-			else if (trace_all || trace_loaders || trace_vram)
-			{
-				ffnx_warning("Texture does not exist, skipping: %s\n", filename);
-			}
-		}
-
-		*langPath = '\0';
-	}
-
-	return nullptr;
-}
-
 uint8_t TexturePacker::TextureInfos::computeScale(int sourcePixelW, int sourceH, int targetPixelW, int targetH)
 {
 	if (targetPixelW < sourcePixelW
@@ -568,8 +530,70 @@ void TexturePacker::TextureInfos::copyRect(
 	}
 }
 
+TexturePacker::Image::Image() :
+	_image(nullptr),
+	_dataPng(nullptr), _dataPngSize(0), _widthPng(0), _heightPng(0)
+{
+}
+
+TexturePacker::Image::Image(const char *filename) :
+	_image(newRenderer.createImageContainer(filename, bimg::TextureFormat::BGRA8)),
+	_dataPng(nullptr), _dataPngSize(0), _widthPng(0), _heightPng(0)
+{
+}
+
+TexturePacker::Image::Image(uint8_t *data, size_t size, uint32_t width, uint32_t height) :
+	_image(nullptr),
+	_dataPng(data), _dataPngSize(size), _widthPng(width), _heightPng(height)
+{
+}
+
+TexturePacker::Image TexturePacker::Image::fromPng(const char *filename)
+{
+	uint32_t width, height;
+	uint8_t bitDepth, colorType;
+	size_t dataSize;
+
+	uint8_t *data = newRenderer.openPngFast(filename, &width, &height, &bitDepth, &colorType, &dataSize);
+
+	if (bitDepth != 8 || (colorType != PNG_COLOR_TYPE_RGBA && colorType != PNG_COLOR_TYPE_PALETTE)) {
+		ffnx_warning("%s: Unsupported PNG format, only RGBA format is supported\n", __func__);
+
+		return Image(filename);
+	}
+
+	return Image(data, dataSize, width, height);
+}
+
+void TexturePacker::Image::clear()
+{
+	if (_image != nullptr) {
+		bimg::imageFree(_image);
+		_image = nullptr;
+	}
+	if (_dataPng != nullptr) {
+		driver_free(_dataPng);
+		_dataPng = nullptr;
+	}
+}
+
+const uint32_t *TexturePacker::Image::data() const
+{
+	return _image != nullptr ? (uint32_t *)_image->m_data : (uint32_t *)_dataPng;
+}
+
+uint32_t TexturePacker::Image::width() const
+{
+	return _image != nullptr ? _image->m_width : _widthPng;
+}
+
+uint32_t TexturePacker::Image::height() const
+{
+	return _image != nullptr ? _image->m_height : _heightPng;
+}
+
 TexturePacker::Texture::Texture() :
-	TextureInfos(), _image(nullptr), _name(""), _scale(1)
+	TextureInfos(), _name(""), _scale(1)
 {
 }
 
@@ -577,17 +601,61 @@ TexturePacker::Texture::Texture(
 	const char *name,
 	int x, int y, int w, int h,
 	Tim::Bpp bpp
-) : TextureInfos(x, y, w, h, bpp), _image(nullptr), _name(name), _scale(1)
+) : TextureInfos(x, y, w, h, bpp), _name(name), _scale(1)
 {
+}
+
+TexturePacker::Image TexturePacker::Texture::createImageContainer(const char *name, uint8_t palette_index, bool hasPal)
+{
+	char filename[MAX_PATH] = {}, langPath[16] = {};
+
+	if(trace_all || trace_loaders || trace_vram) ffnx_trace("texture file name (VRAM): %s\n", name);
+
+	if(save_textures) return Image();
+
+	ff8_fs_lang_string(langPath);
+	strcat(langPath, "/");
+
+	for (uint8_t lang = 0; lang < 2; lang++)
+	{
+		for (size_t idx = 0; idx < mod_ext.size(); idx++)
+		{
+			if (hasPal) {
+				_snprintf(filename, sizeof(filename), "%s/%s/%s%s_%02i.%s", basedir, mod_path.c_str(), langPath, name, palette_index, mod_ext[idx].c_str());
+			} else {
+				_snprintf(filename, sizeof(filename), "%s/%s/%s%s.%s", basedir, mod_path.c_str(), langPath, name, mod_ext[idx].c_str());
+			}
+			Image image = Image(filename);
+
+			if (image.isValid())
+			{
+				if (trace_all || trace_loaders || trace_vram) ffnx_trace("Using texture: %s\n", filename);
+
+				return image;
+			}
+			else if (trace_all || trace_loaders || trace_vram)
+			{
+				ffnx_warning("Texture does not exist, skipping: %s\n", filename);
+			}
+		}
+
+		*langPath = '\0';
+	}
+
+	return Image();
 }
 
 bool TexturePacker::Texture::createImage(uint8_t palette_index, bool has_pal)
 {
 	char filename[MAX_PATH], langPath[16] = {};
 
+	ffnx_info("here3");
+
 	_image = createImageContainer(_name.c_str(), palette_index, has_pal);
 
-	if (_image == nullptr)
+	ffnx_info("here4");
+
+	if (!_image.isValid())
 	{
 		return false;
 	}
@@ -608,21 +676,18 @@ bool TexturePacker::Texture::createImage(uint8_t palette_index, bool has_pal)
 
 void TexturePacker::Texture::destroyImage()
 {
-	if (_image != nullptr) {
-		bimg::imageFree(_image);
-		_image = nullptr;
-	}
+	_image.clear();
 }
 
 uint8_t TexturePacker::Texture::computeScale() const
 {
-	return TextureInfos::computeScale(pixelW(), h(), _image->m_width, _image->m_height);
+	return TextureInfos::computeScale(pixelW(), h(), _image.width(), _image.height());
 }
 
 void TexturePacker::Texture::copyRect(int sourceXBpp2, int sourceY, uint32_t *target, int targetX, int targetY, int targetW, uint8_t targetScale) const
 {
 	TextureInfos::copyRect(
-		(const uint32_t *)_image->m_data, sourceXBpp2, sourceY, _image->m_width, _scale, bpp(),
+		_image.data(), sourceXBpp2, sourceY, _image.width(), _scale, bpp(),
 		target, targetX, targetY, targetW, targetScale
 	);
 }
@@ -708,7 +773,7 @@ void TexturePacker::TextureBackground::copyRect(int sourceXBpp2, int sourceY, Ti
 		const int imageXBpp2 = srcX / (4 >> int(bpp)) + sourceXBpp2 % (4 << int(bpp)), imageY = srcY + sourceY % TILE_SIZE;
 
 		TextureInfos::copyRect(
-			(const uint32_t *)image()->m_data, imageXBpp2, imageY, image()->m_width, scale(), bpp,
+			image().data(), imageXBpp2, imageY, image().width(), scale(), bpp,
 			target, targetX, targetY, targetW, targetScale
 		);
 
@@ -723,8 +788,8 @@ void TexturePacker::TextureBackground::copyRect(int sourceXBpp2, int sourceY, Ti
 uint8_t TexturePacker::TextureBackground::computeScale() const
 {
 	return _textureId >= 0
-		? TextureInfos::computeScale(TEXTURE_HEIGHT, TEXTURE_HEIGHT, image()->m_height, image()->m_height)
-		: TextureInfos::computeScale(_colsCount * TILE_SIZE, TEXTURE_HEIGHT, image()->m_width, image()->m_height);
+		? TextureInfos::computeScale(TEXTURE_HEIGHT, TEXTURE_HEIGHT, image().height(), image().height())
+		: TextureInfos::computeScale(_colsCount * TILE_SIZE, TEXTURE_HEIGHT, image().width(), image().height());
 }
 
 TexturePacker::TiledTex::TiledTex()

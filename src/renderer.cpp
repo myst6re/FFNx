@@ -1599,177 +1599,193 @@ bgfx::TextureHandle Renderer::createTextureHandle(cmrc::file* file, char* filena
     return ret;
 }
 
-uint32_t Renderer::createTextureLibPng(char* filename, uint32_t* width, uint32_t* height, bool isSrgb)
+uint8_t* Renderer::openPngFast(const char* filename, uint32_t* width, uint32_t* height, uint8_t* bit_depth, uint8_t* color_type, size_t *_datasize)
 {
-    bgfx::TextureHandle ret = FFNX_RENDERER_INVALID_HANDLE;
-
     FILE* file = fopen(filename, "rb");
 
-    if (file)
+    if (!file)
     {
-        png_infop info_ptr = nullptr;
-        png_structp png_ptr = nullptr;
+        return nullptr;
+    }
 
-        png_uint_32 _width = 0, _height = 0;
-        png_byte color_type = 0, bit_depth = 0;
+    png_infop info_ptr = nullptr;
+    png_structp png_ptr = nullptr;
 
-        png_bytepp rowptrs = nullptr;
-        size_t rowbytes = 0;
+    png_bytepp rowptrs = nullptr;
+    size_t rowbytes = 0;
 
-        uint8_t* data = nullptr;
-        size_t datasize = 0;
+    uint8_t* data = nullptr;
+    size_t datasize = 0;
 
-        fseek(file, 0, SEEK_END);
-        datasize = ftell(file);
-        fseek(file, 0, SEEK_SET);
+    fseek(file, 0, SEEK_END);
+    datasize = ftell(file);
+    fseek(file, 0, SEEK_SET);
 
-        png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, (png_voidp)0, RendererLibPngErrorCb, RendererLibPngWarningCb);
+    png_ptr = png_create_read_struct(PNG_LIBPNG_VER_STRING, (png_voidp)0, RendererLibPngErrorCb, RendererLibPngWarningCb);
 
-        if (!png_ptr)
-        {
-            fclose(file);
+    if (!png_ptr)
+    {
+        fclose(file);
 
-            return ret.idx;
-        }
+        return nullptr;
+    }
 
-        info_ptr = png_create_info_struct(png_ptr);
+    info_ptr = png_create_info_struct(png_ptr);
 
-        if (!info_ptr)
-        {
-            png_destroy_read_struct(&png_ptr, (png_infopp)NULL, (png_infopp)NULL);
+    if (!info_ptr)
+    {
+        png_destroy_read_struct(&png_ptr, (png_infopp)NULL, (png_infopp)NULL);
 
-            fclose(file);
+        fclose(file);
 
-            return ret.idx;
-        }
+        return nullptr;
+    }
 
-        if (setjmp(png_jmpbuf(png_ptr)))
-        {
-            png_destroy_read_struct(&png_ptr, &info_ptr, (png_infopp)NULL);
-
-            fclose(file);
-
-            return ret.idx;
-        }
-
-        png_init_io(png_ptr, file);
-
-        png_set_filter(png_ptr, 0, PNG_FILTER_NONE);
-
-        if (!doesItFitInMemory(datasize))
-        {
-            png_destroy_read_struct(&png_ptr, &info_ptr, (png_infopp)NULL);
-
-            fclose(file);
-
-            return ret.idx;
-        }
-
-        png_read_png(png_ptr, info_ptr, PNG_TRANSFORM_EXPAND, NULL);
-
-        color_type = png_get_color_type(png_ptr, info_ptr);
-        bit_depth = png_get_bit_depth(png_ptr, info_ptr);
-        _width = png_get_image_width(png_ptr, info_ptr);
-        _height = png_get_image_height(png_ptr, info_ptr);
-
-        rowptrs = png_get_rows(png_ptr, info_ptr);
-        rowbytes = png_get_rowbytes(png_ptr, info_ptr);
-
-        datasize = rowbytes * _height;
-
-        if (!doesItFitInMemory(datasize))
-        {
-            png_destroy_read_struct(&png_ptr, &info_ptr, (png_infopp)NULL);
-
-            fclose(file);
-
-            return ret.idx;
-        }
-
-        data = (uint8_t*)driver_calloc(datasize, sizeof(uint8_t));
-
-        for (png_uint_32 y = 0; y < _height; y++) memcpy(data + (rowbytes * y), rowptrs[y], rowbytes);
-
+    if (setjmp(png_jmpbuf(png_ptr)))
+    {
         png_destroy_read_struct(&png_ptr, &info_ptr, (png_infopp)NULL);
 
         fclose(file);
 
-        // ------------------------------------------------------------
-
-        bgfx::TextureFormat::Enum texFmt = bgfx::TextureFormat::Unknown;
-
-        switch (bit_depth)
-        {
-        case 8:
-        {
-            switch (color_type)
-            {
-            case PNG_COLOR_TYPE_GRAY:
-                texFmt = bgfx::TextureFormat::R8;
-                break;
-            case PNG_COLOR_TYPE_GRAY_ALPHA:
-                texFmt = bgfx::TextureFormat::RG8;
-                break;
-            case PNG_COLOR_TYPE_RGB:
-                texFmt = bgfx::TextureFormat::RGB8;
-                break;
-            case PNG_COLOR_TYPE_RGBA:
-            case PNG_COLOR_TYPE_PALETTE:
-                texFmt = bgfx::TextureFormat::RGBA8;
-                break;
-            }
-            break;
-        }
-        case 16:
-        {
-            switch (color_type)
-            {
-            case PNG_COLOR_TYPE_GRAY:
-                texFmt = bgfx::TextureFormat::R16;
-                break;
-            case PNG_COLOR_TYPE_GRAY_ALPHA:
-                texFmt = bgfx::TextureFormat::RG16;
-                break;
-            case PNG_COLOR_TYPE_RGB:
-            case PNG_COLOR_TYPE_RGBA:
-                texFmt = bgfx::TextureFormat::RGBA16;
-                break;
-            case PNG_COLOR_TYPE_PALETTE:
-                break;
-            }
-            break;
-        }
-        default:
-            break;
-        }
-
-        if (texFmt != bgfx::TextureFormat::Unknown)
-        {
-            const bgfx::Memory* mem = bgfx::makeRef(data, datasize, RendererReleaseData, data);
-
-            uint64_t flags = BGFX_SAMPLER_NONE;
-
-            if (isSrgb) flags |= BGFX_TEXTURE_SRGB;
-            else flags |= BGFX_TEXTURE_NONE;
-
-            ret = bgfx::createTexture2D(
-                _width,
-                _height,
-                false,
-                1,
-                texFmt,
-                flags,
-                mem
-            );
-
-            *width = _width;
-            *height = _height;
-        }
-        else
-            driver_free(data);
-
-        if (trace_all || trace_renderer) ffnx_trace("Renderer::%s: %u => %ux%u from filename %s\n", __func__, ret.idx, width, height, filename);
+        return nullptr;
     }
+
+    png_init_io(png_ptr, file);
+
+    png_set_filter(png_ptr, 0, PNG_FILTER_NONE);
+
+    if (!doesItFitInMemory(datasize))
+    {
+        png_destroy_read_struct(&png_ptr, &info_ptr, (png_infopp)NULL);
+
+        fclose(file);
+
+        return nullptr;
+    }
+
+    png_read_png(png_ptr, info_ptr, PNG_TRANSFORM_EXPAND, NULL);
+
+    *color_type = png_get_color_type(png_ptr, info_ptr);
+    *bit_depth = png_get_bit_depth(png_ptr, info_ptr);
+    *width = png_get_image_width(png_ptr, info_ptr);
+    *height = png_get_image_height(png_ptr, info_ptr);
+
+    rowptrs = png_get_rows(png_ptr, info_ptr);
+    rowbytes = png_get_rowbytes(png_ptr, info_ptr);
+
+    *_datasize = rowbytes * (*height);
+
+    if (!doesItFitInMemory(*_datasize))
+    {
+        png_destroy_read_struct(&png_ptr, &info_ptr, (png_infopp)NULL);
+
+        fclose(file);
+
+        return nullptr;
+    }
+
+    data = (uint8_t*)driver_calloc(*_datasize, sizeof(uint8_t));
+
+    for (png_uint_32 y = 0; y < *height; y++) memcpy(data + (rowbytes * y), rowptrs[y], rowbytes);
+
+    png_destroy_read_struct(&png_ptr, &info_ptr, (png_infopp)NULL);
+
+    fclose(file);
+
+    return data;
+}
+
+uint32_t Renderer::createTextureLibPng(const char* filename, uint32_t* width, uint32_t* height, bool isSrgb)
+{
+    bgfx::TextureHandle ret = FFNX_RENDERER_INVALID_HANDLE;
+
+    png_uint_32 _width = 0, _height = 0;
+    png_byte color_type = 0, bit_depth = 0;
+
+    size_t datasize = 0;
+
+    uint8_t* data = openPngFast(filename, &_width, &_height, &bit_depth, &color_type, &datasize);
+
+    if (!data)
+    {
+        return ret.idx;
+    }
+
+    // ------------------------------------------------------------
+
+    bgfx::TextureFormat::Enum texFmt = bgfx::TextureFormat::Unknown;
+
+    switch (bit_depth)
+    {
+    case 8:
+    {
+        switch (color_type)
+        {
+        case PNG_COLOR_TYPE_GRAY:
+            texFmt = bgfx::TextureFormat::R8;
+            break;
+        case PNG_COLOR_TYPE_GRAY_ALPHA:
+            texFmt = bgfx::TextureFormat::RG8;
+            break;
+        case PNG_COLOR_TYPE_RGB:
+            texFmt = bgfx::TextureFormat::RGB8;
+            break;
+        case PNG_COLOR_TYPE_RGBA:
+        case PNG_COLOR_TYPE_PALETTE:
+            texFmt = bgfx::TextureFormat::RGBA8;
+            break;
+        }
+        break;
+    }
+    case 16:
+    {
+        switch (color_type)
+        {
+        case PNG_COLOR_TYPE_GRAY:
+            texFmt = bgfx::TextureFormat::R16;
+            break;
+        case PNG_COLOR_TYPE_GRAY_ALPHA:
+            texFmt = bgfx::TextureFormat::RG16;
+            break;
+        case PNG_COLOR_TYPE_RGB:
+        case PNG_COLOR_TYPE_RGBA:
+            texFmt = bgfx::TextureFormat::RGBA16;
+            break;
+        case PNG_COLOR_TYPE_PALETTE:
+            break;
+        }
+        break;
+    }
+    default:
+        break;
+    }
+
+    if (texFmt != bgfx::TextureFormat::Unknown)
+    {
+        const bgfx::Memory* mem = bgfx::makeRef(data, datasize, RendererReleaseData, data);
+
+        uint64_t flags = BGFX_SAMPLER_NONE;
+
+        if (isSrgb) flags |= BGFX_TEXTURE_SRGB;
+        else flags |= BGFX_TEXTURE_NONE;
+
+        ret = bgfx::createTexture2D(
+            _width,
+            _height,
+            false,
+            1,
+            texFmt,
+            flags,
+            mem
+        );
+
+        *width = _width;
+        *height = _height;
+    }
+    else
+        driver_free(data);
+
+    if (trace_all || trace_renderer) ffnx_trace("Renderer::%s: %u => %ux%u from filename %s\n", __func__, ret.idx, width, height, filename);
 
     return ret.idx;
 }

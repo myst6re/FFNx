@@ -68,7 +68,6 @@ public:
 			return _bpp;
 		}
 	protected:
-		static bimg::ImageContainer *createImageContainer(const char *name, uint8_t palette_index, bool hasPal);
 		static uint8_t computeScale(int sourcePixelW, int sourceH, int targetPixelW, int targetH);
 		static void copyRect(
 			const uint32_t *sourceRGBA, int sourceXBpp2, int sourceYBpp2, int sourceW, uint8_t sourceScale, Tim::Bpp sourceDepth,
@@ -110,6 +109,25 @@ private:
 	inline static ModdedTextureId makeTextureId(int x, int y) {
 		return x + y * VRAM_WIDTH;
 	}
+	class Image {
+	public:
+		Image();
+		explicit Image(const char *filename);
+		static Image fromPng(const char *filename);
+		void clear();
+		bool isValid() const {
+			return _image != nullptr || _dataPng != nullptr;
+		}
+		const uint32_t *data() const;
+		uint32_t width() const;
+		uint32_t height() const;
+	private:
+		Image(uint8_t *data, size_t size, uint32_t width, uint32_t height);
+		bimg::ImageContainer *_image;
+		uint8_t *_dataPng;
+		size_t _dataPngSize;
+		uint32_t _widthPng, _heightPng;
+	};
 	class Texture : public TextureInfos {
 	public:
 		Texture();
@@ -127,19 +145,20 @@ private:
 		bool createImage(uint8_t palette_index = 0, bool has_pal = true);
 		void destroyImage();
 		inline bool hasImage() const {
-			return _image != nullptr;
+			return _image.isValid();
 		}
 		inline bool isValid() const {
 			return _scale != 0;
 		}
 		void copyRect(int sourceXBpp2, int sourceYBpp2, uint32_t *target, int targetX, int targetY, int targetW, uint8_t targetScale) const;
 	protected:
-		const bimg::ImageContainer *image() const {
+		const Image &image() const {
 			return _image;
 		}
 		virtual uint8_t computeScale() const;
 	private:
-		bimg::ImageContainer *_image;
+		static Image createImageContainer(const char *name, uint8_t palette_index, bool hasPal);
+		Image _image;
 		std::string _name;
 		uint8_t _scale;
 	};

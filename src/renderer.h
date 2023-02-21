@@ -382,7 +382,8 @@ public:
     bimg::ImageContainer* createImageContainer(cmrc::file* file, bimg::TextureFormat::Enum targetFormat = bimg::TextureFormat::Enum::UnknownDepth);
     bgfx::TextureHandle createTextureHandle(char* filename, uint32_t* width, uint32_t* height, uint32_t* mipCount, bool isSrgb = true);
     bgfx::TextureHandle createTextureHandle(cmrc::file* file, char* filename, uint32_t* width, uint32_t* height, uint32_t* mipCount, bool isSrgb = true);
-    uint32_t createTextureLibPng(char* filename, uint32_t* width, uint32_t* height, bool isSrgb = true);
+    uint8_t* openPngFast(const char* filename, uint32_t* width, uint32_t* height, uint8_t* bit_depth, uint8_t* color_type, size_t *_datasize);
+    uint32_t createTextureLibPng(const char* filename, uint32_t* width, uint32_t* height, bool isSrgb = true);
     bool saveTexture(const char* filename, uint32_t width, uint32_t height, const void* data);
     void deleteTexture(uint16_t texId);
     void useTexture(uint16_t texId, uint32_t slot = 0);
