@@ -50,13 +50,15 @@ public:
 			suppressOpeningSilence(false),
 			fadetime(0.0),
 			targetVolume(-1.0f),
-			format("")
+			format(""),
+			stream(nullptr)
 		{}
 		SoLoud::time offsetSeconds;
 		bool noIntro, sync, useNameAsFullPath, suppressOpeningSilence;
 		SoLoud::time fadetime;
 		float targetVolume;
 		char format[12];
+		STREAMFILE *stream;
 	};
 
 	struct NxAudioEngineSFX
@@ -188,6 +190,7 @@ private:
 
 	void cleanOldAudioSources();
 	SoLoud::AudioSource* loadMusic(const char* name, bool isFullPath = false, const char* format = nullptr, bool suppressOpeningSilence = false);
+	SoLoud::AudioSource* loadMusicFromStream(const char* name, const char* format, STREAMFILE *stream);
 	void overloadPlayArgumentsFromConfig(char* name, uint32_t *id, MusicOptions *MusicOptions);
 	void backupMusic(int channelSource);
 	void restoreMusic(int channelDest, double stopTime = 0);

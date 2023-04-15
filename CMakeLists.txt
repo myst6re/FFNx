@@ -63,6 +63,7 @@ endif()
 project(FFNx)
 
 find_package(ZLIB REQUIRED)
+find_package(LZ4 REQUIRED)
 find_package(BX REQUIRED)
 find_package(BIMG REQUIRED)
 find_package(BGFX REQUIRED)
@@ -130,6 +131,7 @@ target_link_libraries(
   XINPUT9_1_0
   strmiids
   ZLIB::ZLIB
+  lz4::lz4
   png_static
   mimalloc-static
   imgui::imgui

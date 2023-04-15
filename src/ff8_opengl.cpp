@@ -579,12 +579,25 @@ void ff8_init_hooks(struct game_obj *_game_object)
 	replace_function(common_externals.open_file, ff8_open_file);
 	replace_call(uint32_t(ff8_externals.fs_archive_search_filename) + 0x10, ff8_fs_archive_search_filename2);
 	// Search file in temp.fs archive (field)
-	replace_call(ff8_externals.moriya_filesytem_open + 0x776, ff8_fs_archive_search_filename_sub_archive);
+	replace_call(ff8_externals.moriya_filesystem_open + 0x776, ff8_fs_archive_search_filename_sub_archive);
 	// Search file in FS archive
-	replace_call(ff8_externals.moriya_filesytem_open + 0x83C, ff8_fs_archive_search_filename_sub_archive);
+	replace_call(ff8_externals.moriya_filesystem_open + 0x83C, ff8_fs_archive_search_filename_sub_archive);
 	replace_function(ff8_externals._open, ff8_open);
 	replace_function(ff8_externals.fopen, ff8_fopen);
-	replace_call(ff8_externals.moriya_filesytem_close + 0x1F, ff8_fs_archive_free_file_container_sub_archive);
+	if (remastered_edition) {
+		replace_function(uint32_t(ff8_externals._lseek), ff8_lseek);
+		replace_function(uint32_t(ff8_externals._read), ff8_read);
+		replace_function(uint32_t(ff8_externals._write), ff8_write);
+		replace_function(uint32_t(ff8_externals._close), ff8_close);
+		replace_function(uint32_t(ff8_externals._filelength), ff8_filelength);
+	}
+	replace_call(ff8_externals.moriya_filesystem_close + 0x1F, ff8_fs_archive_free_file_container_sub_archive);
+	// Adding LZ4 support to FS archives
+	ff8_fs_archive_read_or_uncompress_data_replace_id = replace_function(ff8_externals.read_or_uncompress_fs_data, ff8_fs_archive_read_or_uncompress_data);
+	if (remastered_edition)
+	{
+		replace_function(ff8_externals.field_filename_concat_extension, ff8_fs_archive_field_concat_extension);
+	}
 
 	ff8_read_file = (uint32_t(*)(uint32_t, void *, struct ff8_file *))common_externals.read_file;
 	ff8_close_file = (void (*)(struct ff8_file *))common_externals.close_file;
@@ -678,7 +691,7 @@ void ff8_init_hooks(struct game_obj *_game_object)
 	// Add FFNx Logo
 	replace_call(ff8_externals.credits_main_loop + 0x6D, ff8_credits_main_loop_gfx_begin_scene);
 
-	if (!steam_edition) {
+	if (!steam_edition && !remastered_edition) {
 		// Look again with the DataDrive specified in the register
 		replace_call(ff8_externals.get_disk_number + 0x6E, ff8_retry_configured_drive);
 		replace_call(ff8_externals.cdcheck_sub_52F9E0 + 0x15E, ff8_retry_configured_drive);

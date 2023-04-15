@@ -60,7 +60,8 @@
         "tools"
       ]
     },
-    "cmakerc"
+    "cmakerc",
+    "lz4"
   ],
   "overrides": [
     {
@@ -137,6 +138,11 @@
       "name": "cmakerc",
       "version": "2022-09-08",
       "port-version": 0
+    },
+    {
+      "name": "lz4",
+      "version": "1.9.3",
+      "port-version": 3
     }
   ]
 }
