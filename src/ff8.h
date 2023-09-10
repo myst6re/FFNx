@@ -461,6 +461,43 @@ struct struc_51
 	struct struc_50 struc_50_array[32];
 };
 
+struct struc_52
+{
+	uint32_t flags;
+	uint32_t field_4;
+	uint32_t field_8;
+	uint32_t field_C;
+	uint32_t field_10;
+	uint32_t field_14;
+	uint32_t field_18;
+	uint32_t field_1C;
+	uint32_t mode;
+	char *directory;
+	ff8_tex_header *tex_header;
+	uint32_t field_2C;
+	uint32_t matrix_set;
+	uint32_t field_34;
+	uint32_t field_38;
+	uint32_t field_3C;
+	uint32_t field_40;
+	uint32_t field_44;
+	void *file_context;
+	uint32_t field_4C;
+	uint32_t field_50;
+	uint32_t field_54;
+	uint32_t field_58;
+	uint32_t field_5C;
+	uint32_t field_60;
+	uint32_t affected_to_tex_header_field_2C_field_64;
+	uint32_t palette_index;
+	uint32_t field_6C;
+	uint32_t field_70;
+	uint32_t field_74;
+	uint32_t field_78;
+	uint32_t field_7C;
+	uint32_t field_80;
+};
+
 struct ff8_tim
 {
 	uint16_t img_x;
@@ -990,6 +1027,7 @@ struct ff8_externals
 	uint32_t field_main_loop;
 	uint32_t field_main_exit;
 	uint32_t psxvram_texture_pages_free;
+	uint32_t engine_set_init_time;
 	uint32_t sub_4672C0;
 	uint32_t sub_471F70;
 	uint32_t sub_4767B0;
@@ -1147,6 +1185,7 @@ struct ff8_externals
 	uint32_t restart_music_and_sfx;
 	uint32_t directsound_create_secondary_buffer;
 	uint32_t start;
+	uint32_t battle_enter;
 	uint32_t battle_main_loop;
 	void (*show_vram_window)();
 	void (*refresh_vram_window)();

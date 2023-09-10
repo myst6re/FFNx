@@ -198,11 +198,17 @@ bool TexturePacker::setTextureRedirection(const TextureInfos &oldTexture, const 
 	return false;
 }
 
-void TexturePacker::clearTextures()
+void TexturePacker::clearTiledTexs()
 {
 	if (trace_all || trace_vram) ffnx_trace("TexturePacker::%s\n", __func__);
 
 	_tiledTexs.clear();
+}
+
+void TexturePacker::clearTextures()
+{
+	if (trace_all || trace_vram) ffnx_trace("TexturePacker::%s\n", __func__);
+
 	std::fill_n(_vramTextureIds.begin(), _vramTextureIds.size(), INVALID_TEXTURE);
 
 	for (auto &texture: _externalTextures) {
@@ -366,6 +372,8 @@ void TexturePacker::disableDrawTexturesBackground(bool disabled)
 	_disableDrawTexturesBackground = disabled;
 }
 
+int textureId = 0;
+
 TexturePacker::TextureTypes TexturePacker::drawTextures(const uint8_t *texData, struct texture_format *tex_format, uint32_t *target, const uint32_t *originalImageData, int originalW, int originalH, uint8_t scale, uint32_t paletteIndex)
 {
 	if (trace_all || trace_vram) ffnx_trace("TexturePacker::%s pointer=0x%X bitsperpixel=%d\n", __func__, texData, (tex_format ? tex_format->bitsperpixel : -1));
@@ -378,7 +386,15 @@ TexturePacker::TextureTypes TexturePacker::drawTextures(const uint8_t *texData, 
 
 		if (trace_all || trace_vram) ffnx_trace("TexturePacker::%s tex=(%d, %d) bpp=%d paletteIndex=%d\n", __func__, tex.x, tex.y, tex.bpp, paletteIndex);
 
-		return drawTextures(target, tex, originalW, originalH, scale, paletteIndex);
+		//debugSaveTexture(textureId, originalImageData, originalW, originalH, false, false, TextureTypes::NoTexture);
+
+		TextureTypes t = drawTextures(target, tex, originalW, originalH, scale, paletteIndex);
+
+		//debugSaveTexture(textureId, target, originalW * scale, originalH * scale, false, true, TextureTypes::NoTexture);
+
+		textureId++;
+
+		return t;
 	}
 
 	if (trace_all || trace_vram) ffnx_warning("TexturePacker::%s Unknown tex data\n", __func__);
@@ -639,7 +655,7 @@ uint8_t TexturePacker::TextureInfos::computeScale(int sourcePixelW, int sourceH,
 		|| targetPixelW % sourcePixelW != 0
 		|| targetH % sourceH != 0)
 	{
-		ffnx_warning("Texture redirection size must be scaled to the original texture size\n");
+		ffnx_warning("Texture redirection size must be scaled to the original texture size with the same ratio (modded texture size: %dx%d, original texture size: %dx%d)\n", targetPixelW, targetH, sourcePixelW, sourceH);
 
 		return 0;
 	}
@@ -680,7 +696,9 @@ void TexturePacker::TextureInfos::copyRect(
 	{
 		for (int x = 0; x < targetRectWidth; ++x)
 		{
-			*(targetRGBA + x + y * targetW) = *(sourceRGBA + x / scaleRatio + y / scaleRatio * sourceW);
+			uint32_t color = *(sourceRGBA + x / scaleRatio + y / scaleRatio * sourceW);
+			uint32_t alpha = color & 0xFF000000;
+			*(targetRGBA + x + y * targetW) = (color & 0xFFFFFF) | (alpha == 0xFF000000 ? 0x7F000000 : 0);
 		}
 	}
 }

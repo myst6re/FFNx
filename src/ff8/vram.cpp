@@ -745,16 +745,97 @@ void ff8_battle_upload_texture_palette(int16_t *pos_and_size, uint8_t *texture_b
 		if (StrStrIA(battle_texture_name, ".X") != nullptr) {
 			ff8_battle_state_save_texture(stage, tim, next_texture_name);
 		} else {
-			tim.save(next_texture_name, 0, 0, false);
+			tim.save(next_texture_name, 0, 0, true);
 		}
 	}
 }
 
-void clean_psxvram_pages()
+void engine_set_init_time(double fps_adjust)
 {
 	texturePacker.clearTextures();
 
+	((void(*)(double))ff8_externals.engine_set_init_time)(fps_adjust);
+}
+
+void clean_psxvram_pages()
+{
+	texturePacker.clearTiledTexs();
+
 	((void(*)())ff8_externals.sub_4672C0)();
+}
+
+DWORD *load_textures1(int a1, int a2, char *path, void *data, ff8_game_obj *game_object)
+{
+	ffnx_info("%s\n", __func__);
+
+	return ((DWORD*(*)(int,int,char*,void*,ff8_game_obj*))0x4076B6)(a1, a2, path, data, game_object);
+}
+
+DWORD *load_textures2(int a1, int a2, char *path, void *data, ff8_game_obj *game_object)
+{
+	ffnx_info("%s\n", __func__);
+
+	return ((DWORD*(*)(int,int,char*,void*,ff8_game_obj*))0x4076B6)(a1, a2, path, data, game_object);
+}
+
+ff8_gfx_driver *gfx_set_draw(int field_38, ff8_graphics_object *out)
+{
+	ffnx_info("%s: type=%d\n", __func__, out->type);
+
+	return ((ff8_gfx_driver*(*)(int, ff8_graphics_object*))0x41619A)(field_38, out);
+}
+
+ff8_graphics_object *create_graphics_object_sub_416D82_1(int a1, int polytype, void *tex_info, char *path, DWORD *dummy4_39)
+{
+	ffnx_info("%s\n", __func__);
+
+	return ((ff8_graphics_object*(*)(int, int, void *, char *, DWORD *))0x416D82)(a1, polytype, tex_info, path, dummy4_39);
+}
+
+ff8_graphics_object *create_graphics_object_sub_416D82_2(int a1, int polytype, void *tex_info, char *path, DWORD *dummy4_39)
+{
+	ffnx_info("%s\n", __func__);
+
+	return ((ff8_graphics_object*(*)(int, int, void *, char *, DWORD *))0x416D82)(a1, polytype, tex_info, path, dummy4_39);
+}
+
+ff8_graphics_object *create_graphics_object_sub_416D82_3(int a1, int polytype, struc_52 *tex_info, char *path, DWORD *dummy4_39)
+{
+	ffnx_info("%s\n", __func__);
+
+	/* if (tex_info->tex_header->bpp != 16) {
+		tex_info->field_2C = 1; // No texture
+	} */
+
+	return ((ff8_graphics_object*(*)(int, int, struc_52 *, char *, DWORD *))0x416D82)(a1, polytype, tex_info, path, dummy4_39);
+}
+
+ff8_graphics_object *create_graphics_object_sub_416D82_4(int a1, int polytype, void *tex_info, char *path, DWORD *dummy4_39)
+{
+	ffnx_info("%s\n", __func__);
+
+	return ((ff8_graphics_object*(*)(int, int, void *, char *, DWORD *))0x416D82)(a1, polytype, tex_info, path, dummy4_39);
+}
+
+ff8_graphics_object *create_graphics_object_sub_416D82_5(int a1, int polytype, void *tex_info, char *path, DWORD *dummy4_39)
+{
+	ffnx_info("%s\n", __func__);
+
+	return ((ff8_graphics_object*(*)(int, int, void *, char *, DWORD *))0x416D82)(a1, polytype, tex_info, path, dummy4_39);
+}
+
+ff8_graphics_object *create_graphics_object_sub_416D82_6(int a1, int polytype, void *tex_info, char *path, DWORD *dummy4_39)
+{
+	ffnx_info("%s\n", __func__);
+
+	return ((ff8_graphics_object*(*)(int, int, void *, char *, DWORD *))0x416D82)(a1, polytype, tex_info, path, dummy4_39);
+}
+
+ff8_graphics_object *create_graphics_object_sub_416D82_7(int a1, int polytype, void *tex_info, char *path, DWORD *dummy4_39)
+{
+	ffnx_info("%s\n", __func__);
+
+	return ((ff8_graphics_object*(*)(int, int, void *, char *, DWORD *))0x416D82)(a1, polytype, tex_info, path, dummy4_39);
 }
 
 void vram_init()
@@ -797,6 +878,8 @@ void vram_init()
 	replace_call(ff8_externals.battle_open_file + 0x1A2, ff8_battle_read_file);
 	replace_call(ff8_externals.battle_upload_texture_to_vram + 0x45, ff8_battle_upload_texture_palette);
 
+	// Fix missing textures in battle module by clearing custom textures
+	replace_call(ff8_externals.battle_enter + 0x35, engine_set_init_time);
 	// Clear texture_packer on every module exits
 	replace_call(ff8_externals.psxvram_texture_pages_free + 0x5A, clean_psxvram_pages);
 
@@ -825,4 +908,15 @@ void vram_init()
 
 	// Not used?
 	replace_call(ff8_externals.sub_4649A0 + 0x13F, read_vram_to_buffer_with_palette2);
+
+	replace_call(0x416EEF, load_textures1);
+	replace_call(0x416FD0, load_textures2);
+	replace_call(0x41730A, gfx_set_draw);
+	replace_call(0x464EA3, create_graphics_object_sub_416D82_1);
+	replace_call(0x464F30, create_graphics_object_sub_416D82_2);
+	replace_call(0x46523F, create_graphics_object_sub_416D82_3);
+	replace_call(0x465291, create_graphics_object_sub_416D82_4);
+	replace_call(0x4652D4, create_graphics_object_sub_416D82_5);
+	replace_call(0x465317, create_graphics_object_sub_416D82_6);
+	replace_call(0x465357, create_graphics_object_sub_416D82_7);
 }
