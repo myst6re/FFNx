@@ -461,6 +461,43 @@ struct struc_51
 	struct struc_50 struc_50_array[32];
 };
 
+struct load_texture_infos
+{
+	uint32_t flags;
+	uint32_t field_4;
+	uint32_t field_8;
+	uint32_t field_C;
+	uint32_t field_10;
+	uint32_t field_14;
+	uint32_t field_18;
+	uint32_t field_1C;
+	uint32_t blend_mode;
+	char *directory;
+	struct ff8_tex_header* tex_header;
+	uint32_t field_2C;
+	struct matrix_set *matrix_set;
+	uint32_t field_34;
+	uint32_t field_38;
+	uint32_t field_3C;
+	uint32_t field_40;
+	uint32_t field_44;
+	uint32_t file_context;
+	uint32_t field_4C;
+	uint32_t field_50;
+	uint32_t field_54;
+	uint32_t field_58;
+	uint32_t field_5C;
+	uint32_t field_60;
+	uint32_t affected_to_tex_header_field_2C_field_64;
+	uint32_t palette_index;
+	uint32_t field_6C;
+	uint32_t field_70;
+	uint32_t field_74;
+	uint32_t field_78;
+	uint32_t field_7C;
+	uint32_t field_80;
+};
+
 struct ff8_tim
 {
 	uint16_t img_x;
@@ -1067,7 +1104,6 @@ struct ff8_externals
 	uint32_t worldmap_enter_main;
 	uint32_t worldmap_sub_53F310;
 	uint32_t worldmap_sub_53F310_call_2A9;
-	uint32_t worldmap_sub_53F310_call_30D;
 	uint32_t worldmap_sub_53F310_call_330;
 	uint32_t worldmap_sub_53F310_call_366;
 	uint32_t worldmap_sub_53F310_loc_53F7EE;
@@ -1218,6 +1254,9 @@ struct ff8_externals
 	uint32_t sub_462DF0;
 	uint32_t sub_461220;
 	uint32_t ssigpu_tx_select_2_sub_465CE0;
+	uint32_t write_palette_texture_set_sub_466190;
+	uint32_t read_vram_palette_sub_467370;
+	uint32_t write_palette_to_driver_sub_467310;
 	int (*sub_464F70)(struc_50 *, texture_page *, int, int, int, int, int, int, int, uint8_t *);
 	void(*read_vram_1)(uint8_t *, int, uint8_t *, int, signed int, int, int);
 	void(*read_vram_2_paletted)(uint8_t *, int, uint8_t *, int, signed int, int, int, uint16_t *);

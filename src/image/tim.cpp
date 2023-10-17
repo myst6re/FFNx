@@ -320,6 +320,7 @@ struct TimDataHeader {
 Tim Tim::fromTimData(const uint8_t *data)
 {
 	Bpp bpp = Bpp(data[4] & 3);
+	ffnx_info("bpp=%d\n", bpp);
 	bool hasPal = (data[4] & 8) != 0;
 	TimDataHeader palHeader = TimDataHeader();
 	ff8_tim tim_infos = ff8_tim();

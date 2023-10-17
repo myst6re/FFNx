@@ -37,10 +37,10 @@
 #include <filesystem>
 
 TexturePacker texturePacker;
-uint8_t *ff8_vram = nullptr; // uint16_t[VRAM_WIDTH * VRAM_HEIGHT] aka uint8_t[VRAM_WIDTH * VRAM_HEIGHT * VRAM_DEPTH]
 
 char next_texture_name[MAX_PATH] = "";
-uint16_t *next_pal_data = nullptr;
+TexturePacker::TextureInfos textureInfos = TexturePacker::TextureInfos();
+TexturePacker::TextureInfos paletteInfos = TexturePacker::TextureInfos();
 int next_psxvram_x = -1;
 int next_psxvram_y = -1;
 int next_psxvram_pal_x = -1;
@@ -50,6 +50,9 @@ Tim::Bpp next_bpp = Tim::Bpp16;
 uint8_t next_scale = 1;
 int8_t texl_id_left = -1;
 int8_t texl_id_right = -1;
+int last_CLUT = 0;
+
+uint16_t *next_pal_data = nullptr;
 // Field background
 uint8_t *mim_texture_buffer = nullptr;
 // Field models
@@ -105,9 +108,8 @@ void ff8_upload_vram(int16_t *pos_and_size, uint8_t *texture_buffer)
 	const int16_t y = pos_and_size[1];
 	const int16_t w = pos_and_size[2];
 	const int16_t h = pos_and_size[3];
-	bool isPal = next_pal_data != nullptr && (uint8_t *)next_pal_data == texture_buffer;
 
-	if (trace_all || trace_vram) ffnx_trace("%s x=%d y=%d w=%d h=%d bpp=%d isPal=%d texture_buffer=0x%X\n", __func__, x, y, w, h, next_bpp, isPal, texture_buffer);
+	if (trace_all || trace_vram) ffnx_trace("%s x=%d y=%d w=%d h=%d bpp=%d texture_buffer=0x%X\n", __func__, x, y, w, h, next_bpp, texture_buffer);
 
 	uint8_t *vram = ff8_vram_seek(x, y);
 	const int vramLineWidth = VRAM_DEPTH * VRAM_WIDTH;
@@ -120,21 +122,22 @@ void ff8_upload_vram(int16_t *pos_and_size, uint8_t *texture_buffer)
 		vram += vramLineWidth;
 	}
 
-	texturePacker.setTexture(next_texture_name, x, y, w, h, next_bpp, isPal);
+	if (textureInfos.isValid() && paletteInfos.isValid()) {
+		texturePacker.setTexture(next_texture_name, textureInfos, paletteInfos);
+
+		textureInfos = TexturePacker::TextureInfos();
+		paletteInfos = TexturePacker::TextureInfos();
+	} else if (!textureInfos.isValid() && !paletteInfos.isValid()) {
+		texturePacker.setTexture(next_texture_name, TexturePacker::TextureInfos(x, y, w, h, next_bpp));
+	}
 
 	ff8_externals.sub_464850(x, y, x + w - 1, h + y - 1);
 
-	next_pal_data = nullptr;
 	*next_texture_name = '\0';
 }
 
-void ff8_copy_vram_part(int16_t *pos_and_size, int target_x, int target_y)
+void ff8_vram_copy_part(int x, int y, int w, int h, int target_x, int target_y)
 {
-	const int16_t x = pos_and_size[0];
-	const int16_t y = pos_and_size[1];
-	const int16_t w = pos_and_size[2];
-	const int16_t h = pos_and_size[3];
-
 	if (trace_all || trace_vram) ffnx_trace("%s x=%d y=%d w=%d h=%d target_x=%d target_y=%d\n", __func__, x, y, w, h, target_x, target_y);
 
 	uint8_t *vram = ff8_vram_seek(x, y), *target = ff8_vram_seek(target_x, target_y);
@@ -148,9 +151,21 @@ void ff8_copy_vram_part(int16_t *pos_and_size, int target_x, int target_y)
 		target += vramLineWidth;
 	}
 
-	texturePacker.copyTexture(x, y, w, h, target_x, target_y);
+	texturePacker.animateTextureByCopy(x, y, w, h, target_x, target_y);
 
 	ff8_externals.sub_464850(x, y, x + w - 1, h + y - 1);
+}
+
+void ff8_copy_vram_part(int16_t *pos_and_size, int target_x, int target_y)
+{
+	const int16_t x = pos_and_size[0];
+	const int16_t y = pos_and_size[1];
+	const int16_t w = pos_and_size[2];
+	const int16_t h = pos_and_size[3];
+
+	if (trace_all || trace_vram) ffnx_trace("%s x=%d y=%d w=%d h=%d target_x=%d target_y=%d\n", __func__, x, y, w, h, target_x, target_y);
+
+	ff8_vram_copy_part(x, y, w, h, target_x, target_y);
 }
 
 int read_vram_to_buffer_parent_call1(struc_50 *psxvram, texture_page *tex_page, int x, int y, int w, int h, int bpp, int rel_pos, int a9, uint8_t *target)
@@ -335,6 +350,20 @@ void ff8_upload_vram_triple_triad_2_texture_name(uint8_t *texture_buffer)
 		}
 		next_bpp = Tim::Bpp4;
 	}
+	else if (texture_buffer >= ff8_externals.cardgame_tim_texture_font)
+	{
+		strncpy(next_texture_name, "cardgame/font", sizeof(next_texture_name));
+		Tim tim = Tim::fromTimData(texture_buffer - 20);
+
+		paletteInfos = TexturePacker::TextureInfos(tim.paletteX(), tim.paletteY(), tim.paletteWidth(), tim.paletteHeight(), Tim::Bpp16);
+		textureInfos = TexturePacker::TextureInfos(tim.imageX(), tim.imageY(), tim.imageWidth(), tim.imageHeight(), tim.bpp());
+
+		if (next_pal_data == (uint16_t *)texture_buffer)
+		{
+			if (save_textures) tim.save(next_texture_name, 0, 0, true);
+		}
+		next_bpp = tim.bpp();
+	}
 }
 
 void ff8_upload_vram_triple_triad_2_palette(int16_t *pos_and_size, uint8_t *texture_buffer)
@@ -382,7 +411,11 @@ uint32_t ff8_wm_section_38_prepare_texture_for_upload(uint8_t *tim_file_data, ff
 
 	uint32_t ret = ff8_externals.worldmap_prepare_tim_for_upload(tim_file_data, tim_infos);
 
-	next_pal_data = tim_infos->pal_data;
+	if (timId >= 8)
+	{
+		textureInfos = TexturePacker::TextureInfos(tim_infos->img_x, tim_infos->img_y, tim_infos->img_w, tim_infos->img_h, next_bpp);
+		paletteInfos = TexturePacker::TextureInfos(tim_infos->pal_x, tim_infos->pal_y, tim_infos->pal_w, tim_infos->pal_h, Tim::Bpp16);
+	}
 
 	if (save_textures)
 	{
@@ -397,17 +430,6 @@ uint32_t ff8_wm_section_38_prepare_texture_for_upload(uint8_t *tim_file_data, ff
 	}
 
 	return ret;
-}
-
-void ff8_upload_vram_wm_section_38_palette(int16_t *pos_and_size, uint8_t *texture_buffer)
-{
-	if (trace_all || trace_vram) ffnx_trace("%s %p\n", __func__, texture_buffer);
-
-	next_pal_data = (uint16_t *)texture_buffer;
-
-	ff8_upload_vram(pos_and_size, texture_buffer);
-
-	next_pal_data = nullptr;
 }
 
 Tim ff8_wm_set_texture_name_from_section_position(uint8_t section_number, uint32_t *section_toc, uint8_t *tim_file_data)
@@ -558,8 +580,8 @@ void ff8_wm_texl_palette_upload_vram(int16_t *pos_and_size, uint8_t *texture_buf
 		return; // TODO
 	}
 
-	TexturePacker::TextureInfos oldTexture(oldX, oldY, tim.imageWidth() / 8, tim.imageHeight() / 2, Tim::Bpp4),
-		newTexture(newX, 256, tim.imageWidth() / 2, tim.imageHeight(), Tim::Bpp(tim.bpp()));
+	TexturePacker::TextureInfos oldTexture(oldX, oldY, tim.imageWidth() / 4, tim.imageHeight() / 2, Tim::Bpp4),
+		newTexture(newX, 256, tim.imageWidth(), tim.imageHeight(), Tim::Bpp(tim.bpp()));
 
 	// Allow to mod via texl textures
 	snprintf(next_texture_name, MAX_PATH, "world/dat/texl/texture%d", next_texl_id);
@@ -569,7 +591,7 @@ void ff8_wm_texl_palette_upload_vram(int16_t *pos_and_size, uint8_t *texture_buf
 		tim.saveMultiPaletteGrid(next_texture_name, 4, 4, 0, 4, true);
 	}
 
-	texturePacker.setTexture(next_texture_name, oldTexture.x(), oldTexture.y(), oldTexture.w(), oldTexture.h(), oldTexture.bpp(), false);
+	texturePacker.setTexture(next_texture_name, oldTexture);
 
 	*next_texture_name = '\0';
 
@@ -592,7 +614,6 @@ void ff8_wm_texl_palette_upload_vram(int16_t *pos_and_size, uint8_t *texture_buf
 
 		if (! texturePacker.setTextureRedirection(oldTexture, newTexture, image))
 		{
-			if (trace_all || trace_vram) ffnx_warning("%s: invalid redirection\n");
 			driver_free(image);
 		}
 	}
@@ -809,7 +830,7 @@ void ff8_field_effects_upload_vram1(int16_t *pos_and_size, uint8_t *texture_buff
 	ff8_upload_vram(pos_and_size, texture_buffer);
 
 	// This upload and the next one together
-	texturePacker.setTexture(texture_name, pos_and_size[0], pos_and_size[1], pos_and_size[2], pos_and_size[3] * 2, bpp, false);
+	texturePacker.setTexture(texture_name, TexturePacker::TextureInfos(pos_and_size[0], pos_and_size[1], pos_and_size[2], pos_and_size[3] * 2, bpp));
 }
 
 int16_t ff8_battle_open_and_read_file(int fileId, void *data, int a3, int callback)
@@ -872,6 +893,27 @@ void clean_psxvram_pages()
 	((void(*)())ff8_externals.sub_4672C0)();
 }
 
+void ff8_read_vram_palette(int CLUT, uint8_t *rgba, int size)
+{
+	if (trace_all || trace_vram) ffnx_trace("%s: CLUT=(%d, %d) size=%d\n", __func__, (CLUT & 0x3F) * 16, (CLUT >> 6) & 0x1FF, size);
+
+	last_CLUT = CLUT;
+
+	((void(*)(int,uint8_t*,int))ff8_externals.read_vram_palette_sub_467370)(CLUT, rgba, size);
+}
+
+int ff8_write_palette_to_driver(int source_offset, int size, uint32_t *source_rgba, int dest_offset, ff8_texture_set *texture_set)
+{
+	VOBJ(texture_set, texture_set, texture_set);
+	VOBJ(tex_header, tex_header, VREF(texture_set, tex_header));
+
+	uint16_t palette_x = (last_CLUT & 0x3F) * 16, palette_y = (last_CLUT >> 6) & 0x1FF;
+
+	texturePacker.registerPaletteWrite(VREF(tex_header, image_data), palette_x, palette_y);
+
+	return ((int(*)(int,int,uint32_t*,int,struct ff8_texture_set*))ff8_externals.write_palette_to_driver_sub_467310)(source_offset, size, source_rgba, dest_offset, texture_set);
+}
+
 void vram_init()
 {
 	//---- Texture uploads identification
@@ -889,7 +931,6 @@ void vram_init()
 	replace_call(ff8_externals.sub_5391B0 + 0x1E1, ff8_upload_vram_triple_triad_2_data);
 	// worldmap
 	replace_call(ff8_externals.worldmap_sub_53F310_call_2A9, ff8_wm_section_38_prepare_texture_for_upload);
-	replace_call(ff8_externals.worldmap_sub_53F310_call_30D, ff8_upload_vram_wm_section_38_palette);
 	replace_call(ff8_externals.worldmap_sub_53F310_call_330, ff8_wm_section_39_upload); // Rails/Roads
 	replace_call(ff8_externals.worldmap_sub_53F310_call_366, ff8_wm_section_40_upload);
 	replace_call(ff8_externals.worldmap_sub_548020 + 0x47, ff8_wm_section_42_upload); // Train/vehicles
@@ -942,6 +983,10 @@ void vram_init()
 
 	// Not used?
 	replace_call(ff8_externals.sub_4649A0 + 0x13F, read_vram_to_buffer_with_palette2);
+
+	// Read palette from VRAM to Graphic driver
+	replace_call(ff8_externals.write_palette_texture_set_sub_466190 + 0x2C, ff8_read_vram_palette);
+	replace_call(ff8_externals.write_palette_texture_set_sub_466190 + 0x7E, ff8_write_palette_to_driver);
 
 	//---- Misc
 
