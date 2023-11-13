@@ -1070,6 +1070,7 @@ struct ff8_externals
 	uint32_t worldmap_sub_53F310_call_30D;
 	uint32_t worldmap_sub_53F310_call_330;
 	uint32_t worldmap_sub_53F310_call_366;
+	uint32_t worldmap_sub_53F310_call_3B5;
 	uint32_t worldmap_sub_53F310_loc_53F7EE;
 	uint32_t worldmap_sub_541970_upload_tim;
 	uint32_t worldmap_sub_548020;
@@ -1085,6 +1086,7 @@ struct ff8_externals
 	uint32_t **worldmap_section38_position;
 	uint32_t **worldmap_section39_position;
 	uint32_t **worldmap_section40_position;
+	uint32_t **worldmap_section41_position;
 	uint32_t **worldmap_section42_position;
 	uint32_t (*worldmap_prepare_tim_for_upload)(uint8_t *, ff8_tim *);
 	uint32_t engine_eval_process_input;
@@ -1139,6 +1141,10 @@ struct ff8_externals
 	uint32_t sub_54E9B0;
 	uint32_t sub_550070;
 	int (*sub_541C80)(int);
+	uint32_t sub_559240;
+	uint32_t sub_554940;
+	uint32_t sub_554940_call_130;
+	uint32_t sub_554BC0;
 	uint32_t sub_54B460;
 	uint32_t sub_558D70;
 	uint32_t sub_545EA0;
