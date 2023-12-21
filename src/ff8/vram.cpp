@@ -32,12 +32,18 @@
 #include "world/wmset.h"
 #include "battle/stage.h"
 #include "file.h"
+#include "texture_packer.h"
 
 #include <unordered_map>
 #include <vector>
 #include <filesystem>
 
-TexturePacker texturePacker;
+enum Bpp {
+	Bpp4 = Tim::Bpp4,
+	Bpp8 = Tim::Bpp8,
+	Bpp16 = Tim::Bpp16,
+	BppUnknown
+};
 
 char next_texture_name[MAX_PATH] = "";
 TexturePacker::TextureInfos texture_infos = TexturePacker::TextureInfos();
@@ -48,7 +54,7 @@ int next_psxvram_y = -1;
 int next_texl_id = 0;
 int next_texture_count = -1;
 int next_do_not_clear_old_texture = false;
-Tim::Bpp next_bpp = Tim::Bpp16;
+Bpp next_bpp = BppUnknown;
 int last_CLUT = 0;
 
 // Field background
@@ -125,12 +131,12 @@ void ff8_upload_vram(int16_t *pos_and_size, uint8_t *texture_buffer)
 	}
 
 	if (texture_infos.isValid() && palette_infos.isValid()) {
-		texturePacker.setTexture(next_texture_name, texture_infos, palette_infos, next_texture_count, !next_do_not_clear_old_texture);
+		TexturePacker::instance().setTexture(next_texture_name, texture_infos, palette_infos, next_texture_count, !next_do_not_clear_old_texture);
 
 		texture_infos = TexturePacker::TextureInfos();
 		palette_infos = TexturePacker::TextureInfos();
 	} else if (!texture_infos.isValid() && !palette_infos.isValid() && !isPal) {
-		texturePacker.setTexture(next_texture_name, TexturePacker::TextureInfos(x, y, w, h, next_bpp), TexturePacker::TextureInfos(), next_texture_count, !next_do_not_clear_old_texture);
+		TexturePacker::instance().setTexture(next_texture_name, TexturePacker::TextureInfos(x, y, w, h, Tim::Bpp(next_bpp), next_bpp == BppUnknown), TexturePacker::TextureInfos(), next_texture_count, !next_do_not_clear_old_texture);
 	}
 
 	ff8_externals.sub_464850(x, y, x + w - 1, h + y - 1);
@@ -138,6 +144,7 @@ void ff8_upload_vram(int16_t *pos_and_size, uint8_t *texture_buffer)
 	*next_texture_name = '\0';
 	next_do_not_clear_old_texture = false;
 	next_texture_count = -1;
+	next_bpp = BppUnknown;
 }
 
 void ff8_vram_copy_part(int x, int y, int w, int h, int target_x, int target_y)
@@ -155,7 +162,7 @@ void ff8_vram_copy_part(int x, int y, int w, int h, int target_x, int target_y)
 		target += vramLineWidth;
 	}
 
-	texturePacker.animateTextureByCopy(x, y, w, h, target_x, target_y);
+	TexturePacker::instance().animateTextureByCopy(x, y, w, h, target_x, target_y);
 
 	ff8_externals.sub_464850(x, y, x + w - 1, h + y - 1);
 }
@@ -240,7 +247,7 @@ void read_vram_to_buffer(uint8_t *vram, int vram_w_2048, uint8_t *target, int ta
 	}
 	else
 	{
-		texturePacker.registerTiledTex(target, next_psxvram_x, next_psxvram_y, Tim::Bpp(bpp));
+		TexturePacker::instance().registerTiledTex(target, next_psxvram_x, next_psxvram_y, Tim::Bpp(bpp));
 	}
 
 	ff8_externals.read_vram_1(vram, vram_w_2048, target, target_w, w, h, bpp);
@@ -267,7 +274,7 @@ void read_vram_to_buffer_with_palette1(uint8_t *vram, int vram_w_2048, uint8_t *
 	{
 		uint16_t psxvram_pal_x, psxvram_pal_y;
 		get_vram_palette_pos_from_texture_pages(psxvram_pal_x, psxvram_pal_y);
-		texturePacker.registerTiledTex(target, next_psxvram_x, next_psxvram_y, Tim::Bpp(bpp), psxvram_pal_x, psxvram_pal_y);
+		TexturePacker::instance().registerTiledTex(target, next_psxvram_x, next_psxvram_y, Tim::Bpp(bpp), psxvram_pal_x, psxvram_pal_y);
 	}
 
 	ff8_externals.read_vram_2_paletted(vram, vram_w_2048, target, target_w, w, h, bpp, vram_palette);
@@ -285,7 +292,7 @@ void read_vram_to_buffer_with_palette2(uint8_t *vram, uint8_t *target, int w, in
 	{
 		uint16_t psxvram_pal_x, psxvram_pal_y;
 		get_vram_palette_pos_from_texture_pages(psxvram_pal_x, psxvram_pal_y);
-		texturePacker.registerTiledTex(target, next_psxvram_x, next_psxvram_y, Tim::Bpp(bpp), psxvram_pal_x, psxvram_pal_y);
+		TexturePacker::instance().registerTiledTex(target, next_psxvram_x, next_psxvram_y, Tim::Bpp(bpp), psxvram_pal_x, psxvram_pal_y);
 	}
 
 	ff8_externals.read_vram_3_paletted(vram, target, w, h, bpp, vram_palette);
@@ -308,7 +315,7 @@ int ff8_write_palette_to_driver(int source_offset, int size, uint32_t *source_rg
 	uint16_t palette_x = (last_CLUT & 0x3F) * 16, palette_y = (last_CLUT >> 6) & 0x1FF;
 	int pal_index = dest_offset / size / 2;
 
-	texturePacker.registerPaletteWrite(VREF(tex_header, image_data), pal_index, palette_x, palette_y);
+	TexturePacker::instance().registerPaletteWrite(VREF(tex_header, image_data), pal_index, palette_x, palette_y);
 
 	return ((int(*)(int,int,uint32_t*,int,struct ff8_texture_set*))ff8_externals.write_palette_to_driver_sub_467310)(source_offset, size, source_rgba, dest_offset, texture_set);
 }
@@ -319,7 +326,7 @@ uint32_t ff8_credits_open_texture(char *fileName, char *buffer)
 
 	// {name}.lzs
 	strncpy(next_texture_name, strrchr(fileName, '\\') + 1, sizeof(next_texture_name));
-	next_bpp = Tim::Bpp16;
+	next_bpp = Bpp16;
 
 	uint32_t ret = ff8_externals.credits_open_file(fileName, buffer);
 
@@ -333,7 +340,7 @@ void ff8_cdcheck_error_upload_vram(int16_t *pos_and_size, uint8_t *texture_buffe
 	if (trace_all || trace_vram) ffnx_trace("%s\n", __func__);
 
 	strncpy(next_texture_name, "discerr.lzs", sizeof(next_texture_name));
-	next_bpp = Tim::Bpp16;
+	next_bpp = Bpp16;
 
 	if (save_textures) Tim::fromLzsData(texture_buffer - 8).save(next_texture_name);
 
@@ -347,12 +354,12 @@ void ff8_upload_vram_triple_triad_1(int16_t *pos_and_size, uint8_t *texture_buff
 	if (texture_buffer == ff8_externals.cardgame_tim_texture_intro)
 	{
 		strncpy(next_texture_name, "cardgame/intro", sizeof(next_texture_name));
-		next_bpp = Tim::Bpp16;
+		next_bpp = Bpp16;
 	}
 	else if (texture_buffer == ff8_externals.cardgame_tim_texture_game)
 	{
 		strncpy(next_texture_name, "cardgame/game", sizeof(next_texture_name));
-		next_bpp = Tim::Bpp16;
+		next_bpp = Bpp16;
 	}
 
 	if (save_textures && *next_texture_name != '\0')
@@ -376,7 +383,7 @@ void ff8_upload_vram_triple_triad_2_texture_name(uint8_t *texture_buffer)
 		{
 			if (save_textures) Tim::fromTimData(texture_buffer - 20).saveMultiPaletteGrid(next_texture_name, 28, 4, 128, 2, true);
 		}
-		next_bpp = Tim::Bpp8;
+		next_bpp = Bpp8;
 	}
 	else if (texture_buffer >= ff8_externals.cardgame_tim_texture_icons && texture_buffer < ff8_externals.cardgame_tim_texture_font)
 	{
@@ -385,7 +392,7 @@ void ff8_upload_vram_triple_triad_2_texture_name(uint8_t *texture_buffer)
 		{
 			if (save_textures) Tim::fromTimData(texture_buffer - 20).save(next_texture_name, 0, 0, true);
 		}
-		next_bpp = Tim::Bpp4;
+		next_bpp = Bpp4;
 	}
 	else if (texture_buffer >= ff8_externals.cardgame_tim_texture_font)
 	{
@@ -399,7 +406,7 @@ void ff8_upload_vram_triple_triad_2_texture_name(uint8_t *texture_buffer)
 		{
 			if (save_textures) tim.save(next_texture_name, 0, 0, true);
 		}
-		next_bpp = tim.bpp();
+		next_bpp = Bpp(tim.bpp());
 	}
 }
 
@@ -409,7 +416,7 @@ void ff8_upload_vram_triple_triad_2_palette(int16_t *pos_and_size, uint8_t *text
 
 	next_pal_data = (uint16_t *)texture_buffer;
 	ff8_upload_vram_triple_triad_2_texture_name(texture_buffer);
-	next_bpp = Tim::Bpp16;
+	next_bpp = Bpp16;
 
 	ff8_upload_vram(pos_and_size, texture_buffer);
 }
@@ -451,7 +458,7 @@ void ff8_wm_section_17_set_texture(int texture_id)
 
 	snprintf(texture_name, sizeof(texture_name), "world/dat/wmset/section17/texture%d", texture_id);
 
-	texturePacker.setTexture(texture_name, texture_infos, palette_infos, tex.textureFramePositions.size(), true);
+	TexturePacker::instance().setTexture(texture_name, texture_infos, palette_infos, tex.textureFramePositions.size(), true);
 }
 
 uint32_t ff8_wm_section_38_prepare_texture_for_upload(uint8_t *tim_file_data, ff8_tim *tim_infos)
@@ -463,13 +470,13 @@ uint32_t ff8_wm_section_38_prepare_texture_for_upload(uint8_t *tim_file_data, ff
 
 	snprintf(next_texture_name, MAX_PATH, "world/dat/wmset/section38/texture%d", timId);
 
-	next_bpp = Tim::Bpp(bpp);
+	next_bpp = Bpp(bpp);
 
 	uint32_t ret = ff8_externals.worldmap_prepare_tim_for_upload(tim_file_data, tim_infos);
 
 	if (timId >= 8)
 	{
-		texture_infos = TexturePacker::TextureInfos(tim_infos->img_x, tim_infos->img_y, tim_infos->img_w, tim_infos->img_h, next_bpp);
+		texture_infos = TexturePacker::TextureInfos(tim_infos->img_x, tim_infos->img_y, tim_infos->img_w, tim_infos->img_h, Tim::Bpp(bpp));
 		palette_infos = TexturePacker::TextureInfos(tim_infos->pal_x, tim_infos->pal_y, tim_infos->pal_w, tim_infos->pal_h, Tim::Bpp16);
 	}
 	else
@@ -535,7 +542,7 @@ uint32_t ff8_wm_section_38_prepare_texture_for_upload(uint8_t *tim_file_data, ff
 			if (trace_all || trace_vram) ffnx_trace("%s: set animation palette source=(%d, %d)\n", __func__, tex.srcX, tex.srcY);
 			next_texture_count = tex.height;
 			TexturePacker::TextureInfos palette(tex.x, tex.y, 256, tex.height, Tim::Bpp16);
-			texturePacker.setTexture(nullptr, palette, palette);
+			TexturePacker::instance().setTexture(nullptr, palette, palette);
 
 			if (save_textures)
 			{
@@ -589,7 +596,7 @@ Tim ff8_wm_set_texture_name_from_section_position(uint8_t section_number, uint32
 
 	Tim tim = Tim::fromTimData(tim_file_data);
 
-	next_bpp = tim.bpp();
+	next_bpp = Bpp(tim.bpp());
 
 	texture_infos = TexturePacker::TextureInfos(tim.imageX(), tim.imageY(), tim.imageWidth(), tim.imageHeight(), tim.bpp());
 	if (tim.bpp() != Tim::Bpp16) {
@@ -606,7 +613,7 @@ void ff8_wm_section_17_upload(uint8_t *tim_file_data, int16_t x, int16_t y)
 
 	Tim tim = Tim::fromTimData(tim_file_data);
 
-	next_bpp = tim.bpp();
+	next_bpp = Bpp(tim.bpp());
 	palette_infos = TexturePacker::TextureInfos(); // Invalid palette
 	texture_infos = TexturePacker::TextureInfos(x, y, tim.imageWidth(), tim.imageHeight(), tim.bpp());
 
@@ -615,7 +622,7 @@ void ff8_wm_section_17_upload(uint8_t *tim_file_data, int16_t x, int16_t y)
 		int frame_id = 0;
 		for (const uint8_t *frameTexturePos: texture.textureFramePositions) {
 			if (frameTexturePos == tim_file_data) {
-				texturePacker.forceCurrentPalette(x, y, frame_id);
+				TexturePacker::instance().forceCurrentPalette(x, y, frame_id);
 
 				((void(*)(uint8_t*,int16_t,int16_t))ff8_externals.sub_541AE0)(tim_file_data, x, y);
 
@@ -706,7 +713,7 @@ int ff8_wm_chara_one_upload_texture_2(char *image_buffer, char bpp, char a3, int
 		int texture_id = 0;
 		for (const uint32_t texture_offset: textures) {
 			if (texture_offset == chara_one_offset) {
-				next_bpp = Tim::Bpp(bpp);
+				next_bpp = Bpp(bpp);
 				snprintf(next_texture_name, MAX_PATH, "world/esk/chara_one/model%d-%d", model_id, texture_id);
 
 				return ((int(*)(char *, char, char, int, __int16, int, __int16))ff8_externals.chara_one_upload_texture)(image_buffer, bpp, a3, x, y, w, h);
@@ -729,6 +736,15 @@ void ff8_wm_chara_one_upload_palette_2(int16_t *pos_and_size, uint8_t *texture_b
 	next_pal_data = nullptr;
 }
 
+void ff8_wm_fences_animation()
+{
+}
+
+void end_of_upload_related_sub_45B660(void *a1)
+{
+
+}
+
 int ff8_wm_open_data(const char *path, int32_t pos, uint32_t size, void *data)
 {
 	if (strstr(path, "texl.obj") != nullptr)
@@ -747,7 +763,7 @@ void ff8_wm_texl_palette_upload_vram(int16_t *pos_and_size, uint8_t *texture_buf
 
 	if (trace_all || trace_vram) ffnx_trace("%s texl_id=%d pos=(%d, %d) palPos=(%d, %d)\n", __func__, next_texl_id, tim.imageX(), tim.imageY(), tim.paletteX(), tim.paletteY());
 
-	next_bpp = Tim::Bpp8;
+	next_bpp = Bpp8;
 
 	ff8_upload_vram(pos_and_size, texture_buffer);
 
@@ -814,7 +830,7 @@ void ff8_wm_texl_palette_upload_vram(int16_t *pos_and_size, uint8_t *texture_buf
 			return;
 		}
 
-		if (! texturePacker.setTextureRedirection(next_texture_name, oldTexture, newTexture, image))
+		if (! TexturePacker::instance().setTextureRedirection(next_texture_name, oldTexture, newTexture, image))
 		{
 			driver_free(image);
 		}
@@ -880,7 +896,7 @@ uint32_t ff8_field_read_map_data(char *filename, uint8_t *map_data)
 		tiles = ff8_background_parse_tiles(map_data);
 	}
 
-	if (!has_dir || !texturePacker.setTextureBackground(tex_filename, 0, 256, VRAM_PAGE_MIM_MAX_COUNT * TEXTURE_WIDTH_BPP16, TEXTURE_HEIGHT, tiles)) {
+	if (!has_dir || !TexturePacker::instance().setTextureBackground(tex_filename, 0, 256, VRAM_PAGE_MIM_MAX_COUNT * TEXTURE_WIDTH_BPP16, TEXTURE_HEIGHT, tiles)) {
 		snprintf(tex_directory, MAX_PATH, "field/mapdata/%.2s/%s", get_current_field_name(), get_current_field_name());
 		snprintf(tex_abs_directory, sizeof(tex_abs_directory), "%s/%s", mod_path.c_str(), tex_directory);
 
@@ -906,7 +922,7 @@ uint32_t ff8_field_read_map_data(char *filename, uint8_t *map_data)
 		for (int i = 0; i < VRAM_PAGE_MIM_MAX_COUNT; ++i) {
 			snprintf(tex_filename, MAX_PATH, "%s_%d", tex_directory, i + VRAM_PAGE_MIM_MAX_COUNT);
 
-			if (texturePacker.setTextureBackground(tex_filename, i * TEXTURE_WIDTH_BPP16, 256, TEXTURE_WIDTH_BPP16, TEXTURE_HEIGHT, tiles, i, extension, found_extension)) {
+			if (TexturePacker::instance().setTextureBackground(tex_filename, i * TEXTURE_WIDTH_BPP16, 256, TEXTURE_WIDTH_BPP16, TEXTURE_HEIGHT, tiles, i, extension, found_extension)) {
 				extension = found_extension;
 				found_pages[i] = true;
 			}
@@ -916,7 +932,7 @@ uint32_t ff8_field_read_map_data(char *filename, uint8_t *map_data)
 		for (int i = 0; i < VRAM_PAGE_MIM_MAX_COUNT; ++i) {
 			snprintf(tex_filename, MAX_PATH, "%s_%d", tex_directory, i);
 
-			if (!found_pages[i] && !texturePacker.setTextureBackground(tex_filename, i * TEXTURE_WIDTH_BPP16, 256, TEXTURE_WIDTH_BPP16, TEXTURE_HEIGHT, tiles, i, extension, found_extension)) {
+			if (!found_pages[i] && !TexturePacker::instance().setTextureBackground(tex_filename, i * TEXTURE_WIDTH_BPP16, 256, TEXTURE_WIDTH_BPP16, TEXTURE_HEIGHT, tiles, i, extension, found_extension)) {
 				break;
 			}
 
@@ -1006,7 +1022,7 @@ int ff8_field_texture_upload_one(char *image_buffer, char bpp, char a3, int x, i
 		CharaOneModel model = chara_one_models[chara_one_loaded_models.at(chara_one_current_model)];
 
 		if (chara_one_current_texture < model.texturesData.size()) {
-			next_bpp = Tim::Bpp(bpp);
+			next_bpp = Bpp(bpp);
 			snprintf(next_texture_name, MAX_PATH, "field/model/%s_chr/%s-%d", model.isMch ? "main" : "second", model.name, chara_one_current_texture);
 
 			++chara_one_current_texture;
@@ -1041,7 +1057,7 @@ void ff8_field_effects_upload_vram1(int16_t *pos_and_size, uint8_t *texture_buff
 	ff8_upload_vram(pos_and_size, texture_buffer);
 
 	// This upload and the next one together
-	texturePacker.setTexture(texture_name, TexturePacker::TextureInfos(pos_and_size[0], pos_and_size[1], pos_and_size[2], pos_and_size[3] * 2, bpp));
+	TexturePacker::instance().setTexture(texture_name, TexturePacker::TextureInfos(pos_and_size[0], pos_and_size[1], pos_and_size[2], pos_and_size[3] * 2, bpp));
 }
 
 int16_t ff8_battle_open_and_read_file(int fileId, void *data, int a3, int callback)
@@ -1076,7 +1092,7 @@ void ff8_battle_upload_texture_palette(int16_t *pos_and_size, uint8_t *texture_b
 
 	ff8_upload_vram(pos_and_size, texture_buffer);
 
-	next_bpp = tim.bpp();
+	next_bpp = Bpp(tim.bpp());
 	snprintf(next_texture_name, sizeof(next_texture_name), "%s-%d", battle_texture_name, battle_texture_id);
 
 	++battle_texture_id;
@@ -1092,14 +1108,14 @@ void ff8_battle_upload_texture_palette(int16_t *pos_and_size, uint8_t *texture_b
 
 void engine_set_init_time(double fps_adjust)
 {
-	texturePacker.clearTextures();
+	TexturePacker::instance().clearTextures();
 
 	((void(*)(double))ff8_externals.engine_set_init_time)(fps_adjust);
 }
 
 void clean_psxvram_pages()
 {
-	texturePacker.clearTiledTexs();
+	TexturePacker::instance().clearTiledTexs();
 
 	((void(*)())ff8_externals.sub_4672C0)();
 }
@@ -1130,6 +1146,8 @@ void vram_init()
 	replace_call(ff8_externals.worldmap_chara_one + 0xCC, ff8_wm_chara_one_read_file);
 	replace_call(ff8_externals.worldmap_chara_one + 0x4D1, ff8_wm_chara_one_upload_texture_2); // Characters/Chocobos/Ragnarok
 	replace_call(ff8_externals.worldmap_chara_one + 0x566, ff8_wm_chara_one_upload_palette_2);
+	replace_call(0x5595C0 + 0x260, ff8_wm_fences_animation);
+	replace_call(0x5595C0 + 0x26B, end_of_upload_related_sub_45B660);
 	// wm texl project
 	replace_call(ff8_externals.upload_psxvram_texl_pal_call1, ff8_wm_texl_palette_upload_vram);
 	replace_call(ff8_externals.upload_psxvram_texl_pal_call2, ff8_wm_texl_palette_upload_vram);

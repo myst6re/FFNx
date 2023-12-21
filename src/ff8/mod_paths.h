@@ -22,4 +22,8 @@
 
 #pragma once
 
-void vram_init();
+#include <string>
+#include <list>
+#include "texture_packer.h"
+
+std::string remastered_texture_path(const TexturePacker::TiledTex &tiledTex);

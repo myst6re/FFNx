@@ -96,6 +96,7 @@ public:
 			return bpp() == Tim::Bpp16 || !palettes.contains(palIndex) ? TextureInfos() : palettes.at(palIndex);
 		}
 		std::map<uint8_t, TextureInfos> palettes;
+		uint8_t *oldData;
 	};
 
 	class IdentifiedTexture {
@@ -153,9 +154,10 @@ public:
 	void clearTiledTexs();
 	void clearTextures();
 	// Returns the textures matching the tiledTex
-	std::list<IdentifiedTexture> matchTextures(const TiledTex &tiledTex, bool withModsOnly = false) const;
+	std::list<IdentifiedTexture> matchTextures(const TiledTex &tiledTex, bool withModsOnly = false, const std::vector<bool> &pixelsToConsiderInTiledTex = std::vector<bool>()) const;
 	void registerTiledTex(const uint8_t *texData, int x, int y, Tim::Bpp bpp, int palX = -1, int palY = -1);
 	void registerPaletteWrite(const uint8_t *texData, int palIndex, int palX, int palY);
+	bool updateTiledTexData(const uint8_t *texData, size_t size);
 	TiledTex getTiledTex(const uint8_t *texData) const;
 
 	TextureTypes drawTextures(
@@ -164,6 +166,9 @@ public:
 	) const;
 
 	static void debugSaveTexture(int textureId, const uint32_t *source, int w, int h, bool removeAlpha, bool after, TextureTypes textureType);
+	static TexturePacker &instance() {
+		return _instance;
+	}
 private:
 	inline static ModdedTextureId makeTextureId(int xBpp2, int y, bool isPal = false) {
 		return (xBpp2 + y * VRAM_WIDTH) | (isPal << 31);
@@ -193,4 +198,6 @@ private:
 	std::vector<ModdedTextureId> _vramTextureIds; // ModdedTextureId[VRAM_WIDTH * VRAM_HEIGHT]
 	// List of uploaded textures to the VRAM
 	std::unordered_map<ModdedTextureId, IdentifiedTexture> _textures;
+
+	static TexturePacker _instance;
 };

@@ -19,7 +19,9 @@
 //    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         //
 //    GNU General Public License for more details.                          //
 /****************************************************************************/
+#include "mod_paths.h"
 
-#pragma once
-
-void vram_init();
+std::string remastered_texture_path(const TexturePacker::TiledTex &tiledTex)
+{
+	return std::string();
+}

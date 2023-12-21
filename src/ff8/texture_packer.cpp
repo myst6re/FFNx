@@ -28,6 +28,8 @@
 uint32_t *image_data_scaled_cache = nullptr;
 uint32_t image_data_scaled_size_cache = 0;
 
+TexturePacker TexturePacker::_instance;
+
 // Scale 32-bit BGRA image in place
 void scale_up_image_data_in_place(uint32_t *sourceAndTarget, uint32_t w, uint32_t h, uint8_t scale)
 {
@@ -372,7 +374,7 @@ void TexturePacker::clearTextures()
 	_textures.clear();
 }
 
-std::list<TexturePacker::IdentifiedTexture> TexturePacker::matchTextures(const TiledTex &tiledTex, bool withModsOnly) const
+std::list<TexturePacker::IdentifiedTexture> TexturePacker::matchTextures(const TiledTex &tiledTex, bool withModsOnly, const std::vector<bool> &pixelsToConsiderInTiledTex) const
 {
 	std::list<IdentifiedTexture> ret;
 
@@ -389,7 +391,9 @@ std::list<TexturePacker::IdentifiedTexture> TexturePacker::matchTextures(const T
 
 	std::set<ModdedTextureId> textureIds;
 
-	if (trace_all || trace_vram) ffnx_trace("TexturePacker::%s looking for textures at (%d, %d, %d, %d) in VRAM\n", __func__, tiledTex.x(), tiledTex.y(), tiledTex.w(), tiledTex.h());
+	if (trace_all || trace_vram) ffnx_trace("TexturePacker::%s looking for textures of bpp %d at (%d, %d, %d, %d) in VRAM\n", __func__, tiledTex.bpp(), tiledTex.x(), tiledTex.y(), tiledTex.w(), tiledTex.h());
+
+	bool onlyConsiderSomePixels = !pixelsToConsiderInTiledTex.empty();
 
 	for (int y = 0; y < tiledTex.h(); ++y)
 	{
@@ -407,6 +411,11 @@ std::list<TexturePacker::IdentifiedTexture> TexturePacker::matchTextures(const T
 			if (vramX >= VRAM_WIDTH)
 			{
 				break;
+			}
+
+			if (onlyConsiderSomePixels && !pixelsToConsiderInTiledTex.at(x + y * tiledTex.w()))
+			{
+				continue;
 			}
 
 			ModdedTextureId textureId = _vramTextureIds.at(vramX + vramY * VRAM_WIDTH);
@@ -483,6 +492,8 @@ TexturePacker::TextureTypes TexturePacker::drawTextures(
 
 	*outScale = 1;
 	*outTarget = rgbaImageData;
+
+	debugSaveTexture(textureId, rgbaImageData, originalW, originalH, true, false, TexturePacker::NoTexture);
 
 	if (_textures.empty())
 	{
@@ -634,10 +645,25 @@ TexturePacker::TextureTypes TexturePacker::drawTextures(const std::list<Identifi
 
 void TexturePacker::registerTiledTex(const uint8_t *texData, int x, int y, Tim::Bpp bpp, int palX, int palY)
 {
-	if (trace_all || trace_vram) ffnx_trace("TexturePacker::%s pointer=0x%X x=%d y=%d bpp=%d palX=%d palY=%d\n", __func__, texData, x, y, bpp, palX, palY);
+	if (_tiledTexs.contains(texData))
+	{
+		if (trace_all || trace_vram) ffnx_trace("TexturePacker::%s update pointer=0x%X x=%d y=%d bpp=%d palX=%d palY=%d\n", __func__, texData, x, y, bpp, palX, palY);
 
-	// If this entry already exist, override
-	_tiledTexs[texData] = TiledTex(x, y, bpp, palX, palY);
+		TiledTex &tex = _tiledTexs[texData];
+
+		if (tex.x() == x && tex.y() == y && tex.bpp() == bpp)
+		{
+			tex.palettes[0] = TextureInfos(palX, palY, 256, 1, Tim::Bpp16);
+
+			return;
+		}
+	}
+	else
+	{
+		if (trace_all || trace_vram) ffnx_trace("TexturePacker::%s create pointer=0x%X x=%d y=%d bpp=%d palX=%d palY=%d\n", __func__, texData, x, y, bpp, palX, palY);
+
+		_tiledTexs[texData] = TiledTex(x, y, bpp, palX, palY);
+	}
 }
 
 void TexturePacker::registerPaletteWrite(const uint8_t *texData, int palIndex, int palX, int palY)
@@ -646,8 +672,7 @@ void TexturePacker::registerPaletteWrite(const uint8_t *texData, int palIndex, i
 
 	if (_tiledTexs.contains(texData))
 	{
-		TiledTex &tex = _tiledTexs[texData];
-		tex.palettes[palIndex] = TextureInfos(palX, palY, 256, 1, Tim::Bpp16);
+		_tiledTexs[texData].palettes[palIndex] = TextureInfos(palX, palY, 256, 1, Tim::Bpp16);
 	}
 	else
 	{
@@ -655,6 +680,29 @@ void TexturePacker::registerPaletteWrite(const uint8_t *texData, int palIndex, i
 
 		_tiledTexs[texData] = TiledTex(-1, -1, Tim::Bpp4, palX, palY);
 	}
+}
+
+bool TexturePacker::updateTiledTexData(const uint8_t *texData, size_t size)
+{
+	if (trace_all || trace_vram) ffnx_trace("%s pointer=0x%X\n", __func__, texData);
+
+	if (!_tiledTexs.contains(texData))
+	{
+		return false;
+	}
+
+	TiledTex &tex = _tiledTexs[texData];
+
+	if (tex.oldData == nullptr)
+	{
+		if(trace_all || trace_vram) ffnx_trace("dll_gfx: load_texture alloc old data pointer=0x%X\n", texData);
+
+		tex.oldData = (uint8_t*)external_malloc(size);
+	}
+
+	memcpy(tex.oldData, texData, size);
+
+	return true;
 }
 
 TexturePacker::TiledTex TexturePacker::getTiledTex(const uint8_t *texData) const
@@ -701,13 +749,13 @@ TexturePacker::TextureInfos::TextureInfos(
 }
 
 TexturePacker::TiledTex::TiledTex()
- : TextureInfos()
+ : TextureInfos(), oldData(nullptr)
 {
 }
 
 TexturePacker::TiledTex::TiledTex(
 	int x, int y, Tim::Bpp bpp, int palVramX, int palVramY
-) : TextureInfos(x, y, 256 / (4 >> int(bpp)), 256, bpp)
+) : TextureInfos(x, y, 256 / (4 >> int(bpp)), 256, bpp), oldData(nullptr)
 {
 	if (palVramX >= 0) {
 		palettes[0] = TextureInfos(palVramX, palVramY, 256, 1, Tim::Bpp16);

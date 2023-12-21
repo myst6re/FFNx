@@ -62,6 +62,7 @@
 #include "ff8/vibration.h"
 #include "ff8/engine.h"
 #include "ff8/uv_patch.h"
+#include "ff8/texture_packer.h"
 
 bool proxyWndProc = false;
 
@@ -1330,7 +1331,7 @@ void common_unload_texture(struct texture_set *texture_set)
 	uint32_t i;
 	VOBJ(texture_set, texture_set, texture_set);
 
-	if(trace_all) ffnx_trace("dll_gfx: unload_texture 0x%x\n", VPTR(texture_set));
+	if (trace_all || trace_vram) ffnx_trace("dll_gfx: unload_texture 0x%x\n", VPTR(texture_set));
 
 	if(!VPTR(texture_set)) return;
 	if(!VREF(texture_set, texturehandle)) return;
@@ -1377,8 +1378,6 @@ void common_unload_texture(struct texture_set *texture_set)
 	}
 
 	if(current_state.texture_set == VPTR(texture_set)) current_state.texture_set = NULL;
-
-	if(ff8) ff8_unload_texture(VPTRCAST(ff8_texture_set, texture_set));
 }
 
 // create a texture from an area of the framebuffer, source rectangle is encoded into tex header
@@ -1470,7 +1469,7 @@ uint32_t load_external_texture(void* image_data, uint32_t dataSize, struct textu
 	{
 		uint32_t *image_data_scaled = nullptr;
 		uint8_t scale = 1;
-		TexturePacker::TextureTypes textureType = texturePacker.drawTextures(
+		TexturePacker::TextureTypes textureType = TexturePacker::instance().drawTextures(
 			VREF(tex_header, image_data), reinterpret_cast<uint32_t *>(image_data), dataSize, originalWidth, originalHeight,
 			VREF(tex_header, palette_index) / 2,
 			&scale, &image_data_scaled
@@ -1631,7 +1630,7 @@ struct texture_set *common_load_texture(struct texture_set *_texture_set, struct
 	uint32_t color_key = false;
 	struct texture_format *tex_format = VREFP(tex_header, tex_format);
 
-	if(trace_all && _texture_set != NULL) ffnx_trace("dll_gfx: load_texture 0x%x\n", _texture_set);
+	if(trace_all || trace_vram) ffnx_trace("dll_gfx: load_texture 0x%x pointer=0x%X\n", _texture_set, VREF(tex_header, image_data));
 
 	// no existing texture set, create one
 	if (!VPTR(texture_set))
@@ -1658,6 +1657,8 @@ struct texture_set *common_load_texture(struct texture_set *_texture_set, struct
 
 		if(ff8 && VREF(tex_header, version) != FB_TEX_VERSION)
 		{
+			if(trace_all || trace_vram) ffnx_trace("dll_gfx: load_texture initialize texturehandle pointer=0x%X tex_header=%X old_palette_data=%X\n", VREF(tex_header, image_data), ff8_tex_header, VREF(tex_header, old_palette_data));
+
 			external_free(VREF(tex_header, old_palette_data));
 			VRASS(tex_header, old_palette_data, 0);
 		}
@@ -1713,29 +1714,76 @@ struct texture_set *common_load_texture(struct texture_set *_texture_set, struct
 	// convert texture data from source format and load it
 	if(texture_format != 0 && VREF(tex_header, image_data) != 0)
 	{
-		if (ff8)
+		if (ff8 && VREF(tex_header, version) != FB_TEX_VERSION)
 		{
-			// optimization to not upload textures with undefined VRAM palette
-			TexturePacker::TiledTex tiledTex = texturePacker.getTiledTex(VREF(tex_header, image_data));
+			TexturePacker::TiledTex tiledTex = TexturePacker::instance().getTiledTex(VREF(tex_header, image_data));
 
-			if (tiledTex.isValid() && !tiledTex.isPaletteValid(VREF(tex_header, palette_index) / 2))
+			if (tiledTex.isValid())
 			{
-				if(trace_all || trace_vram) ffnx_trace("dll_gfx: load_texture ignored pointer=0x%X pos=(%d, %d) bpp=%d\n", VREF(tex_header, image_data), tiledTex.x(), tiledTex.y(), tiledTex.bpp());
+				int realPaletteIndex = VREF(tex_header, palette_index) / 2;
+				// optimization to not upload textures with undefined VRAM palette
+				if (!tiledTex.isPaletteValid(realPaletteIndex))
+				{
+					if(trace_all || trace_vram) ffnx_trace("dll_gfx: load_texture ignored because invalid palette pointer=0x%X pos=(%d, %d) bpp=%d\n", VREF(tex_header, image_data), tiledTex.x(), tiledTex.y(), tiledTex.bpp());
 
-				return _texture_set;
+					return _texture_set;
+				}
+
+				// detect changes in image data for FF8, we can't trust it to notify us
+				/* if (VREF(texture_set, texturehandle[VREF(tex_header, palette_index)])
+				 && tiledTex.oldData && memcmp(tiledTex.oldData, VREF(tex_header, image_data), tex_format->width * tex_format->height * tex_format->bytesperpixel) != 0)
+				{
+					if(trace_all || trace_vram) ffnx_trace("dll_gfx: load_texture accepted pointer=0x%X data changed w=%d texWidth=%d\n", VREF(tex_header, image_data), tiledTex.w(), tex_format->width);
+
+					std::vector<bool> pixelsChanges(size_t(tiledTex.w() * tiledTex.h()), false);
+
+					for (int y = 0; y < tiledTex.h(); ++y)
+					{
+						for (int x = 0; x < tiledTex.w(); ++x)
+						{
+							if (tiledTex.bpp() == Tim::Bpp4) {
+								pixelsChanges[x + y * tiledTex.w()] = ((uint32_t *)tiledTex.oldData)[x + y * tiledTex.w()] != ((uint32_t *)VREF(tex_header, image_data))[x + y * tiledTex.w()];
+							} else {
+								pixelsChanges[x + y * tiledTex.w()] = ((uint16_t *)tiledTex.oldData)[x + y * tiledTex.w()] != ((uint16_t *)VREF(tex_header, image_data))[x + y * tiledTex.w()];
+							}
+
+							if (pixelsChanges[x + y * tiledTex.w()])
+							{
+								ffnx_trace("change x=%d y=%d w=%d texWidth=%d\n", x, y, tiledTex.w(), tex_format->width);
+							}
+						}
+					}
+
+					std::list<TexturePacker::IdentifiedTexture> matchedTextures = TexturePacker::instance().matchTextures(tiledTex, false, pixelsChanges);
+
+					if (!matchedTextures.empty())
+					{
+						//newRenderer.deleteTexture(VREF(texture_set, texturehandle[VREF(tex_header, palette_index)]));
+						//VRASS(texture_set, texturehandle[VREF(tex_header, palette_index)], 0);
+					}
+				}
+
+				if (!VREF(texture_set, texturehandle[VREF(tex_header, palette_index)]))
+				{
+					TexturePacker::instance().updateTiledTexData(VREF(tex_header, image_data), tex_format->width * tex_format->height * tex_format->bytesperpixel);
+				} */
 			}
 		}
 
+		if(trace_all || trace_vram) ffnx_trace("dll_gfx: load_texture accepted pointer=0x%X palette_index=%d palette_size=%d\n", VREF(tex_header, image_data), VREF(tex_header, palette_index), 4 * tex_format->palette_size);
+
 		// detect changes in palette data for FF8, we can't trust it to notify us
-		if(ff8 && VREF(tex_header, palettes) > 0 && VREF(tex_header, version) != FB_TEX_VERSION && tex_format->bytesperpixel == 1)
+		/* if(ff8 && VREF(tex_header, palettes) > 0 && VREF(tex_header, version) != FB_TEX_VERSION && tex_format->bytesperpixel == 1)
 		{
 			if(!VREF(tex_header, old_palette_data))
 			{
 				VRASS(tex_header, old_palette_data, (unsigned char*)external_malloc(4 * tex_format->palette_size));
+				if(trace_all || trace_vram) ffnx_trace("dll_gfx: load_texture accepted pointer=0x%X set old palette data\n", VREF(tex_header, image_data));
 			}
 
 			if(memcmp(VREF(tex_header, old_palette_data), tex_format->palette_data, 4 * tex_format->palette_size) != 0)
 			{
+				if(trace_all || trace_vram) ffnx_trace("dll_gfx: load_texture accepted pointer=0x%X palette changed\n", VREF(tex_header, image_data));
 				for (uint32_t idx = 0; idx < VREF(texture_set, ogl.gl_set->textures); idx++)
 					newRenderer.deleteTexture(VREF(texture_set, texturehandle[idx]));
 
@@ -1743,7 +1791,7 @@ struct texture_set *common_load_texture(struct texture_set *_texture_set, struct
 
 				memcpy(VREF(tex_header, old_palette_data), tex_format->palette_data, 4 * tex_format->palette_size);
 			}
-		}
+		} */
 
 		// the texture handle for the current palette is missing, convert & load it
 		// if we are dealing with an animated palette, load it anyway even if already loaded
@@ -1860,7 +1908,7 @@ uint32_t common_write_palette(uint32_t source_offset, uint32_t size, void *sourc
 	VOBJ(texture_set, texture_set, texture_set);
 	VOBJ(tex_header, tex_header, VREF(texture_set, tex_header));
 
-	if(trace_all) ffnx_trace("dll_gfx: write_palette 0x%x, %i, %i, %i, 0x%x, 0x%x, image_data=0x%X\n", texture_set, source_offset, dest_offset, size, source, palette->palette_entry, VREF(tex_header, image_data));
+	if (trace_all || trace_vram) ffnx_trace("dll_gfx: write_palette 0x%x, %i, %i, %i, 0x%x, 0x%x, image_data=0x%X\n", texture_set, source_offset, dest_offset, size, source, palette->palette_entry, VREF(tex_header, image_data));
 
 	if(palette == 0) return false;
 
