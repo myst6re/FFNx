@@ -1484,6 +1484,8 @@ void blit_framebuffer_texture(struct texture_set *texture_set, struct tex_header
 	);
 }
 
+int textureId = 0;
+
 // load modpath texture for tex file, returns true if successful
 uint32_t load_external_texture(void* image_data, uint32_t dataSize, struct texture_set *texture_set, struct tex_header *tex_header, uint32_t originalWidth, uint32_t originalHeight, uint32_t saveload_palette_index)
 {
@@ -1492,6 +1494,11 @@ uint32_t load_external_texture(void* image_data, uint32_t dataSize, struct textu
 	uint32_t texture = 0;
 	struct gl_texture_set *gl_set = VREF(texture_set, ogl.gl_set);
 	struct texture_format* tex_format = VREFP(tex_header, tex_format);
+
+	ffnx_trace("%s: %d image_data=0x%X\n", __func__, textureId, VREF(tex_header, image_data));
+	save_textures = true;
+	TexturePacker::debugSaveTexture(textureId++, reinterpret_cast<uint32_t *>(image_data), originalWidth, originalHeight, false);
+	save_textures = false;
 
 	if((uint32_t)VREF(tex_header, file.pc_name) > 32 && !save_textures)
 	{
@@ -2070,7 +2077,7 @@ struct blend_mode blend_modes[5] = {      // PSX blend mode:
 // only z-sort and vertex alpha are really relevant to us
 struct blend_mode *common_blendmode(uint32_t blend_mode, struct game_obj *game_object)
 {
-	if(trace_all) ffnx_trace("dll_gfx: blendmode %i\n", blend_mode);
+	ffnx_trace("dll_gfx: blendmode %i\n", blend_mode);
 
 	switch(blend_mode)
 	{
@@ -2244,6 +2251,8 @@ void common_setrenderstate(struct p_hundred *hundred_data, struct game_obj *game
 				struc_81->blend_mode = hundred_data->blend_mode;
 		}
 
+		ffnx_trace("dll_gfx: setrenderstate V_ALPHABLEND 0x%x 0x%x blend_mode=%d game_blend_mode=%d hundred_blend_mode=%d\n", features, options, struc_81->blend_mode, VREF(game_object, current_hundred) ? VREF(game_object, current_hundred->blend_mode) : -1, hundred_data->blend_mode);
+
 		gl_set_blend_func(struc_81->blend_mode);
 	}
 	if(CHECK_BIT(features, V_ALPHATEST)) internal_set_renderstate(V_ALPHATEST, CHECK_BIT(options, V_ALPHATEST), game_object);
@@ -2268,6 +2277,8 @@ void common_setrenderstate(struct p_hundred *hundred_data, struct game_obj *game
 				struc_81->blend_mode = hundred_data->blend_mode;
 		}
 
+		ffnx_trace("dll_gfx: setrenderstate V_UNKNOWNFFFDFFFD 0x%x 0x%x blend_mode=%d game_blend_mode=%d hundred_blend_mode=%d\n", features, options, struc_81->blend_mode, VREF(game_object, current_hundred) ? VREF(game_object, current_hundred->blend_mode) : -1, hundred_data->blend_mode);
+
 		gl_set_blend_func(struc_81->blend_mode);
 	}
 
@@ -2281,11 +2292,12 @@ void common_field_74(uint32_t unknown, struct game_obj *game_object)
 {
 	VOBJ(game_obj, game_object, game_object);
 
-	if(trace_all) ffnx_trace("dll_gfx: field_74\n");
+	ffnx_trace("dll_gfx: field_74 %X\n", unknown);
 
 	if(unknown > 4) return;
 
-	common_setrenderstate(VREF(game_object, hundred_array[unknown]), game_object);
+	gl_set_blend_func(unknown);
+	//common_setrenderstate(VREF(game_object, hundred_array[unknown]), game_object);
 }
 
 // called by the game to render a polygon set
@@ -2338,19 +2350,19 @@ void common_field_80(struct graphics_object *graphics_object, struct game_obj *g
 
 // called by the game to draw some predefined polygon sets, no idea what this
 // is really used for
-void common_field_84(uint32_t unknown, struct game_obj *game_object)
+void common_field_84(uint32_t blend_mode, struct game_obj *game_object)
 {
 	VOBJ(game_obj, game_object, game_object);
 	VOBJ(polygon_set, polygon_set_2EC, VREF(game_object, polygon_set_2EC));
 	VOBJ(polygon_set, polygon_set_2F0, VREF(game_object, polygon_set_2F0));
 
-	if(trace_all) ffnx_trace("dll_gfx: field_84\n");
+	if(trace_all) ffnx_trace("dll_gfx: field_84 blend_mode=%d\n", blend_mode);
 
 	if(!VREF(game_object, in_scene)) return;
 
-	VRASS(game_object, field_928, unknown);
+	VRASS(game_object, field_928, blend_mode);
 
-	if(!unknown)
+	if(!blend_mode)
 	{
 		VRASS(polygon_set_2EC, field_0, true);
 		VRASS(polygon_set_2F0, field_0, false);
@@ -2825,15 +2837,18 @@ extern "C" {
 #endif
 
 // main entry point, called by the game to create a graphics driver object
-__declspec(dllexport) void *new_dll_graphics_driver(void *game_object)
+__declspec(dllexport) void *new_dll_graphics_driver(struct game_obj* game_object)
 {
 	void *ret;
 
 	// game-specific initialization
 	if(!ff8)
 		ret = ff7_load_driver(game_object);
-	else
+	else {
+		VOBJ(game_obj, game_object, game_object);
+		VRASS(game_object, current_gfx_driver, 0); // Force software rendering game hacks
 		ret = ff8_load_driver(game_object);
+	}
 
 	return ret;
 }

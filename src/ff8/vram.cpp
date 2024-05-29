@@ -1606,6 +1606,31 @@ void clean_psxvram_pages()
 	((void(*)())ff8_externals.sub_4672C0)();
 }
 
+void ssigpu_init(void *psxvram_buffer)
+{
+	int *is_SW_renderer = (int *)0x1CA86D8;
+	ffnx_info("%s: is_SW_renderer=%X %X %X\n", __func__, *is_SW_renderer, *(int *)0x1CCFA64, ((ff8_game_obj *)common_externals.get_game_object())->field_C08);
+
+	//*is_SW_renderer = 1; // Enable substractive blending capabilities
+
+	((void(*)(void*))ff8_externals.ssigpu_init)(psxvram_buffer);
+}
+
+void set_data(int blend_mode, void *data)
+{
+	((void(*)(int,void*))0x40702F)(2, data);
+}
+
+void swirl_monster_loop(int iterator,
+        float two_percents_of_iterator,
+        ff8_game_obj *game_object)
+{
+	int *is_SW_renderer = (int *)0x1CA86D8;
+	ffnx_trace("%s: iterator=%d %f is_SW_renderer=%d\n", __func__, iterator, two_percents_of_iterator, *is_SW_renderer);
+
+	((void(*)(int,float,ff8_game_obj*))0x559FF0)(iterator, two_percents_of_iterator, game_object);
+}
+
 void vram_init()
 {
 	replace_function(ff8_externals.upload_psx_vram, ff8_upload_vram);
@@ -1706,4 +1731,11 @@ void vram_init()
 	// Free pc_name in tex_header
 	replace_call(ff8_externals.psxvram_texture_page_free + 0x98, free_tex_header);
 	replace_call(ff8_externals.psxvram_texture_page_free + 0xAF, free_tex_header);
+
+	replace_call(ff8_externals.sub_45B460 + 0x26, ssigpu_init);
+	//replace_call(0x464DA0 + 0x79, set_data);
+	//patch_code_byte(0x45CDD2, 2); // Force current driver comparison
+
+	replace_function(0x45B5D0, noop);
+	replace_call(0x559C90 + 0xC6, swirl_monster_loop);
 }
