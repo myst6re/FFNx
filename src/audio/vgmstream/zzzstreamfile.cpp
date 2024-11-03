@@ -62,7 +62,7 @@ struct ZZZ_STREAMFILE {
 
 size_t zzz_read(ZZZ_STREAMFILE* sf, uint8_t* dst, offv_t offset, size_t length)
 {
-    ffnx_info("%s: %s\n", __func__, sf->infile->fileName());
+    if (trace_all) ffnx_trace("%s: %s\n", __func__, sf->infile->fileName());
     size_t read_total = 0;
 
     if (dst == nullptr || length <= 0 || offset < 0)
@@ -146,18 +146,18 @@ void zzz_get_name(ZZZ_STREAMFILE* sf, char* name, size_t name_size)
 
     memcpy(name, sf->infile->fileName(), copy_size);
     name[copy_size - 1] = '\0';
-    ffnx_info("%s: %s %d %d %s\n", __func__, name, copy_size, name_size, sf->infile->fileName());
+    if (trace_all || trace_files) ffnx_trace("%s: %s %d %d %s\n", __func__, name, copy_size, name_size, sf->infile->fileName());
 }
 
 STREAMFILE* zzz_open(ZZZ_STREAMFILE* sf, const char* const filename, size_t buf_size)
 {
-    ffnx_info("%s: %s\n", __func__, filename);
+    if (trace_all || trace_files) ffnx_trace("%s: %s\n", __func__, filename);
     return open_ZZZ_STREAMFILE(sf->archive, filename, strlen(filename), buf_size);
 }
 
 void zzz_close(ZZZ_STREAMFILE* sf)
 {
-    ffnx_info("%s: %s\n", __func__, sf->infile->fileName());
+    if (trace_all || trace_files) ffnx_trace("%s: %s\n", __func__, sf->infile->fileName());
     sf->archive->closeFile(sf->infile);
     delete[] sf->buf;
     delete sf;
@@ -165,7 +165,7 @@ void zzz_close(ZZZ_STREAMFILE* sf)
 
 STREAMFILE* open_ZZZ_STREAMFILE(Zzz* archive, const char* const filename, size_t filenameSize, size_t buf_size)
 {
-    ffnx_info("%s: %s\n", __func__, filename);
+    if (trace_all || trace_files) ffnx_trace("%s: %s\n", __func__, filename);
     if (filename == nullptr || archive == nullptr)
     {
         return nullptr;
