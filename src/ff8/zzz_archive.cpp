@@ -64,7 +64,7 @@ bool Zzz::isOpen() const
 
 bool Zzz::lookup(const char *fileName, size_t size, ZzzTocEntry &tocEntry) const
 {
-	ffnx_trace("Zzz::%s: %s %d\n", __func__, fileName, size);
+	if (trace_all || trace_files) ffnx_trace("Zzz::%s: %s %d\n", __func__, fileName, size);
 	char transformedFileName[128];
 	size_t sizeToTransform = std::min(size + 1, size_t(128)) - 1;
 
@@ -107,7 +107,7 @@ bool Zzz::openHeader()
 		return false;
 	}
 
-	ffnx_info("Zzz::%s: found %d files\n", __func__, fileCount);
+	if (trace_all || trace_files) ffnx_trace("Zzz::%s: found %d files\n", __func__, fileCount);
 
 	for (uint64_t i = 0; i < fileCount; ++i)
 	{
@@ -308,14 +308,14 @@ Zzz::File::File(const ZzzTocEntry &tocEntry, int fd) :
 
 Zzz::File::~File()
 {
-	ffnx_info("Zzz::File::close: %s\n", _tocEntry.fileName);
+	if (trace_all) ffnx_trace("Zzz::File::close: %s\n", _tocEntry.fileName);
 
 	_close(_fd);
 }
 
 int64_t Zzz::File::seek(int32_t pos, Whence whence)
 {
-	ffnx_info("Zzz::File::%s: %u\n", __func__, pos);
+	if (trace_all) ffnx_trace("Zzz::File::%s: %u\n", __func__, pos);
 
 	switch (whence) {
 		case SeekEnd:
@@ -334,7 +334,7 @@ int64_t Zzz::File::seek(int32_t pos, Whence whence)
 
 	_pos = _lseeki64(_fd, _tocEntry.filePos + pos, SEEK_SET);
 
-	ffnx_info("Zzz::File::%s: new pos=%lld filePos=%lld\n", __func__, _pos, _tocEntry.filePos);
+	if (trace_all) ffnx_trace("Zzz::File::%s: new pos=%lld filePos=%lld\n", __func__, _pos, _tocEntry.filePos);
 
 	return relativePos();
 }
@@ -343,7 +343,7 @@ int Zzz::File::read(void *data, unsigned int size)
 {
 	int64_t pos = relativePos();
 
-	ffnx_info("Zzz::File::%s: size=%u pos=%lld fileSize=%u\n", __func__, size, pos, _tocEntry.fileSize);
+	if (trace_all) ffnx_trace("Zzz::File::%s: size=%u pos=%lld fileSize=%u\n", __func__, size, pos, _tocEntry.fileSize);
 
 	if (pos < 0) {
 		return -1; // Before the beginning of the file
@@ -355,7 +355,7 @@ int Zzz::File::read(void *data, unsigned int size)
 
 	int r = _read(_fd, data, std::min(size, uint32_t(_tocEntry.fileSize - pos)));
 
-	ffnx_info("Zzz::File::%s: read %d bytes\n", __func__, r);
+	if (trace_all) ffnx_trace("Zzz::File::%s: read %d bytes\n", __func__, r);
 
 	if (r > 0) {
 		_pos += r;

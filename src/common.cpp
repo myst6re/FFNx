@@ -78,6 +78,7 @@
 #include "ff8/ambient.h"
 #include "ff8/file.h"
 #include "ff8/remaster.h"
+#include "ff8/battle/trace.h"
 
 #include "wine.h"
 
@@ -961,6 +962,7 @@ int common_create_window(HINSTANCE hInstance, struct game_obj* game_object)
 					vibration_init();
 					if (remastered_edition) {
 						ff8_remaster_init();
+						ff8_battle_trace_init();
 					}
 				}
 

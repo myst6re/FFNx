@@ -193,7 +193,7 @@ uint32_t ff8_movie_frames;
 
 int ff8_zzz_read(void *opaque, uint8_t *buf, int buf_size)
 {
-	if (trace_all || trace_movies) ffnx_trace("%s: buf_size=%d\n", __func__, buf_size);
+	if (trace_all) ffnx_trace("%s: buf_size=%d\n", __func__, buf_size);
 
 	if (opaque == nullptr) {
 		return -1;
@@ -206,7 +206,7 @@ int ff8_zzz_read(void *opaque, uint8_t *buf, int buf_size)
 
 int64_t ff8_zzz_seek(void *opaque, int64_t offset, int whence)
 {
-	if (trace_all || trace_movies) ffnx_trace("%s: offset=%d, whence=%d\n", __func__, offset, whence);
+	if (trace_all) ffnx_trace("%s: offset=%d, whence=%d\n", __func__, offset, whence);
 
 	if (opaque == nullptr) {
 		return -1;
@@ -231,7 +231,7 @@ int64_t ff8_zzz_seek(void *opaque, int64_t offset, int whence)
 
 void ff8_zzz_close(void *opaque)
 {
-	if (trace_all || trace_movies) ffnx_trace("%s\n", __func__);
+	if (trace_all || trace_files) ffnx_trace("%s\n", __func__);
 
 	if (opaque == nullptr) {
 		return;
