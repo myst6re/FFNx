@@ -26,7 +26,6 @@
 #include <dwmapi.h>
 #include <stdio.h>
 #include <sys/timeb.h>
-#include <steamworkssdk/steam_api.h>
 #include <hwinfo/hwinfo.h>
 #include <regex>
 #include <shlwapi.h>
@@ -65,6 +64,7 @@
 #include "game_cfg.h"
 #include "exe_data.h"
 #include "utils.h"
+#include "steam.h"
 
 #include "ff7/defs.h"
 #include "ff7/widescreen.h"
@@ -746,20 +746,22 @@ int common_create_window(HINSTANCE hInstance, struct game_obj* game_object)
 	// Init Steam API
 	if(steam_edition || enable_steam_achievements)
 	{
+		int appid = ff8 ? FF8_APPID : FF7_APPID;
 		// generate automatically steam_appid.txt
-		if(!steam_edition){
+		if(!steam_edition)
+		{
 			std::ofstream steam_appid_file("steam_appid.txt");
-			steam_appid_file << ((ff8) ? FF8_APPID : FF7_APPID);
+			steam_appid_file << appid;
 			steam_appid_file.close();
 		}
 
-		if (SteamAPI_RestartAppIfNecessary((ff8) ? FF8_APPID : FF7_APPID))
+		if (steam_api_restart_app_if_necessary(appid))
 		{
 			MessageBoxA(gameHwnd, "Steam Error - Could not find steam_appid.txt containing the app ID of the game.\n", "Steam App ID Wrong", 0);
 			ffnx_error( "Steam Error - Could not find steam_appid.txt containing the app ID of the game.\n" );
 			return 1;
 		}
-		if (!SteamAPI_Init())
+		if (!steam_api_init())
 		{
 			MessageBoxA(gameHwnd, "Steam Error - Steam must be running to play this game with achievements (SteamAPI_Init() failed).\n", "Steam not running error", 0);
 			ffnx_error( "Steam Error - Steam must be running to play this game with achievements (SteamAPI_Init() failed).\n" );
@@ -1045,7 +1047,7 @@ void common_cleanup(struct game_obj *game_object)
 
 	// Shutdown Steam API
 	if(steam_edition || enable_steam_achievements)
-		SteamAPI_Shutdown();
+		steam_api_shutdown();
 
 	nxAudioEngine.cleanup();
 	newRenderer.shutdown();
@@ -1292,7 +1294,7 @@ void common_flip(struct game_obj *game_object)
 
 	// Steamworks SDK API run callbacks
 	if(steam_edition || enable_steam_achievements)
-		SteamAPI_RunCallbacks();
+		steam_api_run_callbacks();
 
 }
 

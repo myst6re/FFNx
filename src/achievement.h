@@ -23,13 +23,13 @@
 #pragma once
 
 #include <memory>
-#include <steamworkssdk/steam_api.h>
 #include <array>
 #include <vector>
 #include <string>
 #include <windows.h>
 
 #include "ff7.h"
+#include "steam.h"
 
 #define _ACH_ID(id)           \
     {                         \
@@ -64,9 +64,9 @@ public:
     bool isAchieved(int achID);
     const char *getStringAchievementID(int achID);
 
-    STEAM_CALLBACK(SteamManager, OnUserStatsReceived, UserStatsReceived_t, callbackUserStatsReceived);
-    STEAM_CALLBACK(SteamManager, OnUserStatsStored, UserStatsStored_t, callbackUserStatsStored);
-    STEAM_CALLBACK(SteamManager, OnAchievementStored, UserAchievementStored_t, callbackAchievementStored);
+    FFNX_STEAM_CALLBACK(SteamManager, OnUserStatsReceived, UserStatsReceived_t, callbackUserStatsReceived);
+    FFNX_STEAM_CALLBACK(SteamManager, OnUserStatsStored, UserStatsStored_t, callbackUserStatsStored);
+    FFNX_STEAM_CALLBACK(SteamManager, OnAchievementStored, UserAchievementStored_t, callbackAchievementStored);
 };
 
 class SteamAchievementsFF7

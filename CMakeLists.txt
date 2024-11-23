@@ -153,7 +153,6 @@ target_link_libraries(
   imgui::imgui
   pugixml::pugixml
   tomlplusplus::tomlplusplus
-  STEAMWORKSSDK::STEAMWORKSSDK
   xxHash::xxhash
   lz4::lz4
   Vorbis::vorbisfile
@@ -263,7 +262,7 @@ add_custom_command(
   # steam_api.dll
   COMMAND ${CMAKE_COMMAND} -E copy
           ${CMAKE_BINARY_DIR}/vcpkg_installed/x86-windows-static/tools/steamworkssdk/steam_api.dll
-          ${CMAKE_BINARY_DIR}/bin
+          ${CMAKE_BINARY_DIR}/bin/ffnx_steam_api.dll
   # .pdb
   COMMAND ${CMAKE_COMMAND} -E copy
           ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE}/${RELEASE_NAME}.pdb
