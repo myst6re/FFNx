@@ -20,10 +20,6 @@
 //    GNU General Public License for more details.                          //
 /****************************************************************************/
 
-#include <steamworkssdk/isteamutils.h>
-#include <steamworkssdk/isteamuserstats.h>
-#include <steamworkssdk/isteamuser.h>
-
 #include <numeric>
 #include <algorithm>
 
@@ -41,7 +37,7 @@ SteamManager::SteamManager(const achievement *achievements, int nAchievements) :
                                                                                  callbackUserStatsStored(this, &SteamManager::OnUserStatsStored),
                                                                                  callbackAchievementStored(this, &SteamManager::OnAchievementStored)
 {
-    this->appID = SteamUtils()->GetAppID();
+    this->appID = steam_utils()->GetAppID();
     this->nAchievements = nAchievements;
     this->achievementList.insert(this->achievementList.end(), &achievements[0], &achievements[nAchievements]);
     this->requestStats();
@@ -52,19 +48,19 @@ SteamManager::SteamManager(const achievement *achievements, int nAchievements) :
 bool SteamManager::requestStats()
 {
     // Is Steam loaded?
-    if (NULL == SteamUserStats() || NULL == SteamUser())
+    if (NULL == steam_user_stats() || NULL == steam_user())
     {
         return false;
     }
     // Is the user logged on?
-    if (!SteamUser()->BLoggedOn())
+    if (!steam_user()->BLoggedOn())
     {
         return false;
     }
     if (trace_all || trace_achievement)
         ffnx_trace("%s - Request user stats sent\n", __func__);
 
-    return SteamUserStats()->RequestCurrentStats();
+    return steam_user_stats()->RequestCurrentStats();
 }
 
 bool SteamManager::setAchievement(int achID)
@@ -77,12 +73,12 @@ bool SteamManager::setAchievement(int achID)
         this->achievementList[achID].isAchieved = true;
         if (steam_achievements_debug_mode)
         {
-            return SteamUserStats()->IndicateAchievementProgress(this->getStringAchievementID(achID), 99, 100);
+            return steam_user_stats()->IndicateAchievementProgress(this->getStringAchievementID(achID), 99, 100);
         }
         else
         {
-            SteamUserStats()->SetAchievement(this->getStringAchievementID(achID));
-            return SteamUserStats()->StoreStats();
+            steam_user_stats()->SetAchievement(this->getStringAchievementID(achID));
+            return steam_user_stats()->StoreStats();
         }
     }
 
@@ -99,7 +95,7 @@ bool SteamManager::showAchievementProgress(int achID, int progressValue, int max
         if (trace_all || trace_achievement)
             ffnx_trace("%s - Show achievement progress for achievement %s (%d/%d)\n", __func__, this->getStringAchievementID(achID), progressValue, maxValue);
 
-        return SteamUserStats()->IndicateAchievementProgress(this->getStringAchievementID(achID), progressValue, maxValue);
+        return steam_user_stats()->IndicateAchievementProgress(this->getStringAchievementID(achID), progressValue, maxValue);
     }
 
     if (trace_all || trace_achievement)
@@ -133,12 +129,12 @@ void SteamManager::OnUserStatsReceived(UserStatsReceived_t *pCallback)
             {
                 achievement &ach = this->achievementList[i];
 
-                SteamUserStats()->GetAchievement(ach.chAchID, &ach.isAchieved);
+                steam_user_stats()->GetAchievement(ach.chAchID, &ach.isAchieved);
                 _snprintf(ach.achName, sizeof(ach.achName), "%s",
-                          SteamUserStats()->GetAchievementDisplayAttribute(ach.chAchID,
+                          steam_user_stats()->GetAchievementDisplayAttribute(ach.chAchID,
                                                                            "name"));
                 _snprintf(ach.achDescription, sizeof(ach.achDescription), "%s",
-                          SteamUserStats()->GetAchievementDisplayAttribute(ach.chAchID,
+                          steam_user_stats()->GetAchievementDisplayAttribute(ach.chAchID,
                                                                            "desc"));
 
                 if (trace_all || trace_achievement)
