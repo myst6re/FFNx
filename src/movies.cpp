@@ -196,12 +196,26 @@ int ff8_zzz_read(void *opaque, uint8_t *buf, int buf_size)
 	if (trace_all) ffnx_trace("%s: buf_size=%d\n", __func__, buf_size);
 
 	if (opaque == nullptr) {
-		return -1;
+		return AVERROR_EXIT;
+	}
+
+	if (buf_size == 0) {
+		return 0;
 	}
 
 	Zzz::File *f = (Zzz::File *)opaque;
 
-	return f->read(buf, buf_size);
+	int r = f->read(buf, buf_size);
+
+	if (r == 0) {
+		return AVERROR_EOF;
+	}
+
+	if (r < 0) {
+		return AVERROR_EXIT;
+	}
+
+	return r;
 }
 
 int64_t ff8_zzz_seek(void *opaque, int64_t offset, int whence)
@@ -209,7 +223,7 @@ int64_t ff8_zzz_seek(void *opaque, int64_t offset, int whence)
 	if (trace_all) ffnx_trace("%s: offset=%d, whence=%d\n", __func__, offset, whence);
 
 	if (opaque == nullptr) {
-		return -1;
+		return AVERROR_EXIT;
 	}
 
 	Zzz::File *f = (Zzz::File *)opaque;
@@ -223,10 +237,16 @@ int64_t ff8_zzz_seek(void *opaque, int64_t offset, int whence)
 	} else if (whence != SEEK_SET) {
 		ffnx_error("%s: seek type not supported: %d\n", __func__, whence);
 
-		return -1;
+		return AVERROR_EXIT;
 	}
 
-	return f->seek(offset, zzzWhence);
+	int pos = f->seek(offset, zzzWhence);
+
+	if (pos < 0) {
+		return AVERROR_EXIT;
+	}
+
+	return pos;
 }
 
 void ff8_zzz_close(void *opaque)

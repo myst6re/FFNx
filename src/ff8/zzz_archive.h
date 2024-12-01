@@ -68,13 +68,14 @@ public:
 	~Zzz();
 	errno_t open(const char *fileName);
 	bool isOpen() const;
-	File *openFile(const char *fileName, size_t size) const;
+	File *openFile(const char *fileName, size_t fileNameSize) const;
 	static void closeFile(File *file);
-	bool lookup(const char *fileName, size_t size, ZzzTocEntry &tocEntry) const;
+	bool fileExists(const char *fileName, size_t fileNameSize) const;
 	const char *fileName() const;
 	bool copyFile(const ZzzTocEntry &tocEntry, FILE *out);
 private:
 	friend class File;
+	bool lookup(const char *fileName, size_t fileNameSize, ZzzTocEntry &tocEntry) const;
 	bool openHeader();
 	bool readHeader(uint32_t &fileCount);
 	bool readTocEntry(ZzzTocEntry &tocEntry);
