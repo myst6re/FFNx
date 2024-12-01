@@ -62,11 +62,18 @@ bool Zzz::isOpen() const
 	return !_toc.empty();
 }
 
-bool Zzz::lookup(const char *fileName, size_t size, ZzzTocEntry &tocEntry) const
+bool Zzz::fileExists(const char *fileName, size_t fileNameSize) const
 {
-	if (trace_all || trace_files) ffnx_trace("Zzz::%s: %s %d\n", __func__, fileName, size);
+	ZzzTocEntry tocEntry;
+
+	return lookup(fileName, fileNameSize, tocEntry);
+}
+
+bool Zzz::lookup(const char *fileName, size_t fileNameSize, ZzzTocEntry &tocEntry) const
+{
+	if (trace_all || trace_files) ffnx_trace("Zzz::%s: %s %d\n", __func__, fileName, fileNameSize);
 	char transformedFileName[128];
-	size_t sizeToTransform = std::min(size + 1, size_t(128)) - 1;
+	size_t sizeToTransform = std::min(fileNameSize + 1, size_t(128)) - 1;
 
 	for (int i = 0; i < sizeToTransform; ++i) {
 		if (fileName[i] == '/') {
@@ -128,11 +135,11 @@ bool Zzz::openHeader()
 	return true;
 }
 
-Zzz::File *Zzz::openFile(const char *fileName, size_t size) const
+Zzz::File *Zzz::openFile(const char *fileName, size_t fileNameSize) const
 {
 	int fd = 0;
 
-	ffnx_trace("Zzz::%s: %s %d\n", __func__, fileName, size);
+	if (trace_all || trace_files) ffnx_trace("Zzz::%s: %s %d\n", __func__, fileName, fileNameSize);
 
 	errno_t err = _sopen_s(&fd, _fileName, _O_BINARY, _SH_DENYNO, _S_IREAD);
 	if (err != 0)
@@ -141,7 +148,7 @@ Zzz::File *Zzz::openFile(const char *fileName, size_t size) const
 	}
 
 	ZzzTocEntry tocEntry;
-	if (!lookup(fileName, size, tocEntry))
+	if (!lookup(fileName, fileNameSize, tocEntry))
 	{
 		return nullptr;
 	}

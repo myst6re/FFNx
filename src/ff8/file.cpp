@@ -68,17 +68,18 @@ bool set_direct_path(const char *fullpath, char *output, size_t output_size)
 
 int ff8_remastered_open_from_zzz_archives(const char *fileName, size_t fileNameSize)
 {
-	const char *filePathInsideArchive = fileName + app_path.size() + 1; // Remove app_path + first antislash
+	if (trace_all || trace_files) ffnx_trace("%s: fileName=%s\n", __func__, fileName);
+
 	Zzz *archive = &g_FF8ZzzArchiveMain;
 	char *soundPrefix = "data\\sound\\",
 		*musicPrefix = "data\\music\\";
 
-	if (strncmp(soundPrefix, filePathInsideArchive, strlen(soundPrefix)) == 0
-		|| strncmp(musicPrefix, filePathInsideArchive, strlen(musicPrefix)) == 0) {
+	if (strncmp(soundPrefix, fileName, strlen(soundPrefix)) == 0
+		|| strncmp(musicPrefix, fileName, strlen(musicPrefix)) == 0) {
 		archive = &g_FF8ZzzArchiveOther;
 	}
 
-	Zzz::File *file = archive->openFile(filePathInsideArchive, fileNameSize);
+	Zzz::File *file = archive->openFile(fileName, fileNameSize);
 	if (file != nullptr) {
 		openedZzzFiles[file->fd()] = file;
 
@@ -664,7 +665,7 @@ bool ff8_steam_redirection(const char *lpFileName, char *newPath, bool *isZzzFil
 
 		if (strstr(lpFileName, "DISK1") != NULL || strstr(lpFileName, "DISK2") != NULL || strstr(lpFileName, "DISK3") != NULL || strstr(lpFileName, "DISK4") != NULL)
 		{
-			strcpy(newPath, app_path.c_str());
+			strcpy(newPath, ff8_externals.app_path);
 			PathAppendA(newPath, R"(data\disk)");
 			PathAppendA(newPath, pos);
 
@@ -674,7 +675,10 @@ bool ff8_steam_redirection(const char *lpFileName, char *newPath, bool *isZzzFil
 			}
 		}
 
-		*isZzzFile = true;
+		if (isZzzFile != nullptr)
+		{
+			*isZzzFile = true;
+		}
 	}
 	else if (strstr(lpFileName, "app.log") || strstr(lpFileName, "ff8input.cfg"))
 	{
@@ -696,16 +700,15 @@ bool ff8_steam_redirection(const char *lpFileName, char *newPath, bool *isZzzFil
 	{
 		if (remastered_edition && (strstr(lpFileName, "field") != NULL || strstr(lpFileName, "magic") != NULL || strstr(lpFileName, "world") != NULL))
 		{
-			strncpy(newPath, lpFileName, MAX_PATH);
+			strcpy(newPath, ff8_externals.app_path);
+			PathAppendA(newPath, lpFileName);
 		}
 		else
 		{
 			// Search for the last '\' character and get a pointer to the next char
 			const char* pos = strrchr(lpFileName, 92) + 1;
 
-			strcpy(newPath, app_path.c_str());
-			PathAppendA(newPath, R"(data\lang-)");
-			concat_lang_str(newPath);
+			get_data_lang_path(newPath);
 			PathAppendA(newPath, pos);
 		}
 
@@ -734,7 +737,8 @@ bool ff8_steam_redirection(const char *lpFileName, char *newPath, bool *isZzzFil
 	}
 	else
 	{
-		strncpy(newPath, lpFileName, MAX_PATH);
+		strcpy(newPath, ff8_externals.app_path);
+		PathAppendA(newPath, lpFileName);
 
 		if (isZzzFile != nullptr)
 		{

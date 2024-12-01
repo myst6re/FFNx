@@ -962,7 +962,7 @@ int common_create_window(HINSTANCE hInstance, struct game_obj* game_object)
 					vibration_init();
 					if (remastered_edition) {
 						ff8_remaster_init();
-						ff8_battle_trace_init();
+						//ff8_battle_trace_init();
 					}
 				}
 
@@ -3130,7 +3130,7 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 				// Steam edition contains movies unpacked
 				enable_ffmpeg_videos = true;
 
-				if (app_path.empty()) app_path = "./";
+				if (app_path.empty()) app_path = std::string(basedir, sizeof(basedir));
 				data_drive = "CD:";
 
 				patch_code_byte(uint32_t(ff8_externals.set_game_paths) + 0x1F0, DRIVE_NO_ROOT_DIR);

@@ -966,7 +966,7 @@ struct ff8_gfx_driver
 
 struct ff8_field_state_common {
 	uint8_t stack_data[0x140];
-	uint32_t field_140;
+	uint32_t return_value;
 	uint32_t field_144;
 	uint32_t field_148;
 	uint32_t field_14c;
@@ -1024,6 +1024,28 @@ struct ff8_field_state_background {
 	uint8_t field_1b3;
 };
 
+struct ff8_field_state_other {
+	ff8_field_state_common common;
+	uint8_t gap1[144];
+	int16_t model_id;
+	uint8_t gap2[47];
+	uint8_t pushonoff;
+	uint8_t gap3;
+	uint8_t talkonoff;
+	uint8_t throughonoff;
+	uint8_t gap4[2];
+	uint8_t baseanim1;
+	uint8_t baseanim2;
+	uint8_t baseanim3;
+	uint8_t ladderanim1;
+	uint8_t ladderanim2;
+	uint8_t ladderanim3;
+	uint8_t setpc;
+	uint8_t gap5;
+	uint8_t setgeta;
+	uint8_t gap6[12];
+};
+
 struct ff8_menu_callback {
 	void (*func)(int);
 	uint32_t field_4;
@@ -1073,6 +1095,21 @@ struct ff8_externals
 	uint32_t field_fade_transition_sub_472990;
 	uint32_t sub_45CDD0;
 	uint32_t sub_4767B0;
+	uint32_t sub_472B30;
+	uint32_t sub_530810;
+	uint32_t sub_533CD0;
+	uint32_t sub_534AF0;
+	uint32_t sub_533C30;
+	uint32_t model_vertices_scale_sub_45FE10;
+	uint16_t *dword_1CA92E4;
+	int16_t *word_1CA92DE;
+	int *dword_1CA8A50;
+	int *dword_1CA92F8;
+	int16_t *dword_1CA8A10;
+	int *dword_1CA9290;
+	float *flt_1CA9234;
+	int *dword_1CA8A30;
+	int *dword_1CA8A70;
 	uint32_t sub_4789A0;
 	char (*sub_47CA90)();
 	uint32_t battle_trigger_field;
@@ -1159,6 +1196,8 @@ struct ff8_externals
 	int (*field_scripts_init)(int, int, int, int);
 	uint8_t *field_state_background_count;
 	ff8_field_state_background **field_state_backgrounds;
+	uint8_t *field_state_other_count;
+	ff8_field_state_other **field_state_others;
 	uint32_t load_field_models;
 	uint32_t chara_one_read_file;
 	uint32_t chara_one_seek_file;
@@ -1296,6 +1335,7 @@ struct ff8_externals
 	uint32_t opcode_movie;
 	uint32_t opcode_moviesync;
 	uint32_t opcode_spuready;
+	uint32_t opcode_show;
 	uint32_t opcode_movieready;
 	uint32_t opcode_setvibrate;
 	uint32_t opcode_musicload;
@@ -1555,6 +1595,7 @@ struct ff8_externals
 	uint32_t field_vars_stack_1CFE9B8;
 	uint32_t get_card_name;
 	uint32_t card_name_positions;
+	void **dword_1DCB340;
 };
 
 void ff8gl_field_78(struct ff8_polygon_set *polygon_set, struct ff8_game_obj *game_object);
