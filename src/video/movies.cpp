@@ -42,6 +42,7 @@ const AVCodec *acodec = 0;
 AVFrame *movie_frame = 0;
 struct SwsContext *sws_ctx = 0;
 SwrContext* swr_ctx = NULL;
+void(*io_close)(void *opaque) = nullptr;
 
 int videostream;
 int audiostream;
@@ -56,7 +57,7 @@ uint32_t vbuffer_read = 0;
 uint32_t vbuffer_write = 0;
 
 uint32_t movie_frame_counter = 0;
-uint32_t movie_frames;
+uint32_t movie_frames = 0;
 uint32_t movie_width, movie_height;
 double movie_fps;
 double movie_duration;
@@ -86,7 +87,19 @@ void ffmpeg_release_movie_objects()
 	if (movie_frame) av_frame_free(&movie_frame);
 	if (codec_ctx) avcodec_free_context(&codec_ctx);
 	if (acodec_ctx) avcodec_free_context(&acodec_ctx);
-	if (format_ctx) avformat_close_input(&format_ctx);
+	if (format_ctx) {
+		if (format_ctx->flags & AVFMT_FLAG_CUSTOM_IO) {
+			AVIOContext *pb = format_ctx->pb;
+			if (pb) {
+				if (io_close) {
+					io_close(pb->opaque);
+				}
+				av_freep(&pb->buffer);
+				av_free(pb);
+			}
+		}
+		avformat_close_input(&format_ctx);
+	}
 	if (swr_ctx) {
 		swr_close(swr_ctx);
 		swr_free(&swr_ctx);
@@ -560,6 +573,45 @@ uint32_t ffmpeg_prepare_movie(const char *name, bool with_audio)
 	movie_frame_counter = 0;
 
 	return movie_frames;
+}
+
+uint32_t ffmpeg_prepare_movie_from_io(
+	const char* name, void *opaque,
+	int(*read_packet)(void *, uint8_t *, int),
+	int64_t(*seek)(void *, int64_t, int),
+	void(*close)(void *opaque), bool with_audio)
+{
+	format_ctx = avformat_alloc_context();
+	if (format_ctx == nullptr)
+	{
+		return 0;
+	}
+
+	const int buffer_size = 32768;
+	uint8_t* buffer = (uint8_t*)av_malloc(buffer_size);
+
+	if (buffer == nullptr)
+	{
+		ffmpeg_release_movie_objects();
+
+		return 0;
+	}
+
+	AVIOContext* io_ctx = avio_alloc_context(buffer, buffer_size, 0, opaque, read_packet, nullptr, seek);
+
+	if (io_ctx == nullptr)
+	{
+		ffmpeg_release_movie_objects();
+
+		delete[] buffer;
+
+		return 0;
+	}
+
+	format_ctx->pb = io_ctx;
+	io_close = close;
+
+	return ffmpeg_prepare_movie(name, with_audio);
 }
 
 // stop movie playback, no video updates will be requested after this so all we have to do is stop the audio

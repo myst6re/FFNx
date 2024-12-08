@@ -30,6 +30,7 @@ struct CharaOneModel {
 	char name[6];
 	bool isMch;
 	std::vector<uint32_t> texturesData;
+	uint32_t modelId;
 };
 
 std::unordered_map<uint32_t, CharaOneModel> ff8_chara_one_parse_models(const uint8_t *chara_one_data, size_t size);

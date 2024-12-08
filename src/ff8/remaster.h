@@ -4,9 +4,9 @@
 //    Copyright (C) 2018 Maxime Bacoux                                      //
 //    Copyright (C) 2020 Chris Rizzitello                                   //
 //    Copyright (C) 2020 John Pritchard                                     //
-//    Copyright (C) 2023 myst6re                                            //
-//    Copyright (C) 2024 Julian Xhokaxhiu                                   //
-//    Copyright (C) 2023 Tang-Tang Zhou                                     //
+//    Copyright (C) 2022 myst6re                                            //
+//    Copyright (C) 2022 Julian Xhokaxhiu                                   //
+//    Copyright (C) 2022 Tang-Tang Zhou                                     //
 //                                                                          //
 //    This file is part of FFNx                                             //
 //                                                                          //
@@ -22,15 +22,11 @@
 
 #pragma once
 
-#include <stdint.h>
-#include <bimg/bimg.h>
-#include <DirectXTex.h>
+#include <memory>
 
-class Zzz;
+#include "zzz_archive.h"
 
-bimg::ImageContainer *loadImageContainer(bx::AllocatorI *allocator, const char *filename, bimg::TextureFormat::Enum targetFormat = bimg::TextureFormat::Count);
-// Fast PNG opening, you need to deallocate mip.m_data yourself
-bool loadPng(const char *filename, bimg::ImageMip &mip, bimg::TextureFormat::Enum targetFormat = bimg::TextureFormat::Count, Zzz *zzzArchive = nullptr);
-// Fast DDS opening
-bool parseDds(const char *filename, DirectX::ScratchImage &image, DirectX::TexMetadata &metadata);
-bimg::ImageContainer *convertDds(bx::AllocatorI *allocator, DirectX::ScratchImage &image, const DirectX::TexMetadata &metadata, bimg::TextureFormat::Enum targetFormat, int lod);
+void ff8_remaster_init();
+
+extern Zzz g_FF8ZzzArchiveMain;
+extern Zzz g_FF8ZzzArchiveOther;

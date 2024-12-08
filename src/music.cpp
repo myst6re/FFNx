@@ -25,6 +25,8 @@
 #include "audio.h"
 #include "music.h"
 #include "patch.h"
+#include "ff8/remaster.h"
+#include "audio/vgmstream/zzzstreamfile.h"
 
 #include "ff8/engine.h"
 
@@ -116,6 +118,24 @@ uint32_t ff7_midi_init(uint32_t unknown)
 
 char ff8_midi[32];
 
+char* ff8_midi_name_remove_extension(const char* midi_name)
+{
+	const char* max_midi_name = strchr(midi_name, '.');
+
+	if (nullptr != max_midi_name) {
+		size_t len = max_midi_name - midi_name;
+
+		if (len < 32) {
+			memcpy(ff8_midi, midi_name, len);
+			ff8_midi[len] = '\0';
+
+			return ff8_midi;
+		}
+	}
+
+	return nullptr;
+}
+
 char* ff8_format_midi_name(const char* midi_name)
 {
 	// midi_name format: {num}{type}-{name}.sgt or {name}.sgt or _Missing.sgt
@@ -132,21 +152,7 @@ char* ff8_format_midi_name(const char* midi_name)
 		}
 	}
 
-	// Remove extension
-	const char* max_midi_name = strchr(truncated_name, '.');
-
-	if (nullptr != max_midi_name) {
-		size_t len = max_midi_name - truncated_name;
-
-		if (len < 32) {
-			memcpy(ff8_midi, truncated_name, len);
-			ff8_midi[len] = '\0';
-
-			return ff8_midi;
-		}
-	}
-
-	return nullptr;
+	return ff8_midi_name_remove_extension(truncated_name);
 }
 
 char* ff8_midi_name(uint32_t musicId)
@@ -743,7 +749,32 @@ uint32_t ff8_play_midi(uint32_t music_id, int32_t volume, uint32_t unused1, uint
 		if (volume >= 0 && volume <= 127) {
 			options.targetVolume = volume / 127.0f;
 		}
-		play_music(music_name, music_id, channel, options);
+		if (remastered_edition && ! use_external_music)
+		{
+			strcpy(options.format, "ogg");
+
+			char fileName[MAX_PATH];
+			sprintf(fileName, "data\\music\\dmusic\\ogg\\%s.%s", ff8_midi_name_remove_extension(common_externals.get_midi_name(music_id)), options.format);
+			ffnx_trace("%s: open zzz file %s\n", __func__, fileName);
+
+			options.stream = open_ZZZ_STREAMFILE(&g_FF8ZzzArchiveOther, fileName, sizeof(fileName));
+
+			if (options.stream == nullptr) {
+				ffnx_error("%s: cannot open streamfile from zzz archive\n", __func__);
+
+				return false;
+			}
+
+			bool playing = nxAudioEngine.playMusic(music_name, music_id, channel, options);
+
+			if (playing) {
+				nxAudioEngine.setMusicLooping(!no_loop(music_id), channel);
+			}
+
+			return playing;
+		} else {
+			play_music(music_name, music_id, channel, options);
+		}
 
 		if (backup_channel_1_after) {
 			// Backup channel 1 music state
@@ -1105,7 +1136,7 @@ void music_init()
 		replace_call(ff8_externals.field_main_loop + 0x16C, ff8_field_restart_music);
 	}
 
-	if (use_external_music)
+	if (use_external_music || remastered_edition)
 	{
 		if (ff8)
 		{

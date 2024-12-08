@@ -2,11 +2,10 @@
 //    Copyright (C) 2009 Aali132                                            //
 //    Copyright (C) 2018 quantumpencil                                      //
 //    Copyright (C) 2018 Maxime Bacoux                                      //
+//    Copyright (C) 2020 myst6re                                            //
 //    Copyright (C) 2020 Chris Rizzitello                                   //
 //    Copyright (C) 2020 John Pritchard                                     //
-//    Copyright (C) 2023 myst6re                                            //
-//    Copyright (C) 2024 Julian Xhokaxhiu                                   //
-//    Copyright (C) 2023 Tang-Tang Zhou                                     //
+//    Copyright (C) 2022 Julian Xhokaxhiu                                   //
 //                                                                          //
 //    This file is part of FFNx                                             //
 //                                                                          //
@@ -19,18 +18,18 @@
 //    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         //
 //    GNU General Public License for more details.                          //
 /****************************************************************************/
-
 #pragma once
 
-#include <stdint.h>
-#include <bimg/bimg.h>
-#include <DirectXTex.h>
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
-class Zzz;
+#include <libvgmstream/vgmstream.h>
 
-bimg::ImageContainer *loadImageContainer(bx::AllocatorI *allocator, const char *filename, bimg::TextureFormat::Enum targetFormat = bimg::TextureFormat::Count);
-// Fast PNG opening, you need to deallocate mip.m_data yourself
-bool loadPng(const char *filename, bimg::ImageMip &mip, bimg::TextureFormat::Enum targetFormat = bimg::TextureFormat::Count, Zzz *zzzArchive = nullptr);
-// Fast DDS opening
-bool parseDds(const char *filename, DirectX::ScratchImage &image, DirectX::TexMetadata &metadata);
-bimg::ImageContainer *convertDds(bx::AllocatorI *allocator, DirectX::ScratchImage &image, const DirectX::TexMetadata &metadata, bimg::TextureFormat::Enum targetFormat, int lod);
+#if defined(__cplusplus)
+}
+#endif
+
+#include "../../ff8/zzz_archive.h"
+
+STREAMFILE* open_ZZZ_STREAMFILE(Zzz* archive, const char* const filename, size_t filenameSize, size_t buf_size = STREAMFILE_DEFAULT_BUFFER_SIZE);

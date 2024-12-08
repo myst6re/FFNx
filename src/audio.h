@@ -48,6 +48,7 @@ public:
 			fadetime(0.0),
 			targetVolume(-1.0f),
 			relativeSpeed(1.0f),
+			stream(nullptr),
 			format(""),
 			noIntro(false),
 			sync(false),
@@ -58,6 +59,7 @@ public:
 		SoLoud::time fadetime;
 		float targetVolume;
 		float relativeSpeed;
+		STREAMFILE *stream;
 		char format[12];
 		bool noIntro, sync, useNameAsFullPath, suppressOpeningSilence;
 	};
@@ -191,6 +193,7 @@ private:
 
 	void cleanOldAudioSources();
 	SoLoud::AudioSource* loadMusic(const char* name, bool isFullPath = false, const char* format = nullptr, bool suppressOpeningSilence = false);
+	SoLoud::AudioSource* loadMusicFromStream(const char* name, const char* format, STREAMFILE *stream);
 	void overloadPlayArgumentsFromConfig(char* name, uint32_t *id, MusicOptions *MusicOptions);
 	void backupMusic(int channelSource);
 	void restoreMusic(int channelDest, double stopTime = 0);

@@ -52,6 +52,10 @@ void ff8_find_externals()
 	ff8_externals.manage_time_engine_sub_569971 = get_relative_call(common_externals.winmain, 0x23);
 	ff8_externals.enable_rdtsc_sub_40AA00 = (int (*)(int))get_relative_call(ff8_externals.manage_time_engine_sub_569971, 0x21);
 	common_externals.get_time = (uint64_t (*)(uint64_t*))get_relative_call(common_externals.winmain, 0x20E);
+	ff8_externals.archive_path_prefix_menu = (char *)get_absolute_value(ff8_externals.main_entry, 0x3A);
+	ff8_externals.archive_path_prefix_battle = (char *)get_absolute_value(ff8_externals.main_entry, 0x46);
+	ff8_externals.archive_path_prefix_field = (char *)get_absolute_value(ff8_externals.main_entry, 0x52);
+	ff8_externals.archive_path_prefix_world = (char *)get_absolute_value(ff8_externals.main_entry, 0x5E);
 	common_externals.diff_time = (uint64_t (*)(uint64_t*,uint64_t*,uint64_t*))get_relative_call(common_externals.winmain, 0x41E);
 	ff8_externals.init_config = get_relative_call(ff8_externals.main_entry, 0x73);
 	ff8_externals.pubintro_init = get_absolute_value(ff8_externals.main_entry, 0x158);
@@ -156,7 +160,21 @@ void ff8_find_externals()
 	common_externals.debug_print2 = get_relative_call(uint32_t(ff8_externals.sm_pc_read), 0x16);
 	ff8_externals.moriya_filesystem_open = get_relative_call(uint32_t(ff8_externals.sm_pc_read), 0x21);
 	ff8_externals.moriya_filesystem_seek = get_relative_call(uint32_t(ff8_externals.sm_pc_read), 0x77);
+	ff8_externals._lseek = (int (*)(int,long,int))get_relative_call(uint32_t(ff8_externals.sm_pc_read), 0x8B);
+	ff8_externals._io_fd_number = (unsigned int *)get_absolute_value(uint32_t(ff8_externals._lseek), 0x7);
+	ff8_externals._io_known_fds = (int *)get_absolute_value(uint32_t(ff8_externals._lseek), 0x1A);
+	ff8_externals._lock_fhandle = (void (*)(int))get_relative_call(uint32_t(ff8_externals._lseek), 0x2A);
+	ff8_externals._unlock_fhandle = (int (*)(int))get_relative_call(uint32_t(ff8_externals._lseek), 0x40);
+	ff8_externals._lseek_lk = (int (*)(int,long,int))get_relative_call(uint32_t(ff8_externals._lseek), 0x38);
+	ff8_externals._errno = (int* (*)())get_relative_call(uint32_t(ff8_externals._lseek), 0x4D);
+	ff8_externals.__doserrno = (unsigned long* (*)())get_relative_call(uint32_t(ff8_externals._lseek), 0x58);
 	ff8_externals.moriya_filesystem_read = get_relative_call(uint32_t(ff8_externals.sm_pc_read), 0xB7);
+	ff8_externals._read = (int (*)(int,void*,unsigned int))get_relative_call(uint32_t(ff8_externals.sm_pc_read), 0xC7);
+	ff8_externals._read_lk = (unsigned int (*)(int,LPVOID,DWORD))get_relative_call(uint32_t(ff8_externals._read), 0x38);
+	ff8_externals.open_and_write_to_archive = get_relative_call(ff8_externals.moriya_filesystem_open, 0x3E1);
+	ff8_externals.write_to_archive = get_relative_call(ff8_externals.open_and_write_to_archive, 0x30);
+	ff8_externals._write = (int (*)(int,void*,unsigned int))get_relative_call(ff8_externals.write_to_archive, 0x44);
+	ff8_externals._write_lk = (int (*)(int,LPVOID,DWORD))get_relative_call(uint32_t(ff8_externals._write), 0x38);
 	ff8_externals.moriya_filesystem_close = get_relative_call(uint32_t(ff8_externals.sm_pc_read), 0xDD);
 	ff8_externals.read_or_uncompress_fs_data = get_relative_call(ff8_externals.moriya_filesystem_read, 0x5C);
 	ff8_externals.lzs_uncompress = get_relative_call(ff8_externals.read_or_uncompress_fs_data, 0x1E6);
@@ -232,6 +250,8 @@ void ff8_find_externals()
 		ff8_externals.sub_4767B0 = get_relative_call(ff8_externals.sub_471F70, 0x4FE - 2);
 		common_externals.update_field_entities = get_relative_call(ff8_externals.sub_4767B0, 0x14E + 1);
 		ff8_externals.sub_4789A0 = get_relative_call(ff8_externals.sub_4767B0, 0x40F + 3);
+		ff8_externals.sub_472B30 = get_relative_call(ff8_externals.sub_4767B0, 0x4C9 + 3);
+		ff8_externals.sub_530810 = get_relative_call(ff8_externals.sub_472B30, 0x35D + 7);
 		ff8_externals.stop_cdrom = (uint32_t(*)())get_relative_call(ff8_externals.sub_4767B0, 0xB46 - 13);
 		ff8_externals.stop_cdrom_field_call = ff8_externals.sub_4767B0 + 0xB46 - 0xD;
 		ff8_externals.sub_47CA90 = (char (*)())get_relative_call(ff8_externals.sub_4789A0, 0x674);
@@ -241,10 +261,26 @@ void ff8_find_externals()
 		ff8_externals.sub_4767B0 = get_relative_call(ff8_externals.sub_471F70, 0x4FE);
 		common_externals.update_field_entities = get_relative_call(ff8_externals.sub_4767B0, 0x14E);
 		ff8_externals.sub_4789A0 = get_relative_call(ff8_externals.sub_4767B0, 0x40F);
+		ff8_externals.sub_472B30 = get_relative_call(ff8_externals.sub_4767B0, 0x4C9);
 		ff8_externals.stop_cdrom = (uint32_t(*)())get_relative_call(ff8_externals.sub_4767B0, 0xB46);
 		ff8_externals.stop_cdrom_field_call = ff8_externals.sub_4767B0 + 0xB46;
+		ff8_externals.sub_530810 = get_relative_call(ff8_externals.sub_472B30, 0x35D);
 		ff8_externals.sub_47CA90 = (char (*)())get_relative_call(ff8_externals.sub_4789A0, 0x68B);
 	}
+
+	ff8_externals.sub_533CD0 = get_relative_call(ff8_externals.sub_530810, 0x27B);
+	ff8_externals.sub_534AF0 = get_relative_call(ff8_externals.sub_533CD0, 0x28E);
+	ff8_externals.sub_533C30 = get_relative_call(ff8_externals.sub_534AF0, 0x35A);
+	ff8_externals.model_vertices_scale_sub_45FE10 = get_relative_call(ff8_externals.sub_533C30, 0x44);
+	ff8_externals.dword_1CA92E4 = (uint16_t*)get_absolute_value(ff8_externals.model_vertices_scale_sub_45FE10, 0xA);
+	ff8_externals.word_1CA92DE = (int16_t*)get_absolute_value(ff8_externals.model_vertices_scale_sub_45FE10, 0x18);
+	ff8_externals.dword_1CA8A50 = (int*)get_absolute_value(ff8_externals.model_vertices_scale_sub_45FE10, 0x38);
+	ff8_externals.dword_1CA92F8 = (int*)get_absolute_value(ff8_externals.model_vertices_scale_sub_45FE10, 0x4A);
+	ff8_externals.dword_1CA8A10 = (int16_t*)(get_absolute_value(ff8_externals.model_vertices_scale_sub_45FE10, 0x6F) - 4);
+	ff8_externals.dword_1CA9290 = (int*)get_absolute_value(ff8_externals.model_vertices_scale_sub_45FE10, 0xAB);
+	ff8_externals.flt_1CA9234 = (float*)get_absolute_value(ff8_externals.model_vertices_scale_sub_45FE10, 0xB5);
+	ff8_externals.dword_1CA8A30 = (int*)get_absolute_value(ff8_externals.model_vertices_scale_sub_45FE10, 0x2B5);
+	ff8_externals.dword_1CA8A70 = (int*)get_absolute_value(ff8_externals.model_vertices_scale_sub_45FE10, 0x2D4);
 
 	ff8_externals.battle_trigger_field = uint32_t(ff8_externals.sub_47CA90) + 0x15;
 	ff8_externals.check_game_is_paused = (int32_t(*)(int32_t))get_relative_call(ff8_externals.field_main_loop, 0x16C);
@@ -283,6 +319,7 @@ void ff8_find_externals()
 	ff8_externals.opcode_movie = common_externals.execute_opcode_table[0x4F];
 	ff8_externals.opcode_moviesync = common_externals.execute_opcode_table[0x50];
 	ff8_externals.opcode_spuready = common_externals.execute_opcode_table[0x56];
+	ff8_externals.opcode_show = common_externals.execute_opcode_table[0x60];
 	ff8_externals.opcode_amesw = common_externals.execute_opcode_table[0x64];
 	ff8_externals.opcode_ames = common_externals.execute_opcode_table[0x65];
 	ff8_externals.opcode_battle = common_externals.execute_opcode_table[0x69];
@@ -317,6 +354,8 @@ void ff8_find_externals()
 	common_externals.stop_movie = get_relative_call(common_externals.update_movie_sample, 0x3E2);
 	ff8_externals.movie_object = (ff8_movie_obj *)get_absolute_value(common_externals.prepare_movie, 0xDB);
 
+	ff8_externals.dword_1DCB340 = (void **)get_absolute_value(ff8_externals.opcode_show, 0x2D);
+
 	common_externals.debug_print = get_relative_call(common_externals.update_movie_sample, 0x141);
 
 	ff8_externals._load_texture = get_relative_call(ff8_externals.load_fonts, JP_VERSION ? 0x31B : 0x197);
@@ -330,6 +369,8 @@ void ff8_find_externals()
 	common_externals.read_file = get_relative_call(common_externals.load_tex_file, 0x49);
 	common_externals.alloc_read_file = (void* (*)(uint32_t, uint32_t, struct file *))get_relative_call(common_externals.load_tex_file, 0xB3);
 	common_externals.close_file = get_relative_call(common_externals.load_tex_file, 0x15B);
+	ff8_externals._close = (int(*)(int))get_relative_call(common_externals.close_file, 0x86);
+	ff8_externals._close_lk = (int (*)(int))get_relative_call(uint32_t(ff8_externals._close), 0x30);
 	common_externals.destroy_tex = (void (*)(tex_header*))get_relative_call(common_externals.load_tex_file, 0x16D);
 	common_externals.destroy_tex_header = get_relative_call((uint32_t)common_externals.destroy_tex, 0x78);
 	common_externals.assert_free = (void* (*)(void*, const char*, uint32_t))get_relative_call(common_externals.destroy_tex_header, 0x21);
@@ -443,11 +484,14 @@ void ff8_find_externals()
 	ff8_externals.read_field_data = get_relative_call(ff8_externals.sub_471F70, 0x23A);
 	ff8_externals.upload_mim_file = get_relative_call(ff8_externals.read_field_data, JP_VERSION ? 0x723 : 0x729);
 	ff8_externals.upload_pmp_file = get_relative_call(ff8_externals.read_field_data, JP_VERSION ? 0x80C : 0x812);
+	ff8_externals.field_filename_concat_extension = get_relative_call(ff8_externals.read_field_data, 0x84);
 	ff8_externals.field_filename = (char *)get_absolute_value(ff8_externals.read_field_data, 0xF0);
 
 	ff8_externals.field_scripts_init = (int(*)(int,int,int,int))(get_relative_call(ff8_externals.read_field_data, JP_VERSION ? 0xEDC : 0xE49));
 	ff8_externals.field_state_background_count = (uint8_t *)get_absolute_value(uint32_t(ff8_externals.field_scripts_init), 0x2CD + 0x1);
 	ff8_externals.field_state_backgrounds = (ff8_field_state_background **)get_absolute_value(uint32_t(ff8_externals.field_scripts_init), 0x50B + 0x2);
+	ff8_externals.field_state_other_count = (uint8_t *)get_absolute_value(uint32_t(ff8_externals.field_scripts_init), 0x2C3 + 0x1);
+	ff8_externals.field_state_others = (ff8_field_state_other **)get_absolute_value(uint32_t(ff8_externals.field_scripts_init), 0x62C + 0x2);
 	ff8_externals.load_field_models = get_relative_call(ff8_externals.read_field_data, JP_VERSION ? 0xFA2 : 0xF0F);
 	ff8_externals.chara_one_read_file = get_relative_call(ff8_externals.load_field_models, 0x15F);
 	ff8_externals.chara_one_seek_file = get_relative_call(ff8_externals.load_field_models, 0x582);
@@ -560,6 +604,8 @@ void ff8_find_externals()
 	ff8_externals.sfx_is_playing = get_relative_call(ff8_externals.sfx_current_channel_is_playing - 0x88, 0x0);
 	ff8_externals.sfx_set_panning = get_relative_call(common_externals.play_sfx_on_channel, 0x115);
 	ff8_externals.sfx_audio_fmt = (ff8_audio_fmt **)get_absolute_value(common_externals.sfx_init, 0x21B);
+	ff8_externals.sfx_initialize_audio_data = get_relative_call(common_externals.sfx_init, 0x225);
+	ff8_externals._filelength = (__int32 (*)(int))get_relative_call(ff8_externals.sfx_initialize_audio_data, 0x122);
 	ff8_externals.sfx_sound_count = (uint16_t *)get_absolute_value(common_externals.sfx_init, 0x22C);
 
 	// Search DirectSoundBuffer initialization
