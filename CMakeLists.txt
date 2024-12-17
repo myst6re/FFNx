@@ -182,7 +182,7 @@ target_link_libraries(
   mimalloc-static
   imgui::imgui
   pugixml::pugixml
-  tomlplusplus::tomlplusplus
+  PkgConfig::tomlplusplus
   xxHash::xxhash
   lz4::lz4
   Vorbis::vorbisfile

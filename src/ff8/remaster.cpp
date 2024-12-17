@@ -373,18 +373,35 @@ void ff8_remaster_init()
         exit(1);
     }
 
+    ffnx_info("%s: extended memory address=0x%X\n", __func__, uint32_t(extended_memory));
+
     patch_code_dword((JP_VERSION ? 0xD6DD80 : 0xB6D080), uint32_t(extended_memory) + 0x100000);
     // TODO: JP
-    patch_code_dword(0xB6D084, uint32_t(extended_memory) + 0x100000);
-    patch_code_dword(0xB6D08C, uint32_t(extended_memory) + 0x180000);
-    patch_code_dword(0xB6D090, uint32_t(extended_memory) + 0x180000);
-    patch_code_dword(0xB6D094, uint32_t(extended_memory) + 0x180000);
-    patch_code_dword(0xB6D06C, uint32_t(extended_memory) + 0x300000);
-    patch_code_dword(0xB6D078, uint32_t(extended_memory) + 0x80000);
-    patch_code_dword(0xB6D07C, uint32_t(extended_memory) + 0x80000);
+    patch_code_dword(0xB6D084, uint32_t(extended_memory) + 0x100000); // FR 196ACF0
+    patch_code_dword(0xB6D08C, uint32_t(extended_memory) + 0x180000); // FR 199ACF0
+    patch_code_dword(0xB6D090, uint32_t(extended_memory) + 0x180000); // FR 199ACF0
+    patch_code_dword(0xB6D094, uint32_t(extended_memory) + 0x180000); // FR 199ACF0
+    patch_code_dword(0xB6D06C, uint32_t(extended_memory) + 0x300000); // FR 18DCCF0
+    patch_code_dword(0xB6D078, uint32_t(extended_memory) + 0x80000); // FR 1938CF0
+    patch_code_dword(0xB6D07C, uint32_t(extended_memory) + 0x80000); // FR 1938CF0
 
     patch_code_dword(ff8_externals.read_field_data + (JP_VERSION ? 0xF64 : 0xED1), uint32_t(extended_memory) + 0x5F0000);
     patch_code_dword(ff8_externals.read_field_data + (JP_VERSION ? 0xF6B : 0xED8), uint32_t(extended_memory) + 0x600000);
+    // US: sub_70EE30 chocobocle
+    patch_code_dword(0x70F1B0 + 0x54, uint32_t(extended_memory) + 0x2C0000);
+    // US: sub_73A270 siren
+    patch_code_dword(0x73A5F0 + 0x2F, uint32_t(extended_memory) + 0x220000); // FR unk_19F0CF0 / US unk_19F1018
+    patch_code_dword(0x73A5F0 + 0x49, uint32_t(extended_memory) + 0x2A0000); // FR unk_19D0CF0 / US unk_19D1018
+    patch_code_dword(0x73A5F0 + 0x71, uint32_t(extended_memory) + 0x224000); // FR unk_19DF99C / US unk_19DFCC4
+    patch_code_dword(0x73A5F0 + 0x93, uint32_t(extended_memory) + 0x227000); // FR unk_19E0DD0 / US unk_19E10F8
+    patch_code_dword(0x73A5F0 + 0x9D, uint32_t(extended_memory) + 0x237000); // FR unk_19EBC08 / US unk_19EBF30
+    patch_code_dword(0x73A5F0 + 0xA7, uint32_t(extended_memory) + 0x239000); // FR unk_19ECED8 / US unk_19ED200
+    patch_code_dword(0x73A5F0 + 0xB1, uint32_t(extended_memory) + 0x23B000); // FR unk_19EE1A8 / US unk_19EE4D0
+    patch_code_dword(0x73A5F0 + 0xBB, uint32_t(extended_memory) + 0x23D000); // FR unk_19F1694 / US unk_19F19BC
+    patch_code_dword(0x73A5F0 + 0xCB, uint32_t(extended_memory) + 0x226000); // FR unk_19E0C30 / US unk_19E0F58
+    patch_code_dword(0x73A5F0 + 0xD5, uint32_t(extended_memory) + 0x226100); // FR unk_19E0D00 / US unk_19E1028
+    // US: sub_675340 effect289
+    // search: 0A 50
 
     char fullpath[MAX_PATH];
 

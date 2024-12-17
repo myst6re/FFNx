@@ -492,7 +492,7 @@ int ff8_battle_sub_500510(int a1)
 
 int ff8_battle_sub_502460(int a1)
 {
-	ffnx_trace("%s: a1=%d\n", __func__, a1);
+	ffnx_trace("%s: a1=0x%X\n", __func__, a1);
 
 	int ret = ((int(*)(int))0x502460)(a1);
 
@@ -512,11 +512,81 @@ int ff8_battle_sub_507FA0(int a1)
 	return ret;
 }
 
+int fileSize = 0;
+
+int open_file_0(int fileId, void *data, int unused, int callback)
+{
+	//ffnx_trace("%s: fileId=%d data=0x%X\n", __func__, fileId, data);
+	fileSize = 0;
+	int ret = ((int(*)(int,void*,int,int))0x48D0C0)(fileId, data, unused, callback);
+
+	ffnx_trace("%s: fileId=%d data=0x%X fileSize=%d dataEnd=0x%X\n", __func__, fileId, data, fileSize, (uint8_t *)data + fileSize);
+
+	return ret;
+}
+
+int battle_file_get_file_size(int id, int pos, int whence)
+{
+	int ret = ((int(*)(int,int,int))0x51B770)(id, pos, whence);
+
+	fileSize = ret;
+
+	return ret;
+}
+
+int *summon_sub_56C670(int16_t *a1, int16_t *a2, int *a3)
+{
+	ffnx_trace("%s: a1=0x%X a2=0x%X a3=0x%X\n", __func__, a1, a2, a3);
+
+	return ((int*(*)(int16_t*,int16_t*,int*))0x56C670)(a1, a2, a3);
+}
+
+uint8_t *remaster_crash_v3 = 0;
+
+void remaster_crash_sub_508640(int a1)
+{
+	uint8_t **remaster_crash_v2 = *(uint8_t ***)(a1 + 4);
+	remaster_crash_v3 = *remaster_crash_v2;
+	ffnx_trace("%s: a1=0x%X remaster_crash_v2=0x%X remaster_crash_v3=0x%X remaster_crash_v3_value=%d\n", __func__, a1, remaster_crash_v2, remaster_crash_v3, *remaster_crash_v3);
+
+	((void(*)(int))0x508640)(a1);
+}
+
+void freeze_sub_508910(int a1)
+{
+	ffnx_trace("%s: a1=0x%X\n", __func__, a1);
+	((void(*)(int))0x508910)(a1);
+}
+
+int *sub_56D1B0(int16_t *a1, int *a2)
+{
+	uint8_t *v4 = (uint8_t*)a1 + 32;
+	int16_t index_v5 = *((int16_t *)v4 - 18);
+	int remaster_crash_1_v7 = remaster_crash_v3 ? (int)&remaster_crash_v3[48 * index_v5 + 16] : 42;
+	ffnx_trace("%s: a1=%X a2=%X v4=%X index_v5=%d remaster_crash_1_v7=0x%X remaster_crash_v3_value=%d\n", __func__, a1, a2, v4, index_v5, remaster_crash_1_v7, remaster_crash_v3 ? *remaster_crash_v3 : 0);
+
+	return ((int*(*)(int16_t*,int*))0x56D1B0)(a1, a2);
+}
+
+void sub_56C270(int16_t *a1, int *a2)
+{
+	ffnx_trace("%s: a1=%X a2=%X\n", __func__, a1, a2);
+
+	((void(*)(int16_t*,int*))0x56C270)(a1, a2);
+}
+
 void ff8_battle_trace_init()
 {
 	replace_function(0x507D10, bdlinktask2);
 	replace_call(0x506260 + 0x20, bdlinktask3);
     replace_function(0x4B9440, battle_set_controller_render_sub_4B9440);
+	replace_call(0x507E30 + 0x1B, open_file_0);
+	replace_call(0x52CDB0 + 0x77, battle_file_get_file_size);
+	replace_call(0x508640 + 0xDF, summon_sub_56C670);
+	replace_call(0x508910 + 0x9, remaster_crash_sub_508640);
+	replace_call(0x502460 + 0x125, freeze_sub_508910);
+	replace_call(0x508640 + 0x48, sub_56D1B0);
+	replace_call(0x508640 + 0x6B, sub_56C270);
 	/* replace_call(0xAFDC20 + 0x3B, battle_set_texture_action_upload1_sub_5057A0_call1);
 	replace_call(0xAFDC20 + 0x85, battle_set_texture_action_upload1_sub_5057A0_call2);
 	replace_call(0xAFDC20 + 0xB6, battle_set_texture_action_upload1_sub_5057A0_call3);

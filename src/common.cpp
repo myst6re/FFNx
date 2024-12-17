@@ -1003,9 +1003,9 @@ int common_create_window(HINSTANCE hInstance, struct game_obj* game_object)
 						uv_patch_init();
 					}
 					vibration_init();
+						ff8_battle_trace_init();
 					if (remastered_edition) {
 						ff8_remaster_init();
-						//ff8_battle_trace_init();
 					}
 				}
 
