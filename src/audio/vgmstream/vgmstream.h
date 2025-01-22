@@ -46,7 +46,7 @@ namespace SoLoud
 
 		VGMStream();
 		virtual ~VGMStream();
-		result load(const char* aFilename, const char* ext = nullptr);
+		result load(const char* aFilename, const char* ext = nullptr, STREAMFILE* stream = nullptr);
 
 		virtual AudioSourceInstance* createInstance();
 		time getLength();

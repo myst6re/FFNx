@@ -4,8 +4,9 @@
 //    Copyright (C) 2018 Maxime Bacoux                                      //
 //    Copyright (C) 2020 Chris Rizzitello                                   //
 //    Copyright (C) 2020 John Pritchard                                     //
-//    Copyright (C) 2023 myst6re                                            //
-//    Copyright (C) 2025 Julian Xhokaxhiu                                   //
+//    Copyright (C) 2024 myst6re                                            //
+//    Copyright (C) 2024 Julian Xhokaxhiu                                   //
+//    Copyright (C) 2023 Cosmos                                             //
 //    Copyright (C) 2023 Tang-Tang Zhou                                     //
 //                                                                          //
 //    This file is part of FFNx                                             //
@@ -22,12 +23,4 @@
 
 #pragma once
 
-#include "texture_packer.h"
-#include "field/chara_one.h"
-#include <unordered_map>
-
-extern TexturePacker texturePacker;
-extern std::unordered_map<uint32_t, CharaOneModel> chara_one_models;
-
-void vram_init();
-bool ff8_vram_save(const char *fileName, Tim::Bpp bpp);
+void ff8_battle_trace_init();

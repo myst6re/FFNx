@@ -41,7 +41,11 @@ void set_game_paths(int install_options, char *_app_path, const char *_dataDrive
 {
 	char fileName[MAX_PATH] = {};
 
-	if (!app_path.empty())
+	if (remastered_edition)
+	{
+		_app_path = "";
+	}
+	else if (!app_path.empty())
 	{
 		ffnx_info("Overriding AppPath with %s\n", app_path.c_str());
 		strncpy(fileName, app_path.c_str(), sizeof(fileName));
