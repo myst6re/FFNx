@@ -2,11 +2,10 @@
 //    Copyright (C) 2009 Aali132                                            //
 //    Copyright (C) 2018 quantumpencil                                      //
 //    Copyright (C) 2018 Maxime Bacoux                                      //
+//    Copyright (C) 2020 myst6re                                            //
 //    Copyright (C) 2020 Chris Rizzitello                                   //
 //    Copyright (C) 2020 John Pritchard                                     //
-//    Copyright (C) 2023 myst6re                                            //
-//    Copyright (C) 2025 Julian Xhokaxhiu                                   //
-//    Copyright (C) 2023 Tang-Tang Zhou                                     //
+//    Copyright (C) 2022 Julian Xhokaxhiu                                   //
 //                                                                          //
 //    This file is part of FFNx                                             //
 //                                                                          //
@@ -19,15 +18,18 @@
 //    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         //
 //    GNU General Public License for more details.                          //
 /****************************************************************************/
-
 #pragma once
 
-#include "texture_packer.h"
-#include "field/chara_one.h"
-#include <unordered_map>
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
-extern TexturePacker texturePacker;
-extern std::unordered_map<uint32_t, CharaOneModel> chara_one_models;
+#include <libvgmstream/vgmstream.h>
 
-void vram_init();
-bool ff8_vram_save(const char *fileName, Tim::Bpp bpp);
+#if defined(__cplusplus)
+}
+#endif
+
+#include "../../ff8/zzz_archive.h"
+
+STREAMFILE* open_ZZZ_STREAMFILE(Zzz* archive, const char* const filename, size_t filenameSize, size_t buf_size = STREAMFILE_DEFAULT_BUFFER_SIZE);
