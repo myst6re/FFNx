@@ -214,6 +214,42 @@ struct ff8_indexed_vertices
 	struct ff8_graphics_object *graphics_object;
 };
 
+struct ff8_create_graphic_object {
+    uint32_t flags;
+    uint32_t field_4;
+    uint32_t field_8;
+    uint32_t field_C;
+    uint32_t field_10;
+    uint32_t field_14;
+    uint32_t field_18;
+    uint32_t field_1C;
+    uint32_t blend_mode;
+    uint32_t directory;
+    uint32_t tex_header;
+    uint32_t blend_related;
+    uint32_t texture_set;
+    uint32_t field_34;
+    uint32_t field_38;
+    uint32_t field_3C;
+    uint32_t field_40;
+    uint32_t field_44;
+    uint32_t file_context;
+    uint32_t field_4C;
+    uint32_t field_50;
+    uint32_t field_54;
+    ff8_file_container *file_container;
+    uint32_t field_5C;
+    uint32_t field_60;
+    uint32_t field_64;
+    uint32_t palette_index;
+    uint32_t field_6C;
+    uint32_t field_70;
+    uint32_t field_74;
+    uint32_t field_78;
+    uint32_t field_7C;
+    uint32_t field_80;
+};
+
 struct ff8_graphics_object
 {
 	uint32_t type;
@@ -1058,6 +1094,7 @@ struct ff8_externals
 	uint32_t sub_534640;
 	uint32_t sub_4972A0;
 	uint32_t load_fonts;
+	uint32_t sub_497F20;
 	uint32_t cdcheck_main_loop;
 	uint32_t cdcheck_sub_52F9E0;
 	uint32_t main_entry;
@@ -1092,6 +1129,7 @@ struct ff8_externals
 	uint32_t battle_trigger_field;
 	uint32_t battle_trigger_worldmap;
 	uint32_t _load_texture;
+	void (*free_graphics_object)(ff8_graphics_object *);
 	uint32_t sub_4076B6;
 	uint32_t sub_41AC34;
 	uint32_t load_texture_data;
@@ -1102,12 +1140,16 @@ struct ff8_externals
 	uint32_t get_command_key;
 	uint32_t sub_468BD0;
 	uint32_t pubintro_cleanup;
+	uint32_t pubintro_cleanup_textures;
+	uint32_t pubintro_cleanup_textures_menu;
 	uint32_t pubintro_enter_main;
 	uint32_t pubintro_exit;
 	uint32_t pubintro_main_loop;
 	uint32_t credits_main_loop;
 	uint32_t go_to_main_menu_main_loop;
 	uint32_t main_menu_main_loop;
+	uint32_t menu_enter;
+	uint32_t menu_enter2;
 	DWORD* credits_loop_state;
 	DWORD* credits_counter;
 	DWORD* credits_current_image_global_counter_start;
@@ -1249,6 +1291,7 @@ struct ff8_externals
 	uint32_t ssigpu_init;
 	uint32_t *sub_blending_capability;
 	uint32_t *d3dcaps;
+	void (*create_graphics_object_info_structure)(int, ff8_create_graphic_object *);
 	uint32_t sub_53BB90;
 	uint32_t worldmap_fog_filter_polygons_in_block_1;
 	uint32_t worldmap_polygon_condition_2045C8C;
@@ -1390,6 +1433,7 @@ struct ff8_externals
 	uint32_t sub_464DB0;
 	uint32_t sub_4649A0;
 	char *archive_path_prefix;
+	char *archive_path_prefix_menu;
 	int(*fs_archive_search_filename)(const char *, ff8_file_fi_infos *, const ff8_file_container *);
 	int(*ff8_fs_archive_search_filename2)(const char *, ff8_file_fi_infos *, const ff8_file_container *);
 	char *(*fs_archive_get_fl_filepath)(int, const ff8_file_fl *);
