@@ -39,6 +39,7 @@
 #include "metadata.h"
 #include "achievement.h"
 #include "widescreen.h"
+#include "ff8/menu/icons.h"
 
 unsigned char texture_reload_fix1[] = {0x5B, 0x5F, 0x5E, 0x5D, 0x81, 0xC4, 0x10, 0x01, 0x00, 0x00};
 unsigned char texture_reload_fix2[] = {0x5F, 0x5E, 0x5D, 0x5B, 0x81, 0xC4, 0x8C, 0x00, 0x00, 0x00};
@@ -597,22 +598,6 @@ int ff8_draw_gamepad_icon_or_keyboard_key(int a1, ff8_draw_menu_sprite_texture_i
 	}
 
 	return icon_id;
-}
-
-unsigned int *ff8_draw_icon_get_icon_sp1_infos(int icon_id, int &states_count)
-{
-	int *icon_sp1_data = ((int*(*)())ff8_externals.get_icon_sp1_data)();
-
-	if (icon_id >= icon_sp1_data[0])
-	{
-		states_count = 0;
-
-		return nullptr;
-	}
-
-	states_count = HIWORD(icon_sp1_data[icon_id + 1]);
-
-	return (unsigned int *)((char *)icon_sp1_data + uint16_t(icon_sp1_data[icon_id + 1]));
 }
 
 ff8_draw_menu_sprite_texture_infos *ff8_draw_icon_or_key(

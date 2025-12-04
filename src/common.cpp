@@ -78,6 +78,7 @@
 #include "ff8/uv_patch.h"
 #include "ff8/ambient.h"
 #include "ff8/file.h"
+#include "ff8/menu/icons.h"
 
 #include "wine.h"
 
@@ -1958,7 +1959,12 @@ struct texture_set *common_load_texture(struct texture_set *_texture_set, struct
 			// save texture to modpath if save_textures is enabled
 			if(save_textures && (uint32_t)VREF(tex_header, file.pc_name) > 32)
 			{
-				save_texture(image_data, image_data_size, w, h, saveload_palette_index, VREF(tex_header, file.pc_name), VREF(texture_set, ogl.gl_set->is_animated));
+				ffnx_info("Toto: %s\n", VREF(tex_header, file.pc_name) + strlen(VREF(tex_header, file.pc_name)) - strlen("menu\\icon"));
+				if (ff8 && _strnicmp(VREF(tex_header, file.pc_name) + strlen(VREF(tex_header, file.pc_name)) - strlen("menu\\icon"), "menu\\icon", strlen("menu\\icon")) == 0) {
+					ff8_icons_save_textures(VREF(tex_header, image_data), tex_format->palette_data, w, h, VREF(tex_header, file.pc_name));
+				} else {
+					save_texture(image_data, image_data_size, w, h, saveload_palette_index, VREF(tex_header, file.pc_name), VREF(texture_set, ogl.gl_set->is_animated));
+				}
 			}
 
 			// check if this texture can be loaded from the modpath, we may not have to do any conversion
