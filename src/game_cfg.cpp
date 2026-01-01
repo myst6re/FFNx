@@ -37,7 +37,7 @@ void normalize_path_win(char *name)
 	}
 }
 
-void set_game_paths(int install_options, char *_app_path, const char *_dataDrive)
+void ff8_set_game_paths(int install_options, char *_app_path, const char *_dataDrive)
 {
 	char fileName[MAX_PATH] = {};
 
@@ -58,10 +58,38 @@ void set_game_paths(int install_options, char *_app_path, const char *_dataDrive
 	ff8_externals.set_game_paths(install_options, _app_path, _dataDrive);
 }
 
+int ff8_reg_get_midiguid(LPDWORD midi_guid)
+{
+	int ret = ff8_externals.reg_get_midiguid((LPBYTE)midi_guid);
+	LPDWORD default_midi_guid[4] = {0, 0, 0, 0};
+
+	if (memcmp(midi_guid, default_midi_guid, 0x10u) == 0) {
+		ffnx_info("MIDI GUID is zero, force to Microsoft Synthesizer\n");
+		// Use default Microsoft synthesizer, instead of starting FF8Config.exe
+		uint32_t buf[4] = {0x58C2B4D0, 0x11D146E7, 0xA000AC89, 0x294105C9};
+		memcpy(midi_guid, buf, 16);
+
+		return 1;
+	}
+
+	return ret;
+}
+
+int ff8_reg_get_graphics()
+{
+	int ret = ff8_externals.reg_get_graphics();
+
+	ret |= 0x100000; // Force this flag to prevent graphical glitches (see FF8.reg)
+
+	return ret;
+}
+
 void game_cfg_init()
 {
 	if (ff8)
 	{
-		replace_call(ff8_externals.init_config + 0x3E, set_game_paths);
+		replace_call(ff8_externals.init_config + 0x3E, ff8_set_game_paths);
+		replace_call(ff8_externals.init_config + 0x48, ff8_reg_get_midiguid);
+		replace_call(ff8_externals.init_config + 0x16B, ff8_reg_get_graphics);
 	}
 }

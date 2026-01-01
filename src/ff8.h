@@ -222,6 +222,12 @@ struct ff8_indexed_vertices
 	struct ff8_graphics_object *graphics_object;
 };
 
+struct ff8_vertex {
+	float x, y, z, z2;
+	uint32_t color, color_mask;
+	float u, v;
+};
+
 struct ff8_graphics_object
 {
 	uint32_t type;
@@ -253,7 +259,7 @@ struct ff8_graphics_object
 	uint32_t field_68;
 	uint32_t field_6C;
 	uint32_t field_70;
-	uint32_t field_74;
+	ff8_vertex *vertices;
 	uint32_t field_78;
 	uint32_t field_7C;
 	uint32_t field_80;
@@ -1076,6 +1082,8 @@ struct ff8_externals
 	uint32_t init_config;
 	uint32_t (*reg_get_data_drive)(char*, DWORD);
 	void (*set_game_paths)(int, char *, const char *);
+	int (*reg_get_midiguid)(LPBYTE);
+	int (*reg_get_graphics)();
 	uint32_t (*sm_pc_read)(char*,void*);
 	uint32_t get_disk_number;
 	char* disk_data_path;

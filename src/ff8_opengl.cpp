@@ -295,14 +295,13 @@ void ff8_unload_texture(struct ff8_texture_set *texture_set)
 
 void swirl_sub_56D390(uint32_t x, uint32_t y, uint32_t w, uint32_t h)
 {
+	struct ff8_texture_set *texture_set = (struct ff8_texture_set *)(*ff8_externals.swirl_texture1)->hundred_data->texture_set;
 	static struct tex_header *last_tex_header = 0;
-	struct tex_header *tex_header = make_framebuffer_tex(256, 256, x, y, w, h, false);
+	struct tex_header *tex_header = make_framebuffer_tex(((struct ff8_tex_header *)texture_set->tex_header)->tex_format.width, ((struct ff8_tex_header *)texture_set->tex_header)->tex_format.height, x, y, w, h, false);
 
 	if(last_tex_header) ff8_destroy_tex_header((struct ff8_tex_header *)last_tex_header);
 
-	if(trace_all) ffnx_trace("swirl_sub_56D390: (%i, %i) %ix%i 0x%x (0x%x)\n", x, y, w, h, *ff8_externals.swirl_texture1, tex_header);
-
-	struct ff8_texture_set *texture_set = (struct ff8_texture_set *)(*ff8_externals.swirl_texture1)->hundred_data->texture_set;
+	ffnx_trace("swirl_sub_56D390: (%i, %i) %ix%i 0x%x (0x%x) (%dx%d)\n", x, y, w, h, *ff8_externals.swirl_texture1, tex_header, ((struct ff8_tex_header *)texture_set->tex_header)->tex_format.width, ((struct ff8_tex_header *)texture_set->tex_header)->tex_format.height);
 
 	common_unload_texture((*ff8_externals.swirl_texture1)->hundred_data->texture_set);
 	common_load_texture((*ff8_externals.swirl_texture1)->hundred_data->texture_set, tex_header, texture_set->texture_format);
@@ -1473,6 +1472,266 @@ void ff8_field_calc_triangle_condition()
 	field_current_poly += 14;
 }
 
+ff8_graphics_object *bg_battle_swirl_graphic_object = nullptr;
+
+void __cdecl swirl_loop_boss_fade_sub_55A2B0(int swirl_iterator, float grey_color_factor, ff8_game_obj *game_object)
+{
+  ff8_graphics_object *battle_blendadd_swirl_graphic_object_sub_56DAE0; // esi
+  double size_factor; // st7
+  double height; // st7
+  long double v6_sin; // st6
+  long double v7; // st5
+  long double y_step; // st6
+  long double y; // st5
+  double x; // st3
+  long double y2; // st2
+  ff8_vertex *vertex0; // eax
+  double x2; // st1
+  ff8_vertex *vertex1; // eax
+  ff8_vertex *vertex2; // eax
+  ff8_vertex *vertex3; // eax
+  double h; // [esp+0h] [ebp-1Ch]
+  double w; // [esp+8h] [ebp-14h]
+  int i; // [esp+Ch] [ebp-10h]
+  float x_step; // [esp+10h] [ebp-Ch]
+  float width; // [esp+14h] [ebp-8h]
+  uint32_t color; // [esp+18h] [ebp-4h]
+  int j; // [esp+28h] [ebp+Ch]
+
+  uint32_t grey = grey_color_factor * 255.0; // 190.0 + 64.0;
+  //color = (0xFF << 24) | (grey << 16) | (grey << 8) | grey;
+  color = (grey << 24) | (0xFF << 16) | (0xFF << 8) | 0xFF;
+  uint32_t colors[4] = {
+	0xFF0000FF,
+	0xFF00FF00,
+	0xFFFF0000,
+	0xFFFF00FF,
+  };
+  // battle_blendadd_swirl_graphic_object_sub_56DAE0 = ((ff8_graphics_object*(*)())0x56DAE0)(); // get_battle_blendadd_swirl_graphic_object_sub_56DAE0
+  battle_blendadd_swirl_graphic_object_sub_56DAE0 = *ff8_externals.swirl_texture1;
+  ((void(*)(int,ff8_graphics_object*))0x417464)(4, battle_blendadd_swirl_graphic_object_sub_56DAE0); // init_graphics_object_with_vertices_sub_417464
+  size_factor = grey_color_factor * 0.5 + 1.0;
+  int *stru_204D7F0 = (int *)0x204D7F0;
+  w = (double)stru_204D7F0[4];
+  width = w * size_factor;
+  h = (double)stru_204D7F0[3];
+  height = size_factor * h;
+  v6_sin = sin(grey_color_factor * 3.14159265);
+  v7 = grey_color_factor * v6_sin * w;
+  i = 2;
+  x_step = v7 * 0.3333333333333333;
+  y_step = v6_sin * grey_color_factor * h * 0.3333333333333333;
+  double base_y = (double)stru_204D7F0[6] - y_step * 0.5 - (height - h) * 0.5;// y - sin(factor * PI) * factor * h * 1/3 * 1/2 - ((factor / 2 + 1) * h - h) * 1/2
+  y = stru_204D7F0[6];
+  do
+  {
+	bool is_bottom = i == 1;
+    j = 2;
+	double base_x = (double)stru_204D7F0[5] - x_step * 0.5 - (width - (double)stru_204D7F0[4]) * 0.5; // x - (factor * sin(factor * PI) * w * 1/3) / 2 - (w * (factor / 2 + 1) - w) / 2
+    x = stru_204D7F0[5];
+	//x = 0 - (grey_color_factor * sin(grey_color_factor * 3.14159265) * 640 * 0.3333333333333333) * 0.5 - (640 * (grey_color_factor * 0.5 + 1.0) - 640) / 2
+    y2 = y + h / 2;
+    do
+    {
+		ffnx_info("%s: (%lf %lf)(%lf %lf) %d %d\n", __func__, x, y, x + width, y2, stru_204D7F0[5], stru_204D7F0[4]);
+		bool is_right = j == 1;
+      vertex0 = battle_blendadd_swirl_graphic_object_sub_56DAE0->vertices;
+      vertex0->x = x;
+      vertex0->y = y;
+      vertex0->z = 0.0015;
+      vertex0->z2 = 1.0;
+      vertex0->color = color; // colors[((i - 1) << 1) | (j - 1)];
+	  if (is_right) {
+	  	vertex0->u = 1.0 + base_x / w;
+	  } else {
+	  	vertex0->u = 0.0 - base_x / w;
+	  }
+	  if (is_bottom) {
+		vertex0->v = 1.0 + base_y / h;
+	  } else {
+      	vertex0->v = 0.0 - base_y / h;
+	  }
+      x2 = x + w / 2;
+      vertex1 = battle_blendadd_swirl_graphic_object_sub_56DAE0->vertices + 1;
+      vertex1->x = x2;
+      vertex1->y = y;
+      vertex1->z = 0.0015;
+      vertex1->z2 = 1.0;
+      vertex1->color = color; // colors[((i - 1) << 1) | (j - 1)];
+	  if (is_right) {
+	  	vertex1->u = 0.0 - base_x / w;
+	  } else {
+		vertex1->u = 1.0 + base_x / w;
+	  }
+	  if (is_bottom) {
+		vertex1->v = 1.0 + base_y / h;
+	  } else {
+		vertex1->v = 0.0 - base_y / h;
+	  }
+      vertex2 = battle_blendadd_swirl_graphic_object_sub_56DAE0->vertices + 2;
+      vertex2->x = x;
+      vertex2->y = y2;
+      vertex2->z = 0.0015;
+      vertex2->z2 = 1.0;
+      vertex2->color = color; // colors[((i - 1) << 1) | (j - 1)];
+	  if (is_right) {
+	  	vertex2->u = 1.0 + base_x / w;
+	  } else {
+		vertex2->u = 0.0 - base_x / w;
+	  }
+	  if (is_bottom) {
+		vertex2->v = 0.0 - base_y / h;
+	  } else {
+		vertex2->v = 1.0 + base_y / h;
+	  }
+      vertex3 = battle_blendadd_swirl_graphic_object_sub_56DAE0->vertices + 3;
+      vertex3->x = x2;
+      vertex3->y = y2;
+      vertex3->z = 0.0015;
+      vertex3->z2 = 1.0;
+      vertex3->color = color; // colors[((i - 1) << 1) | (j - 1)];
+	  if (is_right) {
+	  	vertex3->u = 0.0 - base_x / w;
+	  } else {
+		vertex3->u = 1.0 + base_x / w;
+	  }
+	  if (is_bottom) {
+		vertex3->v = 0.0 - base_y / h;
+	  } else {
+		vertex3->v = 1.0 + base_y / h;
+	  }
+      battle_blendadd_swirl_graphic_object_sub_56DAE0->vertices = (ff8_vertex *)((char *)battle_blendadd_swirl_graphic_object_sub_56DAE0->vertices
+                                                                               + battle_blendadd_swirl_graphic_object_sub_56DAE0->vertex_offset);
+      //x = x + x_step;
+	  x += w / 2;
+      --j;
+    }
+    while ( j );
+    //y = y + y_step;
+	y += h / 2;
+    --i;
+  }
+  while ( i );
+  ((void(*)(int,ff8_game_obj*))0x41E752)(1, game_object); // gfx_driver_field_84_sub_41E752
+  ((void(*)(int,ff8_game_obj*))0x41E947)(1, game_object); // gfx_driver_field_9C_begin_end_scene_alternative_sub_41E947
+  ((void(*)(int,int,ff8_game_obj*))0x41E650)(0xEu, 1, game_object); // gfx_driver_field_64_set_renderstate_sub_41E650
+  ((void(*)(ff8_graphics_object*,ff8_game_obj*))0x4178D7)(battle_blendadd_swirl_graphic_object_sub_56DAE0, game_object); // graphics_setrendererstate_draw_sub_4178D7
+}
+
+bool ff8_swirl_loop_boss(int swirl_iterator, struct game_obj *game_object)
+{
+	((void(*)(int))0x559D90)(33);
+	// Patch 1: never use setbg for another color than black
+	bgra_color color[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+	common_setbg(color, game_object);
+
+	//common_clear(1, 1, 1, game_object);
+
+	if (common_begin_scene(0, game_object)) {
+		int *stru_204D7F0 = (int *)0x204D7F0;
+
+		if (swirl_iterator < 80) {
+			((int(*)(struct game_obj *))0x43FBE8)(game_object);
+			((int(*)(struct game_obj *))0x409B42)(game_object);
+			((int(*)(struct game_obj *))0x409B08)(game_object);
+			((int(*)(struct game_obj *))0x409B25)(game_object);
+
+			uint32_t alpha = 255 - uint32_t(float(std::min(double(swirl_iterator) * 0.0125, 1.0)) * 255.0);
+
+			((void(*)(int,int,int,int,float,uint32_t,int))0x56D970)(stru_204D7F0[5], stru_204D7F0[6], stru_204D7F0[4], stru_204D7F0[3], 0.002, (alpha << 24) | 0xFFFFFF, 0); // battle_swirl_related_sub_56D970
+
+			uint32_t grey = uint32_t(float(std::min(double(swirl_iterator) * 0.0125, 1.0)) * 190.0 + 64.0) & 0xFF;
+			uint32_t color = (0xFF << 24) | (grey << 16) | (grey << 8) | grey;
+
+			swirl_loop_boss_fade_sub_55A2B0(swirl_iterator, float(std::min(double(swirl_iterator) * 0.0125, 1.0)), (ff8_game_obj *)game_object);
+			//((void(*)(int,float,struct game_obj*))0x55A2B0)(swirl_iterator, float(std::min(double(swirl_iterator) * 0.0125, 1.0)), game_object);
+		}
+
+		// Patch 2: show a white texture to replace the setbg
+		if (swirl_iterator >= 60) {
+			((void(*)(int,ff8_graphics_object*))0x417464)(1, bg_battle_swirl_graphic_object);
+			uint32_t alpha = 0xFF;
+			uint32_t grey = uint32_t(double(swirl_iterator - 60) * 0.05 * 255.0) & 0xFF;
+			uint32_t color = (alpha << 24) | (grey << 16) | (grey << 8) | grey;
+			ff8_vertex *vertices = bg_battle_swirl_graphic_object->vertices;
+			float w = stru_204D7F0[4], h = stru_204D7F0[3];
+			float x1 = stru_204D7F0[5], x2 = x1 + w;
+			float y1 = stru_204D7F0[6], y2 = y1 + h;
+			float z = 0.002;
+			vertices[0].x = x1;
+			vertices[0].y = y1;
+			vertices[0].z = z;
+			vertices[0].z2 = 1.0;
+			vertices[0].color = color;
+			vertices[0].u = 0.0;
+			vertices[0].v = 0.0;
+			vertices[1].x = x2;
+			vertices[1].y = y1;
+			vertices[1].z = z;
+			vertices[1].z2 = 1.0;
+			vertices[1].color = color;
+			vertices[1].u = 1.0;
+			vertices[1].v = 0.0;
+			vertices[2].x = x1;
+			vertices[2].y = y2;
+			vertices[2].z = z;
+			vertices[2].z2 = 1.0;
+			vertices[2].color = color;
+			vertices[2].u = 0.0;
+			vertices[2].v = 1.0;
+			vertices[3].x = x2;
+			vertices[3].y = y2;
+			vertices[3].z = z;
+			vertices[3].z2 = 1.0;
+			vertices[3].color = color;
+			vertices[3].u = 1.0;
+			vertices[3].v = 1.0;
+			common_field_74(0, game_object);
+			common_field_84(1, game_object);
+			common_field_64(0xEu, 1, game_object);
+			((void(*)(ff8_graphics_object*,struct game_obj*))0x4178D7)(bg_battle_swirl_graphic_object, game_object);
+			((void(*)(struct game_obj*))0x41786A)(game_object);
+		}
+
+		common_end_scene(game_object);
+	}
+
+	return swirl_iterator >= 82;
+}
+
+ff8_graphics_object *create_graphics_object_sub_416D82(
+	int a1,
+	int polytype,
+	uint32_t *tex_info,
+	char *path,
+	uint32_t *dummy4_39)
+{
+	int *stru_204D7F0 = (int *)0x204D7F0;
+	ffnx_trace("%s: %d %d\n", __func__, stru_204D7F0[4], stru_204D7F0[3]);
+	struct ff8_tex_header *tex_header = (struct ff8_tex_header *)tex_info[10];
+	tex_header->tex_format.width = stru_204D7F0[4] / 2;
+	tex_header->tex_format.height = stru_204D7F0[3] / 2;
+	tex_header->tex_format.bytesperrow = tex_header->tex_format.width * 2;
+	((void(*)(void*))0x467210)(tex_header->image_data);
+	tex_header->image_data = ((uint8_t*(*)(size_t))0x467150)(tex_header->tex_format.bytesperrow * tex_header->tex_format.height);
+
+	ff8_graphics_object *ret = ((ff8_graphics_object*(*)(int,int,uint32_t*,char*,uint32_t*))0x416D82)(a1, polytype, tex_info, path, dummy4_39);
+
+	uint32_t tex_info2[33] = {};
+
+	((void(*)(int,uint32_t*))0x40702F)(1, tex_info2); // Blend: additive
+
+	bg_battle_swirl_graphic_object = ((ff8_graphics_object*(*)(int,int,uint32_t*,char*,uint32_t*))0x416D82)(a1, 10, tex_info2, path, dummy4_39);
+
+	return ret;
+}
+
+void free_graphics_object_sub_416C1E(ff8_graphics_object *obj)
+{
+	((void(*)(ff8_graphics_object*))0x416C1E)(obj);
+	((void(*)(ff8_graphics_object*))0x416C1E)(bg_battle_swirl_graphic_object);
+}
+
 void ff8_init_hooks(struct game_obj *_game_object)
 {
 	struct ff8_game_obj *game_object = (struct ff8_game_obj *)_game_object;
@@ -1488,13 +1747,28 @@ void ff8_init_hooks(struct game_obj *_game_object)
 
 	replace_function(ff8_externals.engine_eval_process_input, ff8_is_window_active);
 
+	// #####################
+	// Battle transition fixes
+	// #####################
+
 	replace_function(ff8_externals.swirl_sub_56D390, swirl_sub_56D390);
 	replace_call(ff8_externals.worldmap_with_fog_sub_53FAC0 + (FF8_US_VERSION ? 0xB3C: (JP_VERSION ? 0xB24 : 0xB2F)), ff8_wm_set_render_to_vram_current_screen_flag_before_battle);
 	replace_function(ff8_externals.set_render_to_vram_current_screen_flag_before_battle, ff8_set_render_to_vram_current_screen_flag_before_battle);
 	replace_call(ff8_externals.swirl_enter + 0x9, ff8_swirl_init);
+	replace_function(0x55A1C0, ff8_swirl_loop_boss);
+	replace_call(0x56D5C0 + 0xDA, create_graphics_object_sub_416D82);
+	replace_call(0x56DAF0 + 0x42, free_graphics_object_sub_416C1E);
+
+	// #####################
+	// Tex replacement
+	// #####################
 
 	replace_function(common_externals.destroy_tex_header, ff8_destroy_tex_header);
 	replace_function(common_externals.load_tex_file, ff8_load_tex_file);
+
+	// #####################
+	// File system
+	// #####################
 
 	replace_function(common_externals.open_file, ff8_open_file);
 	replace_call(uint32_t(ff8_externals.fs_archive_search_filename) + 0x10, ff8_fs_archive_search_filename2);
