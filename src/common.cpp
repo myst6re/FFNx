@@ -2182,6 +2182,8 @@ void internal_set_renderstate(uint32_t state, uint32_t option, struct game_obj *
 {
 	VOBJ(game_obj, game_object, game_object);
 
+	ffnx_info("%s: state=%X option=%X\n", __func__, state, option);
+
 	switch(state)
 	{
 		// wireframe rendering, not used?
@@ -2258,6 +2260,8 @@ void internal_set_renderstate(uint32_t state, uint32_t option, struct game_obj *
 			if(state == V_ALPHAFUNC) current_state.alphafunc = option;
 			else current_state.alpharef = option;
 
+			ffnx_info("%s: V_ALPHAFUNC | V_ALPHAREF state=%X option=%X\n", __func__, state, option);
+
 			switch(current_state.alphafunc)
 			{
 			case 0: newRenderer.setAlphaRef(RendererAlphaFunc::NEVER, current_state.alpharef / 255.0f); break;
@@ -2283,7 +2287,7 @@ void internal_set_renderstate(uint32_t state, uint32_t option, struct game_obj *
 // called by the game to set a simple render state
 void common_field_64(uint32_t state, uint32_t option, struct game_obj *game_object)
 {
-	if(trace_all) ffnx_trace("dll_gfx: field_64 %i %i\n", state, option);
+	ffnx_trace("dll_gfx: field_64 %X %X\n", state, option);
 
 	internal_set_renderstate(state, option, game_object);
 }
@@ -2299,7 +2303,7 @@ void common_setrenderstate(struct p_hundred *hundred_data, struct game_obj *game
 	uint32_t options = hundred_data->options;
 	struct struc_81 *struc_81 = VREF(game_object, field_944);
 
-	if(trace_all) ffnx_trace("dll_gfx: setrenderstate 0x%x 0x%x\n", features, options);
+	ffnx_trace("dll_gfx: setrenderstate 0x%x 0x%x\n", features, options);
 
 // helper macro to check if a bit is set
 // to be able to tell which bits we haven't handled, this macro will also clear
@@ -2315,6 +2319,7 @@ void common_setrenderstate(struct p_hundred *hundred_data, struct game_obj *game
 	if(CHECK_BIT(features, V_DITHER)) internal_set_renderstate(V_DITHER, CHECK_BIT(options, V_DITHER), game_object);
 	if(CHECK_BIT(features, V_ALPHABLEND))
 	{
+			ffnx_info("%s: V_ALPHABLEND state=%X option=%X\n", __func__, options);
 		// Safe default
 		struc_81->blend_mode = 4;
 
@@ -2366,7 +2371,7 @@ void common_field_74(uint32_t unknown, struct game_obj *game_object)
 {
 	VOBJ(game_obj, game_object, game_object);
 
-	if(trace_all) ffnx_trace("dll_gfx: field_74\n");
+	ffnx_trace("dll_gfx: field_74\n");
 
 	if(unknown > 4) return;
 
@@ -2391,7 +2396,7 @@ void common_draw_deferred(struct struc_77 *struc_77, struct game_obj *game_objec
 	struct p_hundred *hundred_data = struc_77->hundred_data;
 	struct indexed_primitive *ip;
 
-	if(trace_all) ffnx_trace("dll_gfx: draw_deferred\n");
+	ffnx_trace("dll_gfx: draw_deferred\n");
 
 	if(!VREF(polygon_set, indexed_primitives)) return;
 
@@ -2552,7 +2557,7 @@ void common_setrenderstate_2D(struct polygon_set *polygon_set, struct indexed_ve
 {
 	VOBJ(polygon_set, polygon_set, polygon_set);
 
-	if(trace_all) ffnx_trace("dll_gfx: setrenderstate_2D\n");
+	ffnx_trace("dll_gfx: setrenderstate_2D\n");
 
 	if(!VREF(polygon_set, field_2C)) return;
 
@@ -2582,7 +2587,7 @@ void common_setrenderstate_3D(struct polygon_set *polygon_set, struct indexed_ve
 	VOBJ(indexed_vertices, iv, iv);
 	VOBJ(graphics_object, graphics_object, UNSAFE_VREF(graphics_object, iv, graphics_object));
 
-	if(trace_all) ffnx_trace("dll_gfx: setrenderstate_3D\n");
+	ffnx_trace("dll_gfx: setrenderstate_3D\n");
 
 	if(!VREF(polygon_set, field_2C)) return;
 

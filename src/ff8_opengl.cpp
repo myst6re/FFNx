@@ -63,7 +63,7 @@ void ff8gl_field_78(struct ff8_polygon_set *polygon_set, struct ff8_game_obj *ga
 	struct p_hundred *hundred_data = 0;
 	uint32_t group_counter;
 
-	if(trace_all) ffnx_trace("dll_gfx: field_78\n");
+	ffnx_trace("ff8gl_field_78: field_78\n");
 
 	if(!game_object->in_scene) return;
 
@@ -293,13 +293,25 @@ void ff8_unload_texture(struct ff8_texture_set *texture_set)
 	for(i = 0; i < TEXRELOAD_BUFFER_SIZE; i++) if(reload_buffer[i].texture_set == texture_set) reload_buffer[i].texture_set = 0;
 }
 
+void swirl2_sub_56D390(uint32_t x, uint32_t y, uint32_t w, uint32_t h)
+{
+
+}
+
 void swirl_sub_56D390(uint32_t x, uint32_t y, uint32_t w, uint32_t h)
 {
+  /* common_field_64(0xBu, 0, common_externals.get_game_object()); // gfx_driver_field_64_set_renderstate_sub_41E650
+  common_field_64(0x19u, 0x70, common_externals.get_game_object()); // gfx_driver_field_64_set_renderstate_sub_41E650
+  common_field_64(0x18u, 5, common_externals.get_game_object()); // gfx_driver_field_64_set_renderstate_sub_41E650
+*/
+	//*ff8_externals.sub_blending_capability = false;
 	struct ff8_texture_set *texture_set = (struct ff8_texture_set *)(*ff8_externals.swirl_texture1)->hundred_data->texture_set;
 	static struct tex_header *last_tex_header = 0;
 	struct tex_header *tex_header = make_framebuffer_tex(((struct ff8_tex_header *)texture_set->tex_header)->tex_format.width, ((struct ff8_tex_header *)texture_set->tex_header)->tex_format.height, x, y, w, h, false);
 
 	if(last_tex_header) ff8_destroy_tex_header((struct ff8_tex_header *)last_tex_header);
+
+	//common_setrenderstate((*ff8_externals.swirl_texture1)->hundred_data, common_externals.get_game_object());
 
 	ffnx_trace("swirl_sub_56D390: (%i, %i) %ix%i 0x%x (0x%x) (%dx%d)\n", x, y, w, h, *ff8_externals.swirl_texture1, tex_header, ((struct ff8_tex_header *)texture_set->tex_header)->tex_format.width, ((struct ff8_tex_header *)texture_set->tex_header)->tex_format.height);
 
@@ -307,18 +319,35 @@ void swirl_sub_56D390(uint32_t x, uint32_t y, uint32_t w, uint32_t h)
 	common_load_texture((*ff8_externals.swirl_texture1)->hundred_data->texture_set, tex_header, texture_set->texture_format);
 
 	last_tex_header = tex_header;
+
+	// Reenable the flag that was disabled in worldmap
+	//*ff8_externals.sub_blending_capability = true;
 }
 
 void ff8_set_render_to_vram_current_screen_flag_before_battle()
 {
-	if(trace_all) ffnx_trace("%s\n", __func__);
+	// There is currently an visual issue in the last worldmap frame before swirl if this flag is enabled
+	// We lose the shadows, but keep the full battle transition effect
+	//*ff8_externals.sub_blending_capability = false;
+
+	ffnx_trace("%s\n", __func__);
+
+	/* int *stru_204D7F0 = (int *)0x204D7F0;
+	stru_204D7F0[5] = 0;
+	stru_204D7F0[6] = 16;
+	stru_204D7F0[4] = 640;
+	stru_204D7F0[3] = 448;
+	if (*ff8_externals.swirl_texture1 || !((int(*)())0x56D5C0)())
+	{
+		swirl_sub_56D390(stru_204D7F0[5], stru_204D7F0[6], stru_204D7F0[4], stru_204D7F0[3]);
+	} */
 
 	// Disable software frame rendering to VRAM (by not doing anything here) because it is not needed anymore
 }
 
 void ff8_wm_set_render_to_vram_current_screen_flag_before_battle()
 {
-	if(trace_all) ffnx_trace("%s\n", __func__);
+	ffnx_trace("%s\n", __func__);
 
 	// There is currently an visual issue in the last worldmap frame before swirl if this flag is enabled
 	// We lose the shadows, but keep the full battle transition effect
@@ -329,10 +358,8 @@ void ff8_wm_set_render_to_vram_current_screen_flag_before_battle()
 
 void ff8_swirl_init(float a1)
 {
-	if(trace_all) ffnx_trace("%s\n", __func__);
+	ffnx_trace("%s\n", __func__);
 
-	// Reenable the flag that was disabled in worldmap
-	*ff8_externals.sub_blending_capability = true;
 
 	((void(*)(float))ff8_externals.sub_460B60)(a1);
 }
@@ -1472,150 +1499,267 @@ void ff8_field_calc_triangle_condition()
 	field_current_poly += 14;
 }
 
+ff8_graphics_object *bg_battle_swirl2_graphic_object = nullptr;
 ff8_graphics_object *bg_battle_swirl_graphic_object = nullptr;
 
 void __cdecl swirl_loop_boss_fade_sub_55A2B0(int swirl_iterator, float grey_color_factor, ff8_game_obj *game_object)
 {
-  ff8_graphics_object *battle_blendadd_swirl_graphic_object_sub_56DAE0; // esi
-  double size_factor; // st7
-  double height; // st7
-  long double v6_sin; // st6
-  long double v7; // st5
-  long double y_step; // st6
-  long double y; // st5
-  double x; // st3
-  long double y2; // st2
-  ff8_vertex *vertex0; // eax
-  double x2; // st1
-  ff8_vertex *vertex1; // eax
-  ff8_vertex *vertex2; // eax
-  ff8_vertex *vertex3; // eax
-  double h; // [esp+0h] [ebp-1Ch]
-  double w; // [esp+8h] [ebp-14h]
-  int i; // [esp+Ch] [ebp-10h]
-  float x_step; // [esp+10h] [ebp-Ch]
-  float width; // [esp+14h] [ebp-8h]
-  uint32_t color; // [esp+18h] [ebp-4h]
-  int j; // [esp+28h] [ebp+Ch]
+	ff8_graphics_object *battle_blendadd_swirl_graphic_object_sub_56DAE0; // esi
+	double size_factor; // st7
+	double height; // st7
+	long double v6_sin; // st6
+	long double v7; // st5
+	long double y_step; // st6
+	long double y; // st5
+	double x; // st3
+	long double y2; // st2
+	ff8_vertex *vertex0; // eax
+	ff8_vertex *vertex1; // eax
+	ff8_vertex *vertex2; // eax
+	ff8_vertex *vertex3; // eax
+	double h; // [esp+0h] [ebp-1Ch]
+	double w; // [esp+8h] [ebp-14h]
+	int i; // [esp+Ch] [ebp-10h]
+	float x_step; // [esp+10h] [ebp-Ch]
+	float width; // [esp+14h] [ebp-8h]
+	uint32_t color; // [esp+18h] [ebp-4h]
+	int j; // [esp+28h] [ebp+Ch]
 
-  uint32_t grey = grey_color_factor * 255.0; // 190.0 + 64.0;
-  //color = (0xFF << 24) | (grey << 16) | (grey << 8) | grey;
-  color = (grey << 24) | (0xFF << 16) | (0xFF << 8) | 0xFF;
-  uint32_t colors[4] = {
-	0xFF0000FF,
-	0xFF00FF00,
-	0xFFFF0000,
-	0xFFFF00FF,
-  };
-  // battle_blendadd_swirl_graphic_object_sub_56DAE0 = ((ff8_graphics_object*(*)())0x56DAE0)(); // get_battle_blendadd_swirl_graphic_object_sub_56DAE0
-  battle_blendadd_swirl_graphic_object_sub_56DAE0 = *ff8_externals.swirl_texture1;
-  ((void(*)(int,ff8_graphics_object*))0x417464)(4, battle_blendadd_swirl_graphic_object_sub_56DAE0); // init_graphics_object_with_vertices_sub_417464
-  size_factor = grey_color_factor * 0.5 + 1.0;
-  int *stru_204D7F0 = (int *)0x204D7F0;
-  w = (double)stru_204D7F0[4];
-  width = w * size_factor;
-  h = (double)stru_204D7F0[3];
-  height = size_factor * h;
-  v6_sin = sin(grey_color_factor * 3.14159265);
-  v7 = grey_color_factor * v6_sin * w;
-  i = 2;
-  x_step = v7 * 0.3333333333333333;
-  y_step = v6_sin * grey_color_factor * h * 0.3333333333333333;
-  double base_y = (double)stru_204D7F0[6] - y_step * 0.5 - (height - h) * 0.5;// y - sin(factor * PI) * factor * h * 1/3 * 1/2 - ((factor / 2 + 1) * h - h) * 1/2
-  y = stru_204D7F0[6];
-  do
-  {
-	bool is_bottom = i == 1;
-    j = 2;
-	double base_x = (double)stru_204D7F0[5] - x_step * 0.5 - (width - (double)stru_204D7F0[4]) * 0.5; // x - (factor * sin(factor * PI) * w * 1/3) / 2 - (w * (factor / 2 + 1) - w) / 2
-    x = stru_204D7F0[5];
-	//x = 0 - (grey_color_factor * sin(grey_color_factor * 3.14159265) * 640 * 0.3333333333333333) * 0.5 - (640 * (grey_color_factor * 0.5 + 1.0) - 640) / 2
-    y2 = y + h / 2;
-    do
-    {
-		ffnx_info("%s: (%lf %lf)(%lf %lf) %d %d\n", __func__, x, y, x + width, y2, stru_204D7F0[5], stru_204D7F0[4]);
-		bool is_right = j == 1;
-      vertex0 = battle_blendadd_swirl_graphic_object_sub_56DAE0->vertices;
-      vertex0->x = x;
-      vertex0->y = y;
-      vertex0->z = 0.0015;
-      vertex0->z2 = 1.0;
-      vertex0->color = color; // colors[((i - 1) << 1) | (j - 1)];
-	  if (is_right) {
-	  	vertex0->u = 1.0 + base_x / w;
-	  } else {
-	  	vertex0->u = 0.0 - base_x / w;
-	  }
-	  if (is_bottom) {
-		vertex0->v = 1.0 + base_y / h;
-	  } else {
-      	vertex0->v = 0.0 - base_y / h;
-	  }
-      x2 = x + w / 2;
-      vertex1 = battle_blendadd_swirl_graphic_object_sub_56DAE0->vertices + 1;
-      vertex1->x = x2;
-      vertex1->y = y;
-      vertex1->z = 0.0015;
-      vertex1->z2 = 1.0;
-      vertex1->color = color; // colors[((i - 1) << 1) | (j - 1)];
-	  if (is_right) {
-	  	vertex1->u = 0.0 - base_x / w;
-	  } else {
-		vertex1->u = 1.0 + base_x / w;
-	  }
-	  if (is_bottom) {
-		vertex1->v = 1.0 + base_y / h;
-	  } else {
-		vertex1->v = 0.0 - base_y / h;
-	  }
-      vertex2 = battle_blendadd_swirl_graphic_object_sub_56DAE0->vertices + 2;
-      vertex2->x = x;
-      vertex2->y = y2;
-      vertex2->z = 0.0015;
-      vertex2->z2 = 1.0;
-      vertex2->color = color; // colors[((i - 1) << 1) | (j - 1)];
-	  if (is_right) {
-	  	vertex2->u = 1.0 + base_x / w;
-	  } else {
-		vertex2->u = 0.0 - base_x / w;
-	  }
-	  if (is_bottom) {
-		vertex2->v = 0.0 - base_y / h;
-	  } else {
-		vertex2->v = 1.0 + base_y / h;
-	  }
-      vertex3 = battle_blendadd_swirl_graphic_object_sub_56DAE0->vertices + 3;
-      vertex3->x = x2;
-      vertex3->y = y2;
-      vertex3->z = 0.0015;
-      vertex3->z2 = 1.0;
-      vertex3->color = color; // colors[((i - 1) << 1) | (j - 1)];
-	  if (is_right) {
-	  	vertex3->u = 0.0 - base_x / w;
-	  } else {
-		vertex3->u = 1.0 + base_x / w;
-	  }
-	  if (is_bottom) {
-		vertex3->v = 0.0 - base_y / h;
-	  } else {
-		vertex3->v = 1.0 + base_y / h;
-	  }
-      battle_blendadd_swirl_graphic_object_sub_56DAE0->vertices = (ff8_vertex *)((char *)battle_blendadd_swirl_graphic_object_sub_56DAE0->vertices
-                                                                               + battle_blendadd_swirl_graphic_object_sub_56DAE0->vertex_offset);
-      //x = x + x_step;
-	  x += w / 2;
-      --j;
-    }
-    while ( j );
-    //y = y + y_step;
-	y += h / 2;
-    --i;
-  }
-  while ( i );
-  ((void(*)(int,ff8_game_obj*))0x41E752)(1, game_object); // gfx_driver_field_84_sub_41E752
-  ((void(*)(int,ff8_game_obj*))0x41E947)(1, game_object); // gfx_driver_field_9C_begin_end_scene_alternative_sub_41E947
-  ((void(*)(int,int,ff8_game_obj*))0x41E650)(0xEu, 1, game_object); // gfx_driver_field_64_set_renderstate_sub_41E650
-  ((void(*)(ff8_graphics_object*,ff8_game_obj*))0x4178D7)(battle_blendadd_swirl_graphic_object_sub_56DAE0, game_object); // graphics_setrendererstate_draw_sub_4178D7
+	uint32_t colors[4] = {
+		0xFF0000FF,
+		0xFF00FF00,
+		0xFFFF0000,
+		0xFFFF00FF,
+	};
+
+	uint32_t grey = grey_color_factor * 190.0 + 64.0;
+	//uint32_t grey2 = 255 / 4;
+	//color = (0xFF << 24) | (grey << 16) | (grey << 8) | grey;
+	color = (grey << 24) | (0xFF << 16) | (0xFF << 8) | 0xFF;
+
+	v6_sin = sin(grey_color_factor * 3.14159265);
+	size_factor = grey_color_factor * 0.5 + 1.0;
+	int *stru_204D7F0 = (int *)0x204D7F0;
+	w = (double)stru_204D7F0[4];
+	float width2 = w * size_factor;
+	width = w * (1.25 - v6_sin / 2);
+	h = (double)stru_204D7F0[3];
+	float height2 = size_factor * h;
+	height = h * (1.25 - v6_sin / 2);
+
+	uint32_t alpha0 = 255 - (grey - 64);
+	alpha0 = 255;
+
+	ffnx_info("%s: grey=%d alpha0=%d\n", __func__, grey, alpha0);
+
+	//common_setrenderstate((*ff8_externals.swirl_texture1)->hundred_data, common_externals.get_game_object());
+	//((void(*)(int,int,ff8_game_obj*))0x41E650)(0xBu, 0, game_object); // gfx_driver_field_64_set_renderstate_sub_41E650
+	//((void(*)(int,int,ff8_game_obj*))0x41E650)(0x19u, 0x70, game_object); // gfx_driver_field_64_set_renderstate_sub_41E650
+	//((void(*)(int,int,ff8_game_obj*))0x41E650)(0x18u, 5, game_object); // gfx_driver_field_64_set_renderstate_sub_41E650
+
+	/*((void(*)(int,int,int,int,float,uint32_t,int))0x56D970)(
+		stru_204D7F0[5] + 1 - (width2 - w) / 2, stru_204D7F0[6] + 1 - (height2 - h) / 2, width2 + 1, height2 + 1,
+		//stru_204D7F0[5] + 1, stru_204D7F0[6] + 1, w + 1, h + 1,
+		0.0024,
+		(alpha0 << 24) | 0xFFFFFF,
+		//(0xFF << 24) | (alpha0 << 16) | (alpha0 << 8) | alpha0,
+		0); // battle_swirl_related_sub_56D970 */
+	//((void(*)(int,int,int,int,float,uint32_t,int))0x56D970)(stru_204D7F0[5] + 1, stru_204D7F0[6] + 1, w + 1, h + 1, 0.0020, 0xFFFFFFFF, 0); // battle_swirl_related_sub_56D970
+
+	battle_blendadd_swirl_graphic_object_sub_56DAE0 = ((ff8_graphics_object*(*)())0x56DAE0)(); // get_battle_blendadd_swirl_graphic_object_sub_56DAE0
+	//((void(*)(int,int,ff8_game_obj*))0x41E650)(25, 112, game_object); // gfx_driver_field_64_set_renderstate_sub_41E650
+	//battle_blendadd_swirl_graphic_object_sub_56DAE0 = *ff8_externals.swirl_texture1;
+	((void(*)(int,ff8_graphics_object*))0x417464)(
+		4,
+		battle_blendadd_swirl_graphic_object_sub_56DAE0); // init_graphics_object_with_vertices_sub_417464
+	((void(*)(int,ff8_graphics_object*))0x417464)(
+		4,
+		//20,
+		bg_battle_swirl2_graphic_object); // init_graphics_object_with_vertices_sub_417464
+
+
+	uint32_t alpha1 = grey - 64;
+	//((void(*)(int,ff8_graphics_object*))0x417464)(1, bg_battle_swirl2_graphic_object);
+	uint32_t colora = (0xFF << 24) | (alpha0 << 16) | (alpha0 << 8) | alpha0;
+	//uint32_t colora = (254 << 24) | (0xFF << 16) | (0xFF << 8) | 0xFF;
+	for (int i = 0; i < 4; ++i) {
+		if (i == 0) {
+			colora = (0xFF << 24) | (170 << 16) | (170 << 8) | 170;
+		} else if (i == 1) {
+			colora = (0xFF << 24) | (56 << 16) | (56 << 8) | 56;
+		} else if (i == 2) {
+			colora = (0xFF << 24) | (20 << 16) | (20 << 8) | 20;
+		} else {
+			colora = (0xFF << 24) | (10 << 16) | (10 << 8) | 10;
+		}
+		ff8_vertex *vertices = bg_battle_swirl2_graphic_object->vertices;
+		float x1a = stru_204D7F0[5] - (width2 - w) / 2, x2a = x1a + width2;
+		float y1a = stru_204D7F0[6] - (height2 - h) / 2 + 9 * i, y2a = y1a + height2;
+		vertices[0].x = x1a;
+		vertices[0].y = y1a;
+		vertices[0].z = 0.0022;
+		vertices[0].z2 = 1.0;
+		vertices[0].color = colora;
+		vertices[0].u = 0.0;
+		vertices[0].v = 0.0;
+		vertices[1].x = x2a;
+		vertices[1].y = y1a;
+		vertices[1].z = 0.0022;
+		vertices[1].z2 = 1.0;
+		vertices[1].color = colora;
+		vertices[1].u = 1.0;
+		vertices[1].v = 0.0;
+		vertices[2].x = x1a;
+		vertices[2].y = y2a;
+		vertices[2].z = 0.0022;
+		vertices[2].z2 = 1.0;
+		vertices[2].color = colora;
+		vertices[2].u = 0.0;
+		vertices[2].v = 1.0;
+		vertices[3].x = x2a;
+		vertices[3].y = y2a;
+		vertices[3].z = 0.0022;
+		vertices[3].z2 = 1.0;
+		vertices[3].color = colora;
+		vertices[3].u = 1.0;
+		vertices[3].v = 1.0;
+		/* ((void(*)(int,ff8_game_obj*))0x41E752)(1, game_object); // gfx_driver_field_84_sub_41E752
+		((void(*)(int,ff8_game_obj*))0x41E947)(1, game_object); // gfx_driver_field_9C_begin_end_scene_alternative_sub_41E947
+		((void(*)(int,int,ff8_game_obj*))0x41E650)(0xBu, 0, game_object); // gfx_driver_field_64_set_renderstate_sub_41E650
+		((void(*)(int,int,ff8_game_obj*))0x41E650)(0xEu, 1, game_object); // gfx_driver_field_64_set_renderstate_sub_41E650
+		//common_setrenderstate(battle_blendadd_swirl_graphic_object_sub_56DAE0->hundred_data, common_externals.get_game_object());
+		((void(*)(ff8_graphics_object*,ff8_game_obj*))0x4178D7)(battle_blendadd_swirl_graphic_object_sub_56DAE0, game_object); // graphics_setrendererstate_draw_sub_4178D7
+	*/
+		bg_battle_swirl2_graphic_object->vertices = (ff8_vertex *)((char *)bg_battle_swirl2_graphic_object->vertices
+																				+ bg_battle_swirl2_graphic_object->vertex_offset);
+	}
+
+	((void(*)(int,ff8_game_obj*))0x41E752)(1, game_object); // gfx_driver_field_84_sub_41E752
+	((void(*)(int,ff8_game_obj*))0x41E947)(1, game_object); // gfx_driver_field_9C_begin_end_scene_alternative_sub_41E947
+	//((void(*)(int,int,ff8_game_obj*))0x41E650)(0xBu, 1, game_object); // gfx_driver_field_64_set_renderstate_sub_41E650
+	((void(*)(int,int,ff8_game_obj*))0x41E650)(0xEu, 1, game_object); // gfx_driver_field_64_set_renderstate_sub_41E650
+	//common_setrenderstate(bg_battle_swirl2_graphic_object->hundred_data, common_externals.get_game_object());
+	((void(*)(ff8_graphics_object*,ff8_game_obj*))0x4178D7)(bg_battle_swirl2_graphic_object, game_object); // graphics_setrendererstate_draw_sub_4178D7
+
+	return;
+
+	v7 = grey_color_factor * v6_sin * w;
+	i = 2;
+	x_step = v7 * 0.3333333333333333;
+	y_step = v6_sin * grey_color_factor * h * 0.3333333333333333;
+
+	//double base_y = (double)stru_204D7F0[6] - y_step * 0.5 - (height - h) * 0.5;// y - sin(factor * PI) * factor * h * 1/3 * 1/2 - ((factor / 2 + 1) * h - h) * 1/2
+	double base_y = (height / 2) / 3 + (v6_sin * (height / 4.5 - ((height / 2) / 3))) - height / 2;
+	y = stru_204D7F0[6];
+	do
+	{
+		bool is_bottom = i == 1;
+		j = 2;
+		//double base_x = (double)stru_204D7F0[5] - x_step * 0.5 - (width - (double)stru_204D7F0[4]) * 0.5; // x - (factor * sin(factor * PI) * w * 1/3) / 2 - (w * (factor / 2 + 1) - w) / 2
+		double base_x = (width / 2) / 3 + (v6_sin * (width / 4.5 - ((width / 2) / 3))) - width / 2;
+		/* if (swirl_iterator <= 20) {
+			base_x = 134 + (sin(grey_color_factor * 2 * 3.14159265) * (162 - 134)) - width / 2;
+		} else if (swirl_iterator <= 40) {
+			base_x = 162 - width / 2;
+		} */
+		x = stru_204D7F0[5];
+		//x = 0 - (grey_color_factor * sin(grey_color_factor * 3.14159265) * 640 * 0.3333333333333333) * 0.5 - (640 * (grey_color_factor * 0.5 + 1.0) - 640) / 2
+		double y1 = y + base_y, y2 = y + h / 2 - base_y;
+		do
+		{
+			for (int k = 0; k < 1; k++) {
+				ffnx_info("%s: (%lf %lf)(%lf %lf) %d %d\n", __func__, x, y, x + width, y2, stru_204D7F0[5], stru_204D7F0[4]);
+				bool is_right = j == 1;
+				double x1 = x + base_x, x2 = x + w / 2 - base_x;
+				/* if (is_right) {
+				x1 = x - base_x;
+				x2 = x + width / 2 + base_x;
+				} */
+
+				vertex0 = battle_blendadd_swirl_graphic_object_sub_56DAE0->vertices;
+				vertex0->x = x1;
+				vertex0->y = y1 + k * 4;
+				vertex0->z = 0.0015;
+				vertex0->z2 = 1.0;
+				vertex0->color = color; // colors[((i - 1) << 1) | (j - 1)];
+				if (is_right) {
+					vertex0->u = 1.0;
+				} else {
+					vertex0->u = 0.0;
+				}
+				if (is_bottom) {
+					vertex0->v = 1.0;
+				} else {
+					vertex0->v = 0.0;
+				}
+				vertex1 = battle_blendadd_swirl_graphic_object_sub_56DAE0->vertices + 1;
+				vertex1->x = x2;
+				vertex1->y = y1 + k * 4;
+				vertex1->z = 0.0015;
+				vertex1->z2 = 1.0;
+				vertex1->color = color; // colors[((i - 1) << 1) | (j - 1)];
+				if (is_right) {
+					vertex1->u = 0.0;
+				} else {
+					vertex1->u = 1.0;
+				}
+				if (is_bottom) {
+					vertex1->v = 1.0;
+				} else {
+					vertex1->v = 0.0;
+				}
+				vertex2 = battle_blendadd_swirl_graphic_object_sub_56DAE0->vertices + 2;
+				vertex2->x = x1;
+				vertex2->y = y2 + k * 4;
+				vertex2->z = 0.0015;
+				vertex2->z2 = 1.0;
+				vertex2->color = color; // colors[((i - 1) << 1) | (j - 1)];
+				if (is_right) {
+					vertex2->u = 1.0;
+				} else {
+					vertex2->u = 0.0;
+				}
+				if (is_bottom) {
+					vertex2->v = 0.0;
+				} else {
+					vertex2->v = 1.0;
+				}
+				vertex3 = battle_blendadd_swirl_graphic_object_sub_56DAE0->vertices + 3;
+				vertex3->x = x2;
+				vertex3->y = y2 + k * 4;
+				vertex3->z = 0.0015;
+				vertex3->z2 = 1.0;
+				vertex3->color = color; // colors[((i - 1) << 1) | (j - 1)];
+				if (is_right) {
+					vertex3->u = 0.0;
+				} else {
+					vertex3->u = 1.0;
+				}
+				if (is_bottom) {
+					vertex3->v = 0.0;
+				} else {
+					vertex3->v = 1.0;
+				}
+
+				battle_blendadd_swirl_graphic_object_sub_56DAE0->vertices = (ff8_vertex *)((char *)battle_blendadd_swirl_graphic_object_sub_56DAE0->vertices
+																						+ battle_blendadd_swirl_graphic_object_sub_56DAE0->vertex_offset);
+			}
+			//x = x + x_step;
+			x += w / 2;
+			--j;
+		}
+		while ( j );
+		//y = y + y_step;
+		y += h / 2;
+		--i;
+	}
+	while (i);
+	((void(*)(int,ff8_game_obj*))0x41E752)(1, game_object); // gfx_driver_field_84_sub_41E752
+	((void(*)(int,ff8_game_obj*))0x41E947)(1, game_object); // gfx_driver_field_9C_begin_end_scene_alternative_sub_41E947
+	((void(*)(int,int,ff8_game_obj*))0x41E650)(0xBu, 0, game_object); // gfx_driver_field_64_set_renderstate_sub_41E650
+	((void(*)(int,int,ff8_game_obj*))0x41E650)(0xEu, 1, game_object); // gfx_driver_field_64_set_renderstate_sub_41E650
+	//common_setrenderstate(battle_blendadd_swirl_graphic_object_sub_56DAE0->hundred_data, common_externals.get_game_object());
+	((void(*)(ff8_graphics_object*,ff8_game_obj*))0x4178D7)(battle_blendadd_swirl_graphic_object_sub_56DAE0, game_object); // graphics_setrendererstate_draw_sub_4178D7
 }
 
 bool ff8_swirl_loop_boss(int swirl_iterator, struct game_obj *game_object)
@@ -1625,7 +1769,7 @@ bool ff8_swirl_loop_boss(int swirl_iterator, struct game_obj *game_object)
 	bgra_color color[4] = {0.0f, 0.0f, 0.0f, 1.0f};
 	common_setbg(color, game_object);
 
-	//common_clear(1, 1, 1, game_object);
+	common_clear(1, 1, 1, game_object);
 
 	if (common_begin_scene(0, game_object)) {
 		int *stru_204D7F0 = (int *)0x204D7F0;
@@ -1635,10 +1779,6 @@ bool ff8_swirl_loop_boss(int swirl_iterator, struct game_obj *game_object)
 			((int(*)(struct game_obj *))0x409B42)(game_object);
 			((int(*)(struct game_obj *))0x409B08)(game_object);
 			((int(*)(struct game_obj *))0x409B25)(game_object);
-
-			uint32_t alpha = 255 - uint32_t(float(std::min(double(swirl_iterator) * 0.0125, 1.0)) * 255.0);
-
-			((void(*)(int,int,int,int,float,uint32_t,int))0x56D970)(stru_204D7F0[5], stru_204D7F0[6], stru_204D7F0[4], stru_204D7F0[3], 0.002, (alpha << 24) | 0xFFFFFF, 0); // battle_swirl_related_sub_56D970
 
 			uint32_t grey = uint32_t(float(std::min(double(swirl_iterator) * 0.0125, 1.0)) * 190.0 + 64.0) & 0xFF;
 			uint32_t color = (0xFF << 24) | (grey << 16) | (grey << 8) | grey;
@@ -1652,12 +1792,19 @@ bool ff8_swirl_loop_boss(int swirl_iterator, struct game_obj *game_object)
 			((void(*)(int,ff8_graphics_object*))0x417464)(1, bg_battle_swirl_graphic_object);
 			uint32_t alpha = 0xFF;
 			uint32_t grey = uint32_t(double(swirl_iterator - 60) * 0.05 * 255.0) & 0xFF;
+			if (swirl_iterator == 81) {
+				grey = 160;
+			} else if (swirl_iterator == 82) {
+				grey = 80;
+			}
+			//uint32_t grey = uint32_t(0.05 * 255.0) & 0xFF;
 			uint32_t color = (alpha << 24) | (grey << 16) | (grey << 8) | grey;
+			//uint32_t color = (grey << 24) | (0xFF << 16) | (0xFF << 8) | 0xFF;
 			ff8_vertex *vertices = bg_battle_swirl_graphic_object->vertices;
 			float w = stru_204D7F0[4], h = stru_204D7F0[3];
 			float x1 = stru_204D7F0[5], x2 = x1 + w;
 			float y1 = stru_204D7F0[6], y2 = y1 + h;
-			float z = 0.002;
+			float z = 0.0018;
 			vertices[0].x = x1;
 			vertices[0].y = y1;
 			vertices[0].z = z;
@@ -1717,13 +1864,42 @@ ff8_graphics_object *create_graphics_object_sub_416D82(
 
 	ff8_graphics_object *ret = ((ff8_graphics_object*(*)(int,int,uint32_t*,char*,uint32_t*))0x416D82)(a1, polytype, tex_info, path, dummy4_39);
 
+	ffnx_info("%s: %X %X\n", __func__, ret->hundred_data->features, ret->hundred_data->options);
+
 	uint32_t tex_info2[33] = {};
 
 	((void(*)(int,uint32_t*))0x40702F)(1, tex_info2); // Blend: additive
 
 	bg_battle_swirl_graphic_object = ((ff8_graphics_object*(*)(int,int,uint32_t*,char*,uint32_t*))0x416D82)(a1, 10, tex_info2, path, dummy4_39);
 
+	uint32_t tex_info3[33] = {};
+
+	//memcpy(tex_info3, tex_info, sizeof(tex_info3));
+
+	//tex_info3[8] = 2;
+
+	//((void(*)(int,uint32_t*))0x40702F)(0, tex_info3); // Blend: normal
+	((void(*)(int,uint32_t*))0x40702F)(1, tex_info3); // Blend: additive
+
+	tex_info3[11] = 1;
+	tex_info3[12] = uint32_t(ret->hundred_data->texture_set);
+
+	bg_battle_swirl2_graphic_object = ((ff8_graphics_object*(*)(int,int,uint32_t*,char*,uint32_t*))0x416D82)(a1, polytype, tex_info3, path, dummy4_39);
+
 	return ret;
+}
+
+ff8_graphics_object *create_graphics_object2_sub_416D82(
+	int a1,
+	int polytype,
+	uint32_t *tex_info,
+	char *path,
+	uint32_t *dummy4_39)
+{
+	tex_info[8] = 0; // blend mode
+	tex_info[11] = 1; // blend mode
+
+	return ((ff8_graphics_object*(*)(int,int,uint32_t*,char*,uint32_t*))0x416D82)(a1, polytype, tex_info, path, dummy4_39);
 }
 
 void free_graphics_object_sub_416C1E(ff8_graphics_object *obj)
@@ -1752,11 +1928,12 @@ void ff8_init_hooks(struct game_obj *_game_object)
 	// #####################
 
 	replace_function(ff8_externals.swirl_sub_56D390, swirl_sub_56D390);
-	replace_call(ff8_externals.worldmap_with_fog_sub_53FAC0 + (FF8_US_VERSION ? 0xB3C: (JP_VERSION ? 0xB24 : 0xB2F)), ff8_wm_set_render_to_vram_current_screen_flag_before_battle);
+	//replace_call(ff8_externals.worldmap_with_fog_sub_53FAC0 + (FF8_US_VERSION ? 0xB3C: (JP_VERSION ? 0xB24 : 0xB2F)), ff8_wm_set_render_to_vram_current_screen_flag_before_battle);
 	replace_function(ff8_externals.set_render_to_vram_current_screen_flag_before_battle, ff8_set_render_to_vram_current_screen_flag_before_battle);
 	replace_call(ff8_externals.swirl_enter + 0x9, ff8_swirl_init);
 	replace_function(0x55A1C0, ff8_swirl_loop_boss);
 	replace_call(0x56D5C0 + 0xDA, create_graphics_object_sub_416D82);
+	replace_call(0x56D5C0 + 0x12E, create_graphics_object2_sub_416D82);
 	replace_call(0x56DAF0 + 0x42, free_graphics_object_sub_416C1E);
 
 	// #####################
