@@ -632,6 +632,13 @@ ff8_draw_menu_sprite_texture_infos *ff8_draw_icon_or_key(
 	bool override_field4_8_with_a6 = false,
 	bool yfix = false
 ) {
+	if (icon_id == 0) {
+		ffnx_trace("%s: icon_id=%d x=%d y=%d\n", __func__, icon_id, x, y);
+
+		/* if (x == 230 && y == 120) {
+			*(int *)0xFFFFFFFF = 42;
+		} */
+	}
 	icon_id = ff8_draw_gamepad_icon_or_keyboard_key(a1, draw_infos, icon_id, x, y);
 	if (icon_id < 0)
 	{
@@ -698,6 +705,10 @@ ff8_draw_menu_sprite_texture_infos *ff8_draw_icon_or_key4(int a1, ff8_draw_menu_
 
 ff8_draw_menu_sprite_texture_infos *ff8_draw_icon_or_key5(int a1, ff8_draw_menu_sprite_texture_infos *draw_infos, int icon_id, uint16_t x, uint16_t y, int a6, int a7)
 {
+	if (icon_id == 0) {
+		ffnx_info("%s: a6=%X x=%d y=%d\n", __func__, a6, x, y);
+	}
+
 	return ff8_draw_icon_or_key(a1, draw_infos, icon_id, x, y, a6, a7, true, false, true);
 }
 
@@ -1404,18 +1415,35 @@ void ff8_menu_shop_update_gil_and_items(int gil)
 	}
 }
 
-int ff8_limit_fps()
+int ff8_limit_fps_sleep(double framerate, bool set_time_for_volume_change)
 {
 	static time_t last_gametime;
 	time_t gametime;
-	double framerate = 30.0f;
 
 	struct ff8_game_obj *game_object = (ff8_game_obj *)common_externals.get_game_object();
-	struct game_mode *mode = getmode_cached();
 
-	// For cross music play (vanilla music only)
-	qpc_get_time(&gametime);
-	*ff8_externals.time_volume_change_related_1A78BE0 = (1000.0 / game_object->countspersecond) * qpc_diff_time(&gametime, &last_gametime, nullptr);
+	if (set_time_for_volume_change) {
+		// For cross music play (vanilla music only)
+		qpc_get_time(&gametime);
+		*ff8_externals.time_volume_change_related_1A78BE0 = (1000.0 / game_object->countspersecond) * qpc_diff_time(&gametime, &last_gametime, nullptr);
+	}
+
+	framerate *= gamehacks.getCurrentSpeedhack();
+	double frame_time = game_object->countspersecond / framerate;
+
+	do qpc_get_time(&gametime);
+	while (gametime > last_gametime && qpc_diff_time(&gametime, &last_gametime, nullptr) < frame_time);
+
+	last_gametime = gametime;
+
+	return 0;
+}
+
+int ff8_limit_fps()
+{
+	double framerate = 30.0f;
+
+	struct game_mode *mode = getmode_cached();
 
 	if (ff8_fps_limiter < FPS_LIMITER_60FPS)
 	{
@@ -1444,15 +1472,7 @@ int ff8_limit_fps()
 		}
 	}
 
-	framerate *= gamehacks.getCurrentSpeedhack();
-	double frame_time = game_object->countspersecond / framerate;
-
-	do qpc_get_time(&gametime);
-	while (gametime > last_gametime && qpc_diff_time(&gametime, &last_gametime, nullptr) < frame_time);
-
-	last_gametime = gametime;
-
-	return 0;
+	return ff8_limit_fps_sleep(framerate, true);
 }
 
 void* ff8_engine_set_wide_viewport(int x, int y, int w, int h)
@@ -1517,6 +1537,378 @@ void ff8_field_calc_triangle_condition()
 	field_current_poly += 14;
 }
 
+void toto_noop()
+{
+}
+
+void battle_menu_rendering_related_sub_4A81E0()
+{
+	ffnx_info("%s\n", __func__);
+}
+
+bool disable_things0 = false;
+bool disable_things = false;
+bool disable_render2 = false;
+bool disable_render3 = false;
+bool disable_render4 = false;
+bool disable_render5 = false;
+bool disable_render6 = false;
+bool disable_render7 = false;
+bool disable_render8 = false;
+bool disable_things5 = false;
+bool disable_things6 = false;
+
+struct struc_46_menu_callbacks {
+	int controller_callback;
+	int field_4;
+	int renderer_callback;
+	int other_renderer_callback;
+	uint8_t field_10;
+	uint8_t field_11;
+	uint8_t field_12;
+	uint8_t field_13;
+};
+
+void battle_menu_callbacks_run_renderer_callback_sub_4B9720(int a1, int a2)
+{
+	struc_46_menu_callbacks *battle_menu_callbacks_array_unk_1D76300 = (struc_46_menu_callbacks *)0x1D76300;
+	for (int i = 0; i < 9; ++i) {
+		ffnx_info("%s: %d (%d, %d, %d, %d)\n", __func__, i,
+			battle_menu_callbacks_array_unk_1D76300[i].field_10,
+			battle_menu_callbacks_array_unk_1D76300[i].field_11,
+			battle_menu_callbacks_array_unk_1D76300[i].field_12,
+			battle_menu_callbacks_array_unk_1D76300[i].field_13);
+	}
+	ffnx_info("%s disable_things=%d\n", __func__, disable_things);
+	if (!disable_things) {
+		((void(*)(int,int))0x4B9720)(a1, a2);
+
+		// TRACE: battle_set_controller_render_sub_4B9440: id=8 controller_callback=0 renderer_callback=4C84E0 other_renderer_callback=0
+		// TRACE: battle_set_controller_render_sub_4B9440: id=7 controller_callback=4AFE70 renderer_callback=4B10B0 other_renderer_callback=0
+	}
+}
+
+bool is_game_paused_fake()
+{
+	return disable_things0;
+}
+
+void begin(struct game_obj *game_object)
+{
+	int dummy4_39_dword_1D29F5C = *(int *)0x1D29F5C;
+	int graphics_instance_dword_1D29F60 = *(int *)0x1D29F60;
+	//float black[4] = {0.0f, 0.0f, 0.0f, 1.0f};
+	//common_setbg((bgra_color *)black, game_object);
+	//common_clear(1, 1, 1, game_object);
+	if (!common_begin_scene(0, game_object)) {
+		return;
+	}
+	/* ((void(*)(int))0x416B9A)(dummy4_39_dword_1D29F5C); // common_sub_416B9A
+	((void(*)(int))0x424BF9)(graphics_instance_dword_1D29F60); // common_sub_424BF9
+	((void(*)())0x49AC30)(); // common_sub_49AC30
+	((void(*)())0x499620)(); // common_sub_499620
+	((void(*)(struct game_obj*))0x43FBE8)(game_object); // common_sub_43FBE8
+	((void(*)(struct game_obj*))0x409B42)(game_object); // common_sub_409B42
+	((void(*)(struct game_obj*))0x409B08)(game_object); // common_sub_409B08
+	((void(*)(struct game_obj*))0x409B25)(game_object); // common_sub_409B25
+	((void(*)())0x56BDC0)(); // common_set_dword_209A82C_sub_56BDC0
+	((ff8_game_obj *)game_object)->field_A48 = 1;
+	((void(*)())0x45B580)(); // common_enable_draw_frame_sub_45B580
+	((void(*)())0x4701A0)(); // common_sub_4701A0();
+	*/
+	if (ff8_is_window_active()) {
+		common_end_scene(game_object);
+		return;
+	}
+	int battle_struct_44_1_1D966A0 = *(int *)0x1D966A0;
+	int dword_1D96758 = *(int *)0x1D96758;
+	((void(*)(int))0x4A7050)(int(&battle_struct_44_1_1D966A0 + uint8_t(dword_1D96758))); // battle_set_menu_rendering_enabled_dword_1D6D184_sub_4A7050
+	//((void(*)(int))0x4A7050)(0); // battle_set_menu_rendering_enabled_dword_1D6D184_sub_4A7050
+	//uint32_t battle_menu_rendering_related_sub_4A81E0_func = replace_call_function(0x4A7E50 + 0x350, battle_menu_rendering_related_sub_4A81E0);
+	((void(*)())0x4A87A0)(); // battle_input_update_related_sub_4A87A0
+	uint8_t *pause_game_byte_1D28AC1 = (uint8_t *)0x1D28AC1;
+	uint8_t old_pause_game = *pause_game_byte_1D28AC1;
+	//*pause_game_byte_1D28AC1 = 1;
+	// Works: disable_things=true | disable_things2+3+4+5=true
+	disable_things = false;
+	disable_render2 = false;
+	disable_render3 = false;
+	disable_render4 = false;
+	disable_render5 = false;
+	disable_render6 = false;
+	disable_render7 = false;
+	disable_render8 = false;
+	disable_things0 = false;
+	disable_things5 = false;
+	disable_things6 = false;
+	ffnx_trace("%s\n", __func__);
+	((void(*)())0x4A7E50)(); // battle_input_main_sub_4A7E50
+	disable_things = false;
+	disable_render2 = false;
+	disable_render3 = false;
+	disable_render4 = false;
+	disable_render5 = false;
+	disable_render6 = false;
+	disable_render7 = false;
+	disable_render8 = false;
+	disable_things0 = false;
+	disable_things5 = false;
+	disable_things6 = false;
+	ffnx_trace("/%s\n", __func__);
+	//*pause_game_byte_1D28AC1 = old_pause_game;
+	//unreplace_function(battle_menu_rendering_related_sub_4A81E0_func);
+	//((void(*)())0x4A7250)(); // battle_win_and_pause_menu_render_related_sub_4A7250
+
+	//((void(*)())0x5002B0)(); // battle_input_and_texture_upload_sub_5002B0
+
+	/* int mode_3_subsubsubcondition_byte_1D277E4 = *(int *)0x1D277E4;
+	int mode3_subsub_step_dword_1CFF520 = *(int *)0x1CFF520;
+	if (mode_3_subsubsubcondition_byte_1D277E4 && mode3_subsub_step_dword_1CFF520 >= 1) {
+		uint32_t *dword_1D8DD30 = *(uint32_t **)0x1D8DD30;
+		int battle_to_update_flags_dword_1D96774 = *(int *)0x1D96774;
+		ffnx_trace("%s: battle_to_update_flags_dword_1D96774=%X\n", __func__, battle_to_update_flags_dword_1D96774);
+
+		if ((battle_to_update_flags_dword_1D96774 & 4) != 0) {
+			int dword_B8A308 = *(int *)0xB8A308, dword_1D8DD24 = *(int *)0x1D8DD24;
+			((void(*)(int,int,int))0x4A8AD0)(
+				(int)(dword_1D8DD24 + 2),
+				(int)(&battle_struct_44_1_1D966A0 + ((uint8_t)dword_1D96758 ^ 1)),
+				dword_B8A308
+			); // battle_input_related_sub_4A8AD0
+			if ((battle_to_update_flags_dword_1D96774 & 4) != 0) {
+				((void(*)(int,int,int,int))0x4A8B90)(
+					dword_B8A308,
+					(int)0x1D96658 + 20 * ((uint8_t)dword_1D96758 ^ 1),
+					(int)(&battle_struct_44_1_1D966A0 + ((uint8_t)dword_1D96758 ^ 1)),
+					(int)(&battle_struct_44_1_1D966A0 + (uint8_t)dword_1D96758)
+				); // battle_vibrate_high_hit_sub_4A8B90
+				uint8_t byte_1D8DD12 = *(uint8_t *)0x1D8DD12;
+				if (byte_1D8DD12) {
+					if ((uint8_t)byte_1D8DD12 <= 0x10u) {
+						byte_1D8DD12 = 0;
+					} else {
+						byte_1D8DD12 -= 16;
+					}
+				}
+			}
+		}
+		//battle_music_switch_sub_501510();
+		//battle_play_sfx_sub_500BE0();
+		if ( (battle_to_update_flags_dword_1D96774 & 8) != 0 ) {
+			((void(*)())0x5056D0)(); // battle_upload_texture_sub_5056D0
+			int dword_1D8DD18 = *(int *)0x1D8DD18;
+			((void(*)(int,int))0x45C9E0)(dword_1D8DD18, 1); // sub_45C9E0
+		}
+
+		if ((battle_to_update_flags_dword_1D96774 & 4) != 0) {
+			((void(*)(int*))0x45B660)(&battle_struct_44_1_1D966A0 + (uint8_t(dword_1D96758) ^ 1)); // end_of_upload_related_sub_45B660
+			((void(*)(uint32_t*))0x45D600)(&dword_1D8DD30[4386 * uint8_t(dword_1D96758) + 4385]); // display_texture_related_sub_45D600
+
+			int16_t *word_1D8DD10 = (int16_t *)0x1D8DD10, *word_1D8DD14 = (int16_t *)0x1D8DD14, *word_1D8DD16 = (int16_t *)0x1D8DD16;
+			((void(*)(int))0x56D080)(*word_1D8DD10);
+			((void(*)(int,int))0x56D060)((*word_1D8DD14) + 160, (*word_1D8DD16) + 108);
+			((void(*)(int))0x56D080)(*word_1D8DD10);
+			((void(*)(int,int))0x56D060)((*word_1D8DD14) + 160, (*word_1D8DD16) + 108);
+			*word_1D8DD16 = 0;
+			*word_1D8DD14 = 0;
+		}
+
+		int pause_game_battle_dword_1CFF50C = *(int *)0x1CFF50C;
+
+		//if (!pause_game_battle_dword_1CFF50C) {
+		//	((void(*)(uint32_t*,int,int))0x45D540)(&dword_1D8DD30[4386 * uint8_t(dword_1D96758)], 4386, 0); // battle_sub_45D540
+		//}
+	} */
+
+	int battle_to_update_flags_dword_1D96774 = *(int *)0x1D96774;
+
+	if ((battle_to_update_flags_dword_1D96774 & 4) != 0) {
+		((void(*)(uint32_t))0x45D600)(0xFFFFFFFF); // display_texture_related_sub_45D600
+	}
+
+	/* ((void(*)())0x497CA0)(); // fonts_gfx_driver_draw_sub_497CA0
+	((void(*)())0x465920)(); // gfx_driver_texture_page_related_sub_465920
+	((void(*)(int, struct game_obj*))0x41E947)(1, game_object); // gfx_driver_field_9C_begin_end_scene_alternative_sub_41E947
+	((void(*)())0x4999B0)(); // gfx_driver_change_viewport_draw_sub_4999B0 */
+	common_end_scene(game_object);
+}
+
+signed int timer_sleep_sub_4020F0()
+{
+	int mode_word_1CDBCB8 = *(int *)0x1CDBCB8;
+	if (mode_word_1CDBCB8 == 3)
+	{
+		int dword_1D6D184 = *(int *)0x1D6D184;
+		int dword_1D99740 = *(int *)0x1D99740;
+		ffnx_trace("%s: dword_1D6D184=%d effect_id=%d\n", __func__, dword_1D6D184, dword_1D99740);
+		struct game_obj *game_object = common_externals.get_game_object();
+		ff8_limit_fps_sleep(60, false);
+		common_flip(game_object);
+		begin(game_object);
+		ff8_limit_fps_sleep(60, false);
+		common_flip(game_object);
+		begin(game_object);
+		ff8_limit_fps_sleep(60, false);
+		common_flip(game_object);
+		begin(game_object);
+		return ff8_limit_fps_sleep(60, true);
+	} else {
+		((void(*)())0x4701A0)(); // common_sub_4701A0();
+		return ff8_limit_fps_sleep(15, true);
+	}
+}
+
+uint32_t menu_render_funcs[16] = {};
+uint32_t menu_controller_funcs[16] = {};
+
+void *menu_render2(int a1, void *draw_infos)
+{
+	uint32_t fff = menu_render_funcs[2];
+	ffnx_trace("%s: fff=%X\n", __func__, fff);
+
+	if (!disable_render2) {
+		if (fff) return ((void*(*)(int,void*))fff)(a1, draw_infos);
+	}
+	return nullptr;
+}
+void *menu_render3(int a1, void *draw_infos)
+{
+	uint32_t fff = menu_render_funcs[3];
+	ffnx_trace("%s: fff=%X\n", __func__, fff);
+
+	if (!disable_render3) {
+		if (fff) return ((void*(*)(int,void*))fff)(a1, draw_infos);
+	}
+	return nullptr;
+}
+void *menu_render4(int a1, void *draw_infos)
+{
+	uint32_t fff = menu_render_funcs[4];
+	ffnx_trace("%s: fff=%X\n", __func__, fff);
+
+	if (!disable_render4) {
+		if (fff) return ((void*(*)(int,void*))fff)(a1, draw_infos);
+	}
+	return nullptr;
+}
+void *menu_render5(int a1, void *draw_infos)
+{
+	uint32_t fff = menu_render_funcs[5];
+	ffnx_trace("%s: fff=%X\n", __func__, fff);
+
+	if (!disable_render5) {
+		if (fff) return ((void*(*)(int,void*))fff)(a1, draw_infos);
+	}
+	return nullptr;
+}
+void *menu_render6(int a1, void *draw_infos)
+{
+	uint32_t fff = menu_render_funcs[6];
+	ffnx_trace("%s: fff=%X\n", __func__, fff);
+
+	if (!disable_render6) {
+		if (fff) return ((void*(*)(int,void*))fff)(a1, draw_infos);
+	}
+	return nullptr;
+}
+void *menu_render7(int a1, void *draw_infos)
+{
+	uint32_t fff = menu_render_funcs[7];
+	ffnx_trace("%s: fff=%X\n", __func__, fff);
+
+	if (!disable_render7) {
+		if (fff) return ((void*(*)(int,void*))fff)(a1, draw_infos);
+	}
+	return nullptr;
+}
+void *menu_render8(int a1, void *draw_infos)
+{
+	uint32_t fff = menu_render_funcs[8];
+	ffnx_trace("%s: fff=%X\n", __func__, fff);
+
+	if (!disable_render8) {
+		if (fff) return ((void*(*)(int,void*))fff)(a1, draw_infos);
+	}
+	return nullptr;
+}
+
+void battle_set_controller_render_sub_4B9440(
+	int id,
+	uint32_t controller_callback,
+	uint32_t renderer_callback,
+	uint32_t other_renderer_callback)
+{
+	ffnx_trace("%s: id=%d controller_callback=%X renderer_callback=%X other_renderer_callback=%X\n", __func__, id,
+		controller_callback, renderer_callback, other_renderer_callback);
+
+	menu_render_funcs[id] = renderer_callback;
+
+	if (id == 2) {
+		renderer_callback = uint32_t(menu_render2); // Target
+	} else if (id == 3) {
+		renderer_callback = uint32_t(menu_render3); // ??
+	} else if (id == 4) {
+		renderer_callback = uint32_t(menu_render4); // Commands
+	} else if (id == 5) {
+		renderer_callback = uint32_t(menu_render5); // ??
+	} else if (id == 6) {
+		renderer_callback = uint32_t(menu_render6); // Renzokuken
+	} else if (id == 7) {
+		renderer_callback = uint32_t(menu_render7); // HP display
+	} else if (id == 8) {
+		renderer_callback = uint32_t(menu_render8); // Pause
+	}
+
+	struc_46_menu_callbacks *battle_menu_callbacks_array_unk_1D76300 = (struc_46_menu_callbacks *)0x1D76300;
+	struc_46_menu_callbacks *v4 = &battle_menu_callbacks_array_unk_1D76300[id];
+	v4->field_10 = -1;
+	v4->field_11 = -1;
+	v4->field_12 = 0;
+	v4->controller_callback = controller_callback;
+	v4->renderer_callback = renderer_callback;
+	v4->other_renderer_callback = other_renderer_callback;
+}
+
+void set_viewport_and_draw_sub_49CE90(int a1, int a2, int a3, int a4)
+{
+	ffnx_trace("%s: %d, %d, %d, %d\n", __func__, a1, a2, a3, a4);
+
+	if (!disable_things6) {
+		((void(*)(int,int,int,int))0x49CE90)(a1, a2, a3, a4);
+	}
+
+	ffnx_trace("/%s\n", __func__);
+}
+
+void fonts_gfx_driver_draw_menu_sub_497CA0()
+{
+	ffnx_trace("%s\n", __func__);
+
+	if (!disable_things5) {
+		((void(*)())0x497CA0)();
+	}
+}
+
+void font_graphics_object_reset_field_58_sub_497D90()
+{
+	ffnx_trace("%s\n", __func__);
+
+	if (!disable_things5) {
+		((void(*)())0x497D90)();
+	}
+}
+
+void create_graphic_object_sub_499660(int a1, int a2, int a3, int a4)
+{
+	ffnx_trace("%s: %d, %d, %d, %d\n", __func__, a1, a2, a3, a4);
+
+	if (!disable_things5) {
+		((void(*)(int,int,int,int))0x499660)(a1, a2, a3, a4);
+	}
+
+	ffnx_trace("/%s\n", __func__);
+}
+
 void ff8_init_hooks(struct game_obj *_game_object)
 {
 	struct ff8_game_obj *game_object = (struct ff8_game_obj *)_game_object;
@@ -1529,6 +1921,25 @@ void ff8_init_hooks(struct game_obj *_game_object)
 
 	if (ff8_ssigpu_debug)
 		ff8_externals.show_vram_window();
+
+	replace_call(0x47CF50 + 0x11B, toto_noop);
+	replace_call(0x47CF50 + 0x120, toto_noop);
+	replace_call(0x47CF50 + 0x125, toto_noop);
+	replace_call(0x47CF50 + 0x13D, toto_noop);
+	replace_call(0x47CF50 + 0x142, toto_noop);
+	replace_call(0x47CF50 + 0x147, toto_noop);
+	replace_call(0x47CF50 + 0x14C, toto_noop);
+	replace_call(0x47CF50 + 0x151, toto_noop);
+	replace_call(0x47CF50 + 0x156, toto_noop);
+	replace_call(0x47CF50 + 0x2F9, timer_sleep_sub_4020F0);
+	//replace_function(0x4B9440, battle_set_controller_render_sub_4B9440);
+	//replace_call(0x4A81E0 + 0x33D, battle_menu_callbacks_run_renderer_callback_sub_4B9720);
+	replace_call(0x49CFA0 + 0x77, set_viewport_and_draw_sub_49CE90);
+	replace_call(0x49CFA0 + 0x59, fonts_gfx_driver_draw_menu_sub_497CA0);
+	replace_call(0x49CFA0 + 0x5E, font_graphics_object_reset_field_58_sub_497D90);
+	replace_call(0x49CFA0 + 0x68, create_graphic_object_sub_499660);
+	//replace_call(0x4B9720 + 0xE0, is_game_paused_fake);
+	//replace_call(0x4B9720 + 0x17E, is_game_paused_fake);
 
 	replace_function(ff8_externals.engine_eval_process_input, ff8_is_window_active);
 	replace_function(ff8_externals.get_key_state, ff8_get_key_state);

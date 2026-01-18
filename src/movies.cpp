@@ -337,7 +337,14 @@ int ff8_start_movie()
 {
 	if(trace_all || trace_movies) ffnx_trace("start_movie\n");
 
-	if(ff8_externals.movie_object->movie_intro_pak) ff8_externals.movie_object->movie_total_frames = ff8_movie_frames;
+	if(ff8_externals.movie_object->movie_intro_pak)
+	{
+		if (ff8_movie_frames == 0) {
+			return 0;
+		}
+
+		ff8_externals.movie_object->movie_total_frames = ff8_movie_frames;
+	}
 	else
 	{
 		ff8_externals.movie_object->movie_total_frames = ((WORD *)ff8_movie_cam_buffer)[3];

@@ -2113,7 +2113,7 @@ void Renderer::deleteTexture(uint16_t rt)
 
 void Renderer::useTexture(uint16_t rt, uint32_t slot)
 {
-    if (trace_all || trace_renderer) ffnx_trace("Renderer::%s: [%u] => %u\n", __func__, slot, rt);
+    //if (trace_all || trace_renderer) ffnx_trace("Renderer::%s: [%u] => %u\n", __func__, slot, rt);
 
     if (rt > 0)
     {
@@ -2367,18 +2367,18 @@ void Renderer::setInterpolationQualifier(RendererInterpolationQualifier qualifie
     {
     case RendererInterpolationQualifier::FLAT:
         backendProgram = RendererProgram::FLAT;
-        if (trace_all || trace_renderer) ffnx_trace("Renderer::%s: FLAT\n", __func__);
+        //if (trace_all || trace_renderer) ffnx_trace("Renderer::%s: FLAT\n", __func__);
         break;
     case RendererInterpolationQualifier::SMOOTH:
         backendProgram = RendererProgram::SMOOTH;
-        if (trace_all || trace_renderer) ffnx_trace("Renderer::%s: SMOOTH\n", __func__);
+        //if (trace_all || trace_renderer) ffnx_trace("Renderer::%s: SMOOTH\n", __func__);
         break;
     }
 }
 
 void Renderer::setPrimitiveType(RendererPrimitiveType type)
 {
-    if (trace_all || trace_renderer) ffnx_trace("Renderer::%s: %u\n", __func__, type);
+    //if (trace_all || trace_renderer) ffnx_trace("Renderer::%s: %u\n", __func__, type);
 
     internalState.primitiveType = type;
 };

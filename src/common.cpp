@@ -1352,11 +1352,11 @@ void common_flip(struct game_obj *game_object)
 // clear_all below
 void common_clear(uint32_t clear_color, uint32_t clear_depth, uint32_t unknown, struct game_obj *game_object)
 {
+	ffnx_trace("dll_gfx: clear %i %i %i\n", clear_color, clear_depth, unknown);
+
 	if(gl_defer_clear_buffer(clear_color, clear_depth, game_object)) return;
 
 	uint32_t mode = getmode_cached()->driver_mode;
-
-	if(trace_all) ffnx_trace("dll_gfx: clear %i %i %i\n", clear_color, clear_depth, unknown);
 
 	if (!ff8 && enable_lighting) newRenderer.clearShadowMap();
 
@@ -1369,7 +1369,7 @@ void common_clear(uint32_t clear_color, uint32_t clear_depth, uint32_t unknown, 
 // called by the game to clear the entire back buffer
 void common_clear_all(struct game_obj *game_object)
 {
-	if(trace_all) ffnx_trace("dll_gfx: clear_all\n");
+	ffnx_trace("dll_gfx: clear_all\n");
 
 	common_clear(true, true, true, game_object);
 }
@@ -1380,7 +1380,7 @@ void common_setviewport(uint32_t _x, uint32_t _y, uint32_t _w, uint32_t _h, stru
 {
 	uint32_t mode = getmode_cached()->driver_mode;
 
-	if(trace_all) ffnx_trace("dll_gfx: setviewport %i %i %i %i\n", _x, _y, _w, _h);
+	ffnx_trace("dll_gfx: setviewport %i %i %i %i\n", _x, _y, _w, _h);
 
 	current_state.viewport[0] = _x;
 	current_state.viewport[1] = _y;
@@ -1407,7 +1407,7 @@ void common_setviewport(uint32_t _x, uint32_t _y, uint32_t _w, uint32_t _h, stru
 // cleared to
 void common_setbg(struct bgra_color *color, struct game_obj *game_object)
 {
-	if(trace_all) ffnx_trace("dll_gfx: setbg\n");
+	ffnx_trace("dll_gfx: setbg\n");
 
 	newRenderer.setBackgroundColor(
 		color->r,
