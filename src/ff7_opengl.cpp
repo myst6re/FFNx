@@ -48,6 +48,11 @@ uint32_t ff7_credits_loop_gfx_begin_scene(uint32_t unknown, struct game_obj *gam
 	return common_begin_scene(unknown, game_object);
 }
 
+int battle_bdata_sub_5E000E(int is_gfx_driver_1, int a2, int blend_mode, int a4, int a5)
+{
+	return ((int(*)(int,int,int,int,int))0x5E000E)(is_gfx_driver_1, a2, a2 == 1 ? 2 : blend_mode, a4, a5);
+}
+
 void ff7_init_hooks(struct game_obj *_game_object)
 {
 	struct ff7_game_obj *game_object = (struct ff7_game_obj *)_game_object;
@@ -486,6 +491,8 @@ void ff7_init_hooks(struct game_obj *_game_object)
 	// snowboard .P model vertices limit fix + allow float vertex data type
 	//######################
 	replace_function(ff7_externals.snowboard_parse_model_vertices_732159, ff7_snowboard_parse_model_vertices);
+
+	replace_function(0x5E0183 + 0x3F, battle_bdata_sub_5E000E);
 }
 
 struct ff7_gfx_driver *ff7_load_driver(void* _game_object)

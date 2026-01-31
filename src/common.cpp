@@ -2913,8 +2913,10 @@ __declspec(dllexport) void *new_dll_graphics_driver(void *game_object)
 	void *ret;
 
 	// game-specific initialization
-	if(!ff8)
+	if(!ff8) {
 		ret = ff7_load_driver(game_object);
+		//((ff7_game_obj *)game_object)->current_gfx_driver = 1;
+	}
 	else
 		ret = ff8_load_driver(game_object);
 
