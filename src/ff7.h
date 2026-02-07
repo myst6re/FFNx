@@ -5,7 +5,7 @@
 //    Copyright (C) 2020 myst6re                                            //
 //    Copyright (C) 2020 Chris Rizzitello                                   //
 //    Copyright (C) 2020 John Pritchard                                     //
-//    Copyright (C) 2025 Julian Xhokaxhiu                                   //
+//    Copyright (C) 2026 Julian Xhokaxhiu                                   //
 //    Copyright (C) 2023 Marcin 'Maki' Gomulak                              //
 //                                                                          //
 //    This file is part of FFNx                                             //
@@ -385,6 +385,19 @@ struct ff7_polygon_set
 	uint32_t field_A4;
 	uint32_t field_A8;
 	uint32_t field_AC;
+};
+
+struct ff7_extended_vertex_data
+{
+	int boneIndices[4];
+	float boneWeights[4];
+};
+
+struct ff7_extended_polygon_set
+{
+	struct ff7_extended_vertex_data* extended_vertex_data = nullptr;
+	uint32_t current_frame = 0;
+	struct anim_header *anim_header = nullptr;
 };
 
 struct ff7_tex_header
@@ -2131,11 +2144,37 @@ struct ff7_field_script_header {
 	char szName[8];			// Field name (never shown)
 };
 
+struct ff7_kawai_opcode_params
+{
+	byte param_1;
+	byte param_2;
+	byte param_3;
+	byte param_4;
+	byte param_5;
+	byte param_6;
+	byte param_7;
+	byte param_8;
+	byte param_9;
+	byte param_A;
+	byte param_B;
+	byte param_C;
+	byte param_D;
+	byte param_E;
+	byte param_F;
+	byte param_10;
+	byte param_11;
+	byte param_12;
+	byte param_13;
+	byte param_14;
+	byte param_15;
+	byte param_16;
+};
+
 struct field_event_data
 {
-	WORD field_0;
+	WORD apply_kawai;
 	WORD padding_2;
-	DWORD field_4;
+	ff7_kawai_opcode_params* opcode_params;
 	byte field_8;
 	byte padding_9;
 	WORD blink_wait_frames;
@@ -2201,7 +2240,8 @@ struct field_animation_data
 	int actor_z;
 	byte field_10[16];
 	byte eye_texture_idx;
-	byte field_24[336];
+	byte kawai_opcode;
+	byte field_24[335];
 	WORD field_174;
 	WORD field_176;
 	ff7_hrc_polygon_data *anim_frame_object;
@@ -2711,6 +2751,12 @@ struct ff7_model_custom_data
 	char *right_eye_tex_filename;
 	p_hundred* left_eye_tex;
 	p_hundred* right_eye_tex;
+	byte is_kawai_active;
+	byte do_kawai_repeat;
+	byte init_kawai_opcode;
+	ff7_kawai_opcode_params* init_kawai_params;
+	byte exec_kawai_opcode;
+	ff7_kawai_opcode_params* exec_kawai_params;
 };
 
 struct ff7_channel_6_state
@@ -2792,6 +2838,7 @@ struct ff7_externals
 	struct polygon_data *(*create_polygon_data)(uint32_t, uint32_t);
 	void (*create_polygon_lists)(struct polygon_data *);
 	void (*free_polygon_data)(struct polygon_data *);
+	void (*free_polygon_data_impl)(int, struct polygon_data *);
 	uint32_t battle_sub_42A0E7;
 	uint32_t load_battle_stage;
 	uint32_t load_battle_stage_pc;
@@ -3026,8 +3073,10 @@ struct ff7_externals
 	int (*field_get_linear_interpolated_value)(int, int, int, int);
 	int (*field_get_smooth_interpolated_value)(int, int, int, int);
 	void (*field_evaluate_encounter_rate_60B2C6)();
-	uint32_t field_animate_3d_models_6392BB;
-	uint32_t field_apply_kawai_op_64A070;
+	uint32_t field_main_loop;
+	void (*field_animate_3d_models_6392BB)();
+	ff7_light** field_model_light_data;
+	int (*field_apply_kawai_op_64A070)(int, ff7_hrc_polygon_data*, ff7_kawai_opcode_params*, int, int, int, int*);
 	uint32_t sub_64EC60;
 	field_model_blink_data* field_model_blink_data_D000C8;
 	void (*field_blink_3d_model_649B50)(field_animation_data*, field_model_blink_data*);
@@ -3173,6 +3222,7 @@ struct ff7_externals
 	int (*field_load_map_trigger_data_sub_6211C3)();
 	uint32_t field_fade_screen_sub_63B84B;
 	uint32_t field_calc_fade_color_sub_63AE66;
+	uint32_t field_apply_model_light_sub_685028;
 
 	// battle camera script externals
 	uint32_t handle_camera_functions;
@@ -3426,6 +3476,7 @@ struct ff7_externals
 	uint32_t battle_set_do_render_menu;
 	int *g_do_render_menu;
 	uint32_t battle_sub_42F3E8;
+	uint32_t battle_sub_684CC6;
 	uint32_t battle_handle_player_mark_5B9C8E;
 	uint32_t battle_handle_status_effect_anim_5BA7C0;
 	uint32_t battle_update_targeting_info_6E6291;

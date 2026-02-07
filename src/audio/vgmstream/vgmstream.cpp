@@ -5,7 +5,7 @@
 //    Copyright (C) 2020 myst6re                                            //
 //    Copyright (C) 2020 Chris Rizzitello                                   //
 //    Copyright (C) 2020 John Pritchard                                     //
-//    Copyright (C) 2025 Julian Xhokaxhiu                                   //
+//    Copyright (C) 2026 Julian Xhokaxhiu                                   //
 //                                                                          //
 //    This file is part of FFNx                                             //
 //                                                                          //
@@ -21,6 +21,7 @@
 
 #include "vgmstream.h"
 #include "../../utils.h"
+#include "./zzzstreamfile.h"
 
 namespace SoLoud
 {
@@ -91,16 +92,17 @@ namespace SoLoud
 		return 0;
 	}
 
-	VGMStream::VGMStream()
+	VGMStream::VGMStream() : mStream(nullptr), mSampleCount(0)
 	{
-		mSampleCount = 0;
 	}
 
 	VGMStream::~VGMStream()
 	{
 		stop();
 
-		close_vgmstream(mStream);
+		if (mStream != nullptr) {
+			close_vgmstream(mStream);
+		}
 	}
 
 	VGMSTREAM* VGMStream::init_vgmstream_with_extension(const char* aFilename, const char* ext)
@@ -122,16 +124,26 @@ namespace SoLoud
 	result VGMStream::load(const char* aFilename, const char* ext)
 	{
 		mBaseSamplerate = 0;
+		STREAMFILE* zzz_stream = nullptr;
 
-		if (aFilename == 0)
-			return INVALID_PARAMETER;
-
-		if (! fileExists(aFilename))
+		if (strncmp(aFilename, "zzz://", 6) == 0) {
+			zzz_stream = open_ZZZ_STREAMFILE(aFilename + 6, strlen(aFilename + 6));
+			if (zzz_stream == nullptr) {
+				return FILE_NOT_FOUND;
+			}
+		} else if (! fileExists(aFilename)) {
 			return FILE_NOT_FOUND;
+		} else {
+			return INVALID_PARAMETER;
+		}
 
 		stop();
 
-		if (ext && ext[0] != '\0') {
+		if (zzz_stream != nullptr) {
+			mStream = init_vgmstream_from_STREAMFILE(zzz_stream);
+			close_streamfile(zzz_stream);
+		}
+		else if (ext != nullptr && ext[0] != '\0') {
 			mStream = init_vgmstream_with_extension(aFilename, ext);
 		}
 		else {

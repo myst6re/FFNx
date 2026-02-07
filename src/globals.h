@@ -5,7 +5,7 @@
 //    Copyright (C) 2020 myst6re                                            //
 //    Copyright (C) 2020 Chris Rizzitello                                   //
 //    Copyright (C) 2020 John Pritchard                                     //
-//    Copyright (C) 2025 Julian Xhokaxhiu                                   //
+//    Copyright (C) 2026 Julian Xhokaxhiu                                   //
 //                                                                          //
 //    This file is part of FFNx                                             //
 //                                                                          //
@@ -51,6 +51,7 @@ extern MEMORYSTATUSEX last_ram_state;
 extern uint32_t version;
 extern uint32_t steam_edition;
 extern uint32_t steam_stock_launcher;
+extern uint32_t remastered_edition;
 extern uint32_t estore_edition;
 extern uint32_t ff7_japanese_edition;
 extern uint32_t ff7_do_reset;

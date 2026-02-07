@@ -6,7 +6,7 @@
 //    Copyright (C) 2020 Chris Rizzitello                                   //
 //    Copyright (C) 2020 John Pritchard                                     //
 //    Copyright (C) 2020 Marcin Gomulak                                     //
-//    Copyright (C) 2025 Julian Xhokaxhiu                                   //
+//    Copyright (C) 2026 Julian Xhokaxhiu                                   //
 //                                                                          //
 //    This file is part of FFNx                                             //
 //                                                                          //
@@ -56,7 +56,7 @@ void world_init()
 {
 	if (ff8)
 	{
-		cameraZoom = (WORD*)get_absolute_value(ff8_externals.sub_4023D0, 0x10);
+		cameraZoom = ff8_externals.camera_zoom_dword_1CA92E4;
 		playerPosX = (DWORD*)get_absolute_value(ff8_externals.sub_53BB90, 0x4C);
 		playerPosZ = playerPosX+1;
 		playerPosY = playerPosX+2;

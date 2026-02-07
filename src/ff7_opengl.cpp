@@ -5,7 +5,7 @@
 //    Copyright (C) 2020 myst6re                                            //
 //    Copyright (C) 2020 Chris Rizzitello                                   //
 //    Copyright (C) 2020 John Pritchard                                     //
-//    Copyright (C) 2025 Julian Xhokaxhiu                                   //
+//    Copyright (C) 2026 Julian Xhokaxhiu                                   //
 //    Copyright (C) 2023 Cosmos                                             //
 //    Copyright (C) 2023 Marcin 'Maki' Gomulak                              //
 //                                                                          //
@@ -83,8 +83,18 @@ void ff7_init_hooks(struct game_obj *_game_object)
 	// Allow mouse cursor to be shown
 	replace_function(ff7_externals.dinput_createdevice_mouse, noop);
 
-	// TODO: Comment this if Chocobo's not visible in race
-	// replace_function(ff7_externals.draw_3d_model, draw_3d_model);
+	if (enable_external_mesh)
+	{
+		// TODO: Comment this if Chocobo's not visible in race
+		replace_function(ff7_externals.draw_3d_model, draw_3d_model_smooth_skinning);
+		//replace_function(ff7_externals.battle_sub_684CC6, battle_sub_684CC6);
+		replace_function((uint32_t)ff7_externals.free_polygon_data, free_polygon_data);
+	}
+	else
+	{
+		// TODO: Comment this if Chocobo's not visible in race
+		//replace_function(ff7_externals.draw_3d_model, draw_3d_model);
+	}
 
 	// sub_6B27A9 hack, replace d3d code
 	memset_code((uint32_t)ff7_externals.sub_6B27A9 + 25, 0x90, 6);
@@ -386,11 +396,6 @@ void ff7_init_hooks(struct game_obj *_game_object)
 
 	if (game_lighting != GAME_LIGHTING_ORIGINAL)
 	{
-		// Disables unnecesary lighting in Chocobos applied throught the KAWAI op
-		memset_code(ff7_externals.field_apply_kawai_op_64A070 + 0x864, 0x90, 5);
-		memset_code(ff7_externals.field_apply_kawai_op_64A070 + 0x2E4, 0x90, 5);
-		memset_code(ff7_externals.field_apply_kawai_op_64A070 + 0x3A3, 0x90, 5);
-		memset_code(ff7_externals.field_apply_kawai_op_64A070 + 0x23C, 0x90, 5);
 		// Disables unnecessary lighting in temple of the ancients rolling rocks
 		replace_function(ff7_externals.sub_64EC60, noop);
 	}

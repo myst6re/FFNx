@@ -5,7 +5,7 @@
 //    Copyright (C) 2020 myst6re                                            //
 //    Copyright (C) 2020 Chris Rizzitello                                   //
 //    Copyright (C) 2020 John Pritchard                                     //
-//    Copyright (C) 2025 Julian Xhokaxhiu                                   //
+//    Copyright (C) 2026 Julian Xhokaxhiu                                   //
 //    Copyright (C) 2023 Cosmos                                             //
 //                                                                          //
 //    This file is part of FFNx                                             //
@@ -41,6 +41,8 @@
 #include <bgfx/bgfx.h>
 
 #define FFNX_RENDERER_INVALID_HANDLE { 0 }
+
+#define MAX_BONE_MATRICES 128
 
 enum RendererInterpolationQualifier {
     FLAT = 0,
@@ -134,6 +136,9 @@ enum RendererUniform
     LIGHT_INV_VIEW_PROJ_TEX_MATRIX,
     VIEW_OFFSET_MATRIX,
     INV_VIEW_OFFSET_MATRIX,
+
+    BONE_MATRICES,
+    SKINNING_FLAGS,
 
     COUNT,
 };
@@ -233,6 +238,8 @@ struct Vertex
     float nx;
     float ny;
     float nz;
+    float bone_weights[4];
+    uint8_t bone_indices[4];
 };
 
 class Renderer {
@@ -300,6 +307,9 @@ private:
         std::array<float, 4> TimeColor;
         std::array<float, 4> TimeData;
 
+        std::array<float, 4> SkinningFlags;
+        float bone_matrices[16*MAX_BONE_MATRICES];
+        
         std::array<float, 4> gameLightingFlags;
         float gameGlobalLightColor[4] = { 0.0, 0.0, 0.0, 0.0 };
         float gameLightDir1[4] = { 0.0, 0.0, 0.0, 0.0 };
@@ -475,7 +485,7 @@ public:
     void bindVertexBuffer(struct nvertex* inVertex, vector3<float>* normals, uint32_t inCount);
     void bindIndexBuffer(WORD* inIndex, uint32_t inCount);
 
-    bgfx::UniformHandle setUniform(RendererUniform uniform, const void* uniformValue);
+    bgfx::UniformHandle setUniform(RendererUniform uniform, const void* uniformValue, int arraySize = 1);
     void setCommonUniforms();
     void setLightingUniforms();
     void bindTextures();
@@ -559,6 +569,11 @@ public:
     void setTimeFilterEnabled(bool flag = false);
     bool isTimeFilterEnabled();
 
+    // Smooth skinning
+    void isSmoothSkinning(bool flag = false);
+    void setSmoothSkinningBoneMatrices(std::array<struct matrix, MAX_BONE_MATRICES>* matrix_palette);
+    void setSmoothSkinningUniforms();
+    
     // Worldmap
     void setSphericalWorldRate(float value = 0.0f);
     void setFogEnabled(bool flag = false);

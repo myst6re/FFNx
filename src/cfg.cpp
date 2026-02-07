@@ -5,7 +5,7 @@
 //    Copyright (C) 2020 myst6re                                            //
 //    Copyright (C) 2020 Chris Rizzitello                                   //
 //    Copyright (C) 2020 John Pritchard                                     //
-//    Copyright (C) 2025 Julian Xhokaxhiu                                   //
+//    Copyright (C) 2026 Julian Xhokaxhiu                                   //
 //    Copyright (C) 2023 Cosmos                                             //
 //                                                                          //
 //    This file is part of FFNx                                             //
@@ -101,6 +101,7 @@ bool enable_lighting;
 bool prefer_lighting_cpu_calculations;
 long game_lighting;
 bool enable_time_cycle;
+bool enable_external_mesh;
 bool enable_worldmap_external_mesh;
 bool ff7_external_opening_music;
 bool more_debug;
@@ -266,6 +267,7 @@ void read_cfg()
 	prefer_lighting_cpu_calculations = config["prefer_lighting_cpu_calculations"].value_or(true);
 	game_lighting = config["game_lighting"].value_or(GAME_LIGHTING_PER_VERTEX);
 	enable_time_cycle = config["enable_time_cycle"].value_or(false);
+	enable_external_mesh = config["enable_external_mesh"].value_or(false);
 	enable_worldmap_external_mesh = config["enable_worldmap_external_mesh"].value_or(false);
 	ff7_external_opening_music = config["ff7_external_opening_music"].value_or(false);
 	more_debug = config["more_debug"].value_or(false);

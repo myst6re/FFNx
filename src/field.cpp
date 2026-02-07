@@ -5,7 +5,7 @@
 //    Copyright (C) 2020 myst6re                                            //
 //    Copyright (C) 2020 Chris Rizzitello                                   //
 //    Copyright (C) 2020 John Pritchard                                     //
-//    Copyright (C) 2025 Julian Xhokaxhiu                                   //
+//    Copyright (C) 2026 Julian Xhokaxhiu                                   //
 //    Copyright (C) 2023 Cosmos                                             //
 //                                                                          //
 //    This file is part of FFNx                                             //
@@ -64,9 +64,17 @@ byte get_field_bank_value(int16_t bank)
 	}
 }
 
-int opcode_kawai_eye_texture() {
-	byte num_params = get_field_parameter<byte>(0);
+int opcode_kawai() {
+	byte byte_size = get_field_parameter<byte>(0);
 	byte subcode = get_field_parameter<byte>(1);
+
+	if (trace_all || trace_opcodes) ffnx_trace("opcode[KAWAI]: byte_size=%u,subcode=0x%x\n", byte_size, subcode);
+
+	field_event_data* event_data = (*ff7_externals.field_event_data_ptr);
+	field_animation_data* animation_data = *ff7_externals.field_animation_data_ptr;
+
+	byte curr_entity_id = *ff7_externals.current_entity_id;
+	byte curr_model_id = ff7_externals.field_model_id_array[curr_entity_id];
 
 	if (subcode == 0x0) // EYETX
 	{
@@ -74,21 +82,129 @@ int opcode_kawai_eye_texture() {
 		byte right_eye_index = get_field_parameter<byte>(3);
 		byte mouth_index = get_field_parameter<byte>(4);
 
-		field_animation_data* animation_data = *ff7_externals.field_animation_data_ptr;
-		byte curr_entity_id = *ff7_externals.current_entity_id;
-		byte curr_model_id = ff7_externals.field_model_id_array[curr_entity_id];
 		byte curr_eye_index = animation_data[curr_model_id].eye_texture_idx;
 
 		ff7::field::ff7_model_data[curr_model_id].current_mouth_idx = mouth_index;
 
 		if (trace_all || trace_opcodes)
 		{
-			ffnx_trace("opcode[KAWAI]: num_params=%u,subcode=0x%x,left_eye_index=%u,right_eye_index=%u,mouth_index=%u\n", num_params, subcode, left_eye_index, right_eye_index, mouth_index);
-			ffnx_trace("subcode[EYETX]: curr_entity_id=%u,curr_model_id=%u,curr_eye_index=%u\n", curr_entity_id, curr_model_id, curr_eye_index);
+			ffnx_trace("subcode[EYETX]: left_eye_index=%u,right_eye_index=%u,mouth_index=%u,curr_entity_id=%u,curr_model_id=%u,curr_eye_index=%u\n", left_eye_index, right_eye_index, mouth_index, curr_entity_id, curr_model_id, curr_eye_index);
+		}
+	}
+	else if (subcode == 0xD) // SHINE
+	{
+		ff7::field::ff7_model_data[curr_model_id].is_kawai_active = false;
+
+		if (trace_all || trace_opcodes)
+		{
+			ffnx_trace("subcode[SHINE]: curr_model_id=%u\n", curr_model_id);
 		}
 	}
 
-	return opcode_old_kawai();
+	int ret = opcode_old_kawai();
+
+	if (subcode == 0x1) // TRNSP
+	{
+		if (event_data[curr_model_id].opcode_params->param_1 == 0)
+		{
+			ff7::field::ff7_model_data[curr_model_id].is_kawai_active = false;
+			ff7::field::ff7_model_data[curr_model_id].do_kawai_repeat = false;
+		}
+		else
+		{
+			if (ff7::field::ff7_model_data[curr_model_id].init_kawai_opcode != 0x2)
+			{
+				ff7::field::ff7_model_data[curr_model_id].init_kawai_opcode = 0x0;
+				ff7::field::ff7_model_data[curr_model_id].init_kawai_params = nullptr;
+			}
+
+			ff7::field::ff7_model_data[curr_model_id].exec_kawai_opcode = subcode;
+			ff7::field::ff7_model_data[curr_model_id].exec_kawai_params = event_data[curr_model_id].opcode_params;
+		}
+
+		if (trace_all || trace_opcodes)
+		{
+			ffnx_trace("subcode[TRNSP]: curr_model_id=%u,activate=%u,opcode_params=0x%X\n", curr_model_id, event_data[curr_model_id].opcode_params->param_1, event_data[curr_model_id].opcode_params);
+		}
+	}
+	else if (subcode == 0x2) // AMBNT
+	{
+		ff7::field::ff7_model_data[curr_model_id].is_kawai_active = true;
+		ff7::field::ff7_model_data[curr_model_id].do_kawai_repeat = true;
+
+		ff7::field::ff7_model_data[curr_model_id].init_kawai_opcode = subcode;
+		ff7::field::ff7_model_data[curr_model_id].init_kawai_params = event_data[curr_model_id].opcode_params;
+
+		ff7::field::ff7_model_data[curr_model_id].exec_kawai_opcode = 0x0;
+		ff7::field::ff7_model_data[curr_model_id].exec_kawai_params = nullptr;
+
+		if (trace_all || trace_opcodes)
+		{
+			ffnx_trace("subcode[AMBNT]: curr_model_id=%u,opcode_params=0x%X\n", curr_model_id, event_data[curr_model_id].opcode_params);
+		}
+	}
+	else if (subcode == 0x6) // LIGHT
+	{
+		if (event_data[curr_model_id].opcode_params->param_1 == 0)
+		{
+			ff7::field::ff7_model_data[curr_model_id].is_kawai_active = true;
+			ff7::field::ff7_model_data[curr_model_id].do_kawai_repeat = event_data[curr_model_id].opcode_params->param_F == 1 && event_data[curr_model_id].opcode_params->param_11 == 1 && event_data[curr_model_id].opcode_params->param_13 == 1;
+			ff7::field::ff7_model_data[curr_model_id].init_kawai_opcode = subcode;
+			ff7::field::ff7_model_data[curr_model_id].init_kawai_params = event_data[curr_model_id].opcode_params;
+		}
+		else
+		{
+			ff7::field::ff7_model_data[curr_model_id].exec_kawai_opcode = subcode;
+			ff7::field::ff7_model_data[curr_model_id].exec_kawai_params = event_data[curr_model_id].opcode_params;
+		}
+
+		if (trace_all || trace_opcodes)
+		{
+			ffnx_trace("subcode[LIGHT]: curr_model_id=%u,activate=%u,opcode_params=0x%X,opcode_repeats=%u\n", curr_model_id, event_data[curr_model_id].opcode_params->param_1, event_data[curr_model_id].opcode_params, ff7::field::ff7_model_data[curr_model_id].do_kawai_repeat);
+		}
+	}
+	else if (subcode == 0x7) // UNKNOWN7
+	{
+		if (event_data[curr_model_id].opcode_params->param_1 == 0)
+		{
+			ff7::field::ff7_model_data[curr_model_id].is_kawai_active = true;
+			ff7::field::ff7_model_data[curr_model_id].do_kawai_repeat = true;
+			ff7::field::ff7_model_data[curr_model_id].init_kawai_opcode = subcode;
+			ff7::field::ff7_model_data[curr_model_id].init_kawai_params = event_data[curr_model_id].opcode_params;
+		}
+		else
+		{
+			ff7::field::ff7_model_data[curr_model_id].exec_kawai_opcode = subcode;
+			ff7::field::ff7_model_data[curr_model_id].exec_kawai_params = event_data[curr_model_id].opcode_params;
+		}
+
+		if (trace_all || trace_opcodes)
+		{
+			ffnx_trace("subcode[UNKNOWN7]: curr_model_id=%u,activate=%u,opcode_params=0x%X\n", curr_model_id, event_data[curr_model_id].opcode_params->param_1, event_data[curr_model_id].opcode_params);
+		}
+	}
+	else if (subcode == 0x8 || subcode == 0x9) // UNKNOWN9
+	{
+		if (event_data[curr_model_id].opcode_params->param_1 == 0)
+		{
+			ff7::field::ff7_model_data[curr_model_id].is_kawai_active = true;
+			ff7::field::ff7_model_data[curr_model_id].do_kawai_repeat = true;
+			ff7::field::ff7_model_data[curr_model_id].init_kawai_opcode = subcode;
+			ff7::field::ff7_model_data[curr_model_id].init_kawai_params = event_data[curr_model_id].opcode_params;
+		}
+		else
+		{
+			ff7::field::ff7_model_data[curr_model_id].exec_kawai_opcode = subcode;
+			ff7::field::ff7_model_data[curr_model_id].exec_kawai_params = event_data[curr_model_id].opcode_params;
+		}
+
+		if (trace_all || trace_opcodes)
+		{
+			ffnx_trace("subcode[UNKNOWN9]: curr_model_id=%u,activate=%u,opcode_params=0x%X\n", curr_model_id, event_data[curr_model_id].opcode_params->param_1, event_data[curr_model_id].opcode_params);
+		}
+	}
+
+	return ret;
 }
 
 int opcode_pc_map_change() {
@@ -133,7 +249,7 @@ int ff8_field_init_from_file(int unk1, int unk2, int unk3, int unk4)
 	// Loop through objects until we find the one that has a valid triangle ID
 	for(int i = 0; i < MAXBYTE; i++)
 	{
-		common_externals.current_triangle_id = (int16_t*)(*ff8_externals.game_mode_obj_1D9CF88 + 0x264 * i + 0x1FA);
+		common_externals.current_triangle_id = (int16_t*)(*(uint32_t *)ff8_externals.field_state_others + 0x264 * i + 0x1FA);
 		if (*common_externals.current_triangle_id != 0) break;
 	}
 
@@ -149,7 +265,7 @@ void field_init()
 		patch_code_dword((uint32_t)&common_externals.execute_opcode_table[0xA0], (DWORD)&opcode_pc_map_change);
 
 		opcode_old_kawai = (int (*)())ff7_externals.opcode_kawai;
-		patch_code_dword((uint32_t)&common_externals.execute_opcode_table[0x28], (DWORD)&opcode_kawai_eye_texture);
+		patch_code_dword((uint32_t)&common_externals.execute_opcode_table[0x28], (DWORD)&opcode_kawai);
 
 		// Proxy the window calculation formula so we can offset windows vertically
 		replace_call_function(common_externals.execute_opcode_table[0x50] + 0x174, field_calc_window_pos);
