@@ -5,6 +5,7 @@
 ## Common
 
 - External movies: Always enable external_movies by default ( https://github.com/julianxhokaxhiu/FFNx/pull/854 )
+- External music: Fix music stopping too soon if the music is not looped ( https://github.com/julianxhokaxhiu/FFNx/pull/889 )
 - Renderer: Skip rendering frame if no draw commands have been submitted previously
 
 ## FF7

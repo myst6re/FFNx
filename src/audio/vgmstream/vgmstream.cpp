@@ -53,11 +53,8 @@ namespace SoLoud
 		mOffset += sample_count;
 
 		// If the song is looping, recalculate the offset correctly
-		if (mFlags & AudioSourceInstance::LOOPING) {
-			if (mOffset >= mParent->mStream->loop_end_sample)
-			{
-				mOffset = mOffset - mParent->mSampleCount + mParent->mStream->loop_start_sample;
-			}
+		if ((mFlags & AudioSourceInstance::LOOPING) && mOffset >= mParent->mSampleCount) {
+			mOffset = mOffset - mParent->mSampleCount + mParent->mStream->loop_start_sample;
 		}
 
 		return sample_count;
