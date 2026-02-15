@@ -27,6 +27,7 @@
 
 #include "mod.h"
 #include "file.h"
+#include "remaster.h"
 
 
 bx::DefaultAllocator TextureImage::defaultAllocator;
@@ -48,14 +49,29 @@ bool TextureImage::createImage(const char *filename, int originalTexturePixelWid
 	const char *extension = strrchr(filename, '.');
 	if (extension != nullptr && stricmp(extension + 1, "png") == 0) {
 		// Load PNG using libPNG
-		bimg::ImageMip mip;
-		if (loadPng(filename, mip, targetFormat) && Renderer::doesItFitInMemory(mip.m_size + 1))
-		{
-			_image = bimg::imageAlloc(&defaultAllocator, mip.m_format, mip.m_width, mip.m_height, mip.m_depth, 1, false, false, mip.m_data);
-			setLod(0);
-
-			driver_free((void *)mip.m_data);
+		_image = loadPng(&defaultAllocator, filename, targetFormat);
+		if (_image == nullptr) {
+			ffnx_error("%s: cannot read PNG file %s\n", __func__, filename);
+			return false;
 		}
+
+		// Remastered fix (Convert 768x288 to 768x384)
+		if (remastered_edition && _image->m_width == 768 && _image->m_height == 288) {
+			bimg::ImageContainer *resizedImage = bimg::imageAlloc(&defaultAllocator, targetFormat, _image->m_width, 384, _image->m_depth, _image->m_numLayers, false, false);
+
+			if (resizedImage == nullptr) {
+				ffnx_error("%s: cannot resize PNG file %s\n", __func__, filename);
+				return false;
+			}
+
+			memcpy(resizedImage->m_data, _image->m_data, _image->m_size);
+			memset((uint8_t *)resizedImage->m_data + _image->m_size, 0, (resizedImage->m_height - _image->m_height) * resizedImage->m_width * 4);
+
+			destroyImage();
+			_image = resizedImage;
+		}
+
+		setLod(0);
 	} else if (extension != nullptr && stricmp(extension + 1, "dds") == 0) {
 		// Load DDS using DirectXTex
 		DirectX::TexMetadata metadata;
@@ -68,7 +84,7 @@ bool TextureImage::createImage(const char *filename, int originalTexturePixelWid
 			setLod(0);
 		}
 	} else {
-		_image = loadImageContainer(&defaultAllocator, filename, bimg::TextureFormat::BGRA8);
+		_image = loadImageContainer(&defaultAllocator, filename, targetFormat);
 
 		if (_image != nullptr)
 		{
@@ -172,6 +188,12 @@ uint8_t TextureImage::computeScale(int sourcePixelW, int sourceH, const char *fi
 
 	int scaleW = targetPixelW / sourcePixelW, scaleH = targetH / sourceH;
 
+	// Remastered textures
+	if (scaleW == scaleH * 2)
+	{
+		scaleW = scaleH;
+	}
+
 	if (scaleW != scaleH)
 	{
 		ffnx_warning("External texture size must have the same ratio as the original texture: (%d / %d) filename=%s\n", sourcePixelW, sourceH, filename);
@@ -194,11 +216,16 @@ ModdedTexture::ModdedTexture(const TexturePacker::IdentifiedTexture &originalTex
 {
 }
 
-bool ModdedTexture::findExternalTexture(const char *name, char *filename, uint8_t palette_index, bool hasPal, const char *extension, char *found_extension)
+bool ModdedTexture::findExternalTexture(char *outFilename, uint8_t paletteIndex, bool hasPal, const char *extension, char *foundExtension)
+{
+	return findExternalTexture(originalTexture().name().c_str(), outFilename, paletteIndex, hasPal, extension, foundExtension, originalTexture().remasteredName().c_str());
+}
+
+bool ModdedTexture::findExternalTexture(const char *name, char *filename, uint8_t paletteIndex, bool hasPal, const char *extension, char *found_extension, const char *remasterName)
 {
 	char langPath[16] = "/";
 
-	if(trace_all || trace_loaders) ffnx_trace("Texture file name (VRAM): %s palette_index=%d hasPal=%d\n", name, palette_index, hasPal);
+	if(trace_all || trace_loaders) ffnx_trace("Texture file name (VRAM): %s paletteIndex=%d hasPal=%d\n", name, paletteIndex, hasPal);
 
 	if(save_textures) return false;
 
@@ -216,7 +243,7 @@ bool ModdedTexture::findExternalTexture(const char *name, char *filename, uint8_
 		{
 			if (hasPal)
 			{
-				_snprintf(filename, MAX_PATH, "%s/%s%s/%s_%02i.%s", basedir, mod_path.c_str(), langPath, name, palette_index, mod_ext[idx].c_str());
+				_snprintf(filename, MAX_PATH, "%s/%s%s/%s_%02i.%s", basedir, mod_path.c_str(), langPath, name, paletteIndex, mod_ext[idx].c_str());
 			}
 			else
 			{
@@ -242,6 +269,35 @@ bool ModdedTexture::findExternalTexture(const char *name, char *filename, uint8_
 		}
 
 		*langPath = '/';
+	}
+
+	if (remasterName != nullptr && *remasterName != '\0')
+	{
+		_snprintf(filename, MAX_PATH, "%s.png", remasterName);
+
+		if (fileExists(filename)) {
+			if (trace_all || trace_loaders) ffnx_trace("Using texture: %s\n", filename);
+
+			if (found_extension != nullptr) {
+				strncpy(found_extension, "png", 3);
+			}
+
+			return true;
+		}
+
+		if (remastered_edition && g_FF8ZzzArchiveMain.fileExists(filename)) {
+			_snprintf(filename, MAX_PATH, "zzz://%s.png", remasterName);
+
+			if (trace_all || trace_loaders) ffnx_trace("Using texture: %s\n", filename);
+
+			if (found_extension != nullptr) {
+				strncpy(found_extension, "png", 3);
+			}
+
+			return true;
+		}
+
+		if (trace_all || trace_loaders) ffnx_warning("Texture does not exist, skipping: %s\n", filename);
 	}
 
 	return false;
@@ -322,7 +378,7 @@ bool TextureModStandard::createImages(int paletteCount, int internalLodScale)
 	char filename[MAX_PATH] = {}, *extension = nullptr, found_extension[16] = {};
 
 	for (int paletteId = 0; paletteId < modCount; ++paletteId) {
-		if (!findExternalTexture(originalTexture().name().c_str(), filename, paletteId, true, extension, found_extension))
+		if (!findExternalTexture(filename, paletteId, true, extension, found_extension))
 		{
 			continue;
 		}
@@ -496,7 +552,7 @@ bool TextureBackground::createImages(const char *extension, char *foundExtension
 
 	char filename[MAX_PATH] = {};
 
-	if (!findExternalTexture(originalTexture().name().c_str(), filename, 0, false, extension, foundExtension))
+	if (!findExternalTexture(filename, 0, false, extension, foundExtension))
 	{
 		return false;
 	}
@@ -541,7 +597,7 @@ TexturePacker::TextureTypes TextureBackground::drawToImage(
 	const bimg::ImageMip &mip = _texture.mip();
 	const uint32_t *imgData = reinterpret_cast<const uint32_t *>(mip.m_data);
 	const uint8_t imgScale = _texture.scale();
-	const uint32_t imgWidth = mip.m_width / imgScale, imgHeight = mip.m_height / imgScale;
+	const uint32_t imgWidth = mip.m_width / imgScale;
 
 	const uint8_t cols = targetW / TILE_SIZE, rows = targetH / TILE_SIZE;
 	const uint8_t colsBpp = TILE_SIZE / (1 << uint16_t(targetBpp));
