@@ -132,7 +132,7 @@ ff8_file_container *ff8_fs_archive_open_temp(char *fl_path, char *fs_path, char 
 	return ff8_externals.archive_open(fl_path, fs_path, fi_path);
 }
 
-int ff8_remastered_open_from_zzz_archives(const char *fileName, size_t fileNameSize)
+int ff8_remastered_open_from_zzz_archives(const char *fileName)
 {
 	if (trace_all || trace_files) ffnx_trace("%s: fileName=%s\n", __func__, fileName);
 
@@ -143,7 +143,7 @@ int ff8_remastered_open_from_zzz_archives(const char *fileName, size_t fileNameS
 		archive = &g_FF8ZzzArchiveOther;
 	}
 
-	Zzz::File *file = archive->openFile(fileName, fileNameSize);
+	Zzz::File *file = archive->openFile(fileName);
 	if (file != nullptr) {
 		openedZzzFiles[file->fd()] = file;
 
@@ -355,7 +355,7 @@ int ff8_open(const char *fileName, int oflag, ...)
 		bool is_redirected = ff8_steam_redirection(fileName, _filename, &isZzzFile);
 
 		if (oflag == (_O_BINARY | _O_RDONLY) && isZzzFile) {
-			int ret = ff8_remastered_open_from_zzz_archives(is_redirected ? _filename : fileName, sizeof(_filename));
+			int ret = ff8_remastered_open_from_zzz_archives(is_redirected ? _filename : fileName);
 
 			if (ret != -1) {
 				return ret;
@@ -656,7 +656,7 @@ ff8_file *ff8_open_file(ff8_file_context *infos, const char *fs_path)
 					isZzzFile = isZzzFile && oflag == (_O_BINARY | _O_RDONLY);
 
 					if (isZzzFile) {
-						file->fd = ff8_remastered_open_from_zzz_archives(is_redirected ? _filename : fullpath, sizeof(_filename));
+						file->fd = ff8_remastered_open_from_zzz_archives(is_redirected ? _filename : fullpath);
 					}
 
 					if (file->fd == -1 || !isZzzFile)

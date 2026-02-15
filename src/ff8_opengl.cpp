@@ -36,6 +36,7 @@
 #include "ff8/file.h"
 #include "ff8/vram.h"
 #include "ff8/save_data.h"
+#include "ff8/remaster.h"
 #include "metadata.h"
 #include "achievement.h"
 #include "widescreen.h"
@@ -181,14 +182,44 @@ struct ff8_tex_header *ff8_load_tex_file(struct ff8_file_context* file_context, 
 
 	ret->file.pc_name = (char*)external_calloc(1024, sizeof(char));
 
-	len = _snprintf(ret->file.pc_name, 1024, "%s", &filename[7]);
+	if (ret->file.pc_name != nullptr) {
+		len = _snprintf(ret->file.pc_name, 511, "%s", &filename[7]);
 
-	for(i = 0; i < len; i++)
-	{
-		if(ret->file.pc_name[i] == '.')
+		for(i = 0; i < len; i++)
 		{
-			if(!_strnicmp(&ret->file.pc_name[i], ".TEX", 4)) ret->file.pc_name[i] = 0;
-			else ret->file.pc_name[i] = '_';
+			if(ret->file.pc_name[i] == '.')
+			{
+				if(!_strnicmp(&ret->file.pc_name[i], ".TEX", 4)) ret->file.pc_name[i] = 0;
+				else ret->file.pc_name[i] = '_';
+			}
+		}
+
+		// Remastered alternative name
+		if (strstr(filename, "\\menu\\") != nullptr) {
+			_snprintf(ret->file.pc_name + 512, 511, "zzz://textures\\%s", filename + 7 + strlen(ff8_externals.archive_path_prefix));
+
+			if (! g_FF8ZzzArchiveMain.fileExists(ret->file.pc_name + 512)) {
+				// Retry with current language
+				char langPath[16] = {}, fileNameWithLang[ZZZ_FILENAME_MAX_SIZE] = {};
+				concat_lang_str(langPath);
+
+				// Paletted textures are stored in a subdirectory named after the texture name
+				if (g_FF8ZzzArchiveMain.dirExists(ret->file.pc_name + 512)) {
+					_snprintf(fileNameWithLang, sizeof(fileNameWithLang), "%s\\%s\\", ret->file.pc_name + 512, langPath);
+
+					if (g_FF8ZzzArchiveMain.dirExists(fileNameWithLang)) {
+						strncpy(ret->file.pc_name + 512, fileNameWithLang, 511);
+					} else {
+						_snprintf(ret->file.pc_name + 512, 511, "%s\\", ret->file.pc_name + 512);
+					}
+				} else {
+					_snprintf(fileNameWithLang, sizeof(fileNameWithLang), "%s_%s", ret->file.pc_name + 512, langPath);
+
+					if (g_FF8ZzzArchiveMain.fileExists(fileNameWithLang)) {
+						strncpy(ret->file.pc_name + 512, fileNameWithLang, 511);
+					}
+				}
+			}
 		}
 	}
 

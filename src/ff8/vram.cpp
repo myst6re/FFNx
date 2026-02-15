@@ -638,6 +638,8 @@ uint32_t ff8_credits_open_texture(char *fileName, char *buffer)
 	strncpy(next_texture_name, strrchr(fileName, '\\') + 1, sizeof(next_texture_name));
 	if (strstr(fileName, "ff8.lzs")) {
 		snprintf(next_remastered_texture_name, sizeof(next_remastered_texture_name), "textures\\ff8logo\\%s", strrchr(fileName, '\\') + 1);
+	} else if (strstr(fileName, "square.lzs")) {
+		snprintf(next_remastered_texture_name, sizeof(next_remastered_texture_name), "textures\\squarelogo\\%s", strrchr(fileName, '\\') + 1);
 	} else {
 		snprintf(next_remastered_texture_name, sizeof(next_remastered_texture_name), "textures\\opening\\%s", strrchr(fileName, '\\') + 1);
 	}

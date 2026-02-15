@@ -56,28 +56,32 @@ bool Zzz::isOpen() const
 	return !_toc.empty();
 }
 
-bool Zzz::fileExists(const char *fileName, size_t fileNameSize) const
+bool Zzz::fileExists(const char *fileName) const
 {
 	ZzzTocEntry tocEntry;
 
-	return lookup(fileName, fileNameSize, tocEntry);
+	return lookup(fileName, tocEntry);
 }
 
-bool Zzz::lookup(const char *fileName, size_t fileNameSize, ZzzTocEntry &tocEntry) const
+bool Zzz::dirExists(const char *dirName) const
 {
-	if (trace_all || trace_files) ffnx_trace("Zzz::%s: %s %d\n", __func__, fileName, fileNameSize);
-	char transformedFileName[128];
-	size_t sizeToTransform = std::min(fileNameSize + 1, size_t(128)) - 1;
+	char transformedDirName[128];
+	toWindowsSeparators(dirName, transformedDirName);
 
-	for (int i = 0; i < sizeToTransform; ++i) {
-		if (fileName[i] == '/') {
-			transformedFileName[i] = '\\';
-		} else {
-			transformedFileName[i] = tolower(fileName[i]);
+	for (const auto &entry: _toc) {
+		if (entry.first.starts_with(transformedDirName) && entry.first.length() > strlen(transformedDirName)) {
+			return true;
 		}
 	}
 
-	transformedFileName[sizeToTransform] = '\0';
+	return false;
+}
+
+bool Zzz::lookup(const char *fileName, ZzzTocEntry &tocEntry) const
+{
+	if (trace_all || trace_files) ffnx_trace("Zzz::%s: %s\n", __func__, fileName);
+	char transformedFileName[ZZZ_FILENAME_MAX_SIZE];
+	toWindowsSeparators(fileName, transformedFileName);
 
 	auto it = _toc.find(transformedFileName);
 
@@ -90,6 +94,23 @@ bool Zzz::lookup(const char *fileName, size_t fileNameSize, ZzzTocEntry &tocEntr
 	tocEntry = it->second;
 
 	return true;
+}
+
+void Zzz::toWindowsSeparators(const char *fileName, char *transformedFileName)
+{
+	for (int i = 0; i < ZZZ_FILENAME_MAX_SIZE; ++i) {
+		if (fileName[i] == '/') {
+			transformedFileName[i] = '\\';
+		} else if (fileName[i] == '\0') {
+			transformedFileName[i] = '\0';
+
+			return;
+		} else {
+			transformedFileName[i] = tolower(fileName[i]);
+		}
+	}
+
+	transformedFileName[ZZZ_FILENAME_MAX_SIZE - 1] = '\0';
 }
 
 bool Zzz::openHeader()
@@ -166,11 +187,11 @@ bool Zzz::openHeader()
 	return true;
 }
 
-Zzz::File *Zzz::openFile(const char *fileName, size_t fileNameSize) const
+Zzz::File *Zzz::openFile(const char *fileName) const
 {
 	int fd = 0;
 
-	if (trace_all || trace_files) ffnx_trace("Zzz::%s: %s %d\n", __func__, fileName, fileNameSize);
+	if (trace_all || trace_files) ffnx_trace("Zzz::%s: %s\n", __func__, fileName);
 
 	errno_t err = _sopen_s(&fd, _fileName, _O_BINARY, _SH_DENYNO, _S_IREAD);
 	if (err != 0)
@@ -179,7 +200,7 @@ Zzz::File *Zzz::openFile(const char *fileName, size_t fileNameSize) const
 	}
 
 	ZzzTocEntry tocEntry;
-	if (!lookup(fileName, fileNameSize, tocEntry))
+	if (!lookup(fileName, tocEntry))
 	{
 		_close(fd);
 

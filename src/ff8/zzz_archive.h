@@ -27,11 +27,13 @@
 #include <windows.h>
 #include <bx/file.h>
 
+constexpr size_t ZZZ_FILENAME_MAX_SIZE = 128;
+
 struct ZzzTocEntry
 {
 	uint64_t filePos;
 	uint32_t fileSize;
-	char fileName[128];
+	char fileName[ZZZ_FILENAME_MAX_SIZE];
 	uint32_t fileNameSize;
 };
 
@@ -77,15 +79,17 @@ public:
 	~Zzz() {}
 	errno_t open(const char *fileName);
 	bool isOpen() const;
-	File *openFile(const char *fileName, size_t fileNameSize) const;
+	File *openFile(const char *fileName) const;
 	static void closeFile(File *file);
-	bool fileExists(const char *fileName, size_t fileNameSize) const;
+	bool fileExists(const char *fileName) const;
+	bool dirExists(const char *dirName) const;
 	inline const char *fileName() const {
 		return _fileName;
 	}
 private:
 	friend class File;
-	bool lookup(const char *fileName, size_t fileNameSize, ZzzTocEntry &tocEntry) const;
+	bool lookup(const char *fileName, ZzzTocEntry &tocEntry) const;
+	static void toWindowsSeparators(const char *fileName, char *transformedFileName);
 	bool openHeader();
 
 	std::map<std::string, ZzzTocEntry> _toc;

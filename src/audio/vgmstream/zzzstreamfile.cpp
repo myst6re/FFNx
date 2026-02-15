@@ -152,7 +152,7 @@ void zzz_get_name(ZZZ_STREAMFILE* sf, char* name, size_t name_size)
 STREAMFILE* zzz_open(ZZZ_STREAMFILE* sf, const char* const filename, size_t buf_size)
 {
     if (trace_all || trace_files) ffnx_trace("%s: %s\n", __func__, filename);
-    return open_ZZZ_STREAMFILE(filename, strlen(filename), buf_size);
+    return open_ZZZ_STREAMFILE(filename, buf_size);
 }
 
 void zzz_close(ZZZ_STREAMFILE* sf)
@@ -163,7 +163,7 @@ void zzz_close(ZZZ_STREAMFILE* sf)
     delete sf;
 }
 
-STREAMFILE* open_ZZZ_STREAMFILE(const char* const filename, size_t filenameSize, size_t buf_size)
+STREAMFILE* open_ZZZ_STREAMFILE(const char* const filename, size_t buf_size)
 {
     if (trace_all || trace_files) ffnx_trace("%s: %s\n", __func__, filename);
     if (filename == nullptr)
@@ -171,7 +171,7 @@ STREAMFILE* open_ZZZ_STREAMFILE(const char* const filename, size_t filenameSize,
         return nullptr;
     }
 
-    Zzz::File* zzz_file = g_FF8ZzzArchiveOther.openFile(filename, filenameSize);
+    Zzz::File* zzz_file = g_FF8ZzzArchiveOther.openFile(filename);
 
     if (zzz_file == nullptr) {
         return nullptr;

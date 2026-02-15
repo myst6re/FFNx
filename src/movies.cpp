@@ -212,7 +212,7 @@ void ff8_prepare_movie(uint8_t disc, uint32_t movie)
 
 		if (remastered_edition)
 		{
-			Zzz::File *f = g_FF8ZzzArchiveOther.openFile(camName, sizeof(camName));
+			Zzz::File *f = g_FF8ZzzArchiveOther.openFile(camName);
 
 			if (f != nullptr)
 			{
@@ -303,7 +303,7 @@ void ff8_prepare_movie(uint8_t disc, uint32_t movie)
 	ffmpeg_release_movie_objects();
 
 	if (remastered_edition && !fileExists(newFmvName)) {
-		void *opaque = ff8_zzz_open(fmvName, sizeof(fmvName));
+		void *opaque = ff8_zzz_open(fmvName);
 
 		if (opaque != nullptr) {
 			ff8_movie_frames = ffmpeg_prepare_movie_from_io(fmvName, opaque, ff8_zzz_read, ff8_zzz_seek, ff8_zzz_close);

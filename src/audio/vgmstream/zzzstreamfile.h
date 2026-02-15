@@ -32,4 +32,4 @@ extern "C" {
 
 #include "../../ff8/zzz_archive.h"
 
-STREAMFILE* open_ZZZ_STREAMFILE(const char* const filename, size_t filenameSize, size_t buf_size = STREAMFILE_DEFAULT_BUFFER_SIZE);
+STREAMFILE* open_ZZZ_STREAMFILE(const char* const filename, size_t buf_size = STREAMFILE_DEFAULT_BUFFER_SIZE);

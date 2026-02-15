@@ -142,16 +142,13 @@ uint32_t load_normal_texture(const void* data, uint32_t dataSize, const char* na
 
 	for (int idx = 0; idx < mod_ext.size(); idx++)
 	{
-		if (palette_index == uint32_t(-1))
+		if (remastered_edition && strncmp(name, "zzz://", 6) == 0)
 		{
-			if (remastered_edition && strncmp(name, "zzz://", 6) == 0)
-			{
-				_snprintf(filename, sizeof(filename), "%s.png", name);
-			}
-			else
-			{
-				_snprintf(filename, sizeof(filename), "%s/%s/%s.%s", basedir, tex_path.c_str(), name, mod_ext[idx].c_str());
-			}
+			_snprintf(filename, sizeof(filename), "%s.png", name);
+		}
+		else if (palette_index == uint32_t(-1))
+		{
+			_snprintf(filename, sizeof(filename), "%s/%s/%s.%s", basedir, tex_path.c_str(), name, mod_ext[idx].c_str());
 		}
 		else if (palette_index & 0x40000000)
 		{
@@ -159,14 +156,7 @@ uint32_t load_normal_texture(const void* data, uint32_t dataSize, const char* na
 		}
 		else
 		{
-			if (remastered_edition && strncmp(name, "zzz://", 6) == 0)
-			{
-				_snprintf(filename, sizeof(filename), "%s_%02i.png", name, palette_index);
-			}
-			else
-			{
-				_snprintf(filename, sizeof(filename), "%s/%s/%s_%02i.%s", basedir, tex_path.c_str(), name, palette_index, mod_ext[idx].c_str());
-			}
+			_snprintf(filename, sizeof(filename), "%s/%s/%s_%02i.%s", basedir, tex_path.c_str(), name, palette_index, mod_ext[idx].c_str());
 		}
 
 		ret = load_texture_helper(filename, width, height, mod_ext[idx] == "png", true);

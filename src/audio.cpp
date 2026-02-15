@@ -150,7 +150,7 @@ bool NxAudioEngine::getFilenameFullPath(char *_out, const char* _key, NxAudioEng
 bool NxAudioEngine::fileExists(const char* filename)
 {
 	bool ret = remastered_edition && strncmp(filename, "zzz://", 6) == 0
-		? g_FF8ZzzArchiveOther.fileExists(filename + 6, strlen(filename + 6))
+		? g_FF8ZzzArchiveOther.fileExists(filename + 6)
 		: ::fileExists(filename);
 
 	if (!ret && (trace_all || trace_music || trace_sfx || trace_voice || trace_ambient))

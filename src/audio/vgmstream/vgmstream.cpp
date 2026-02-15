@@ -127,7 +127,7 @@ namespace SoLoud
 		STREAMFILE* zzz_stream = nullptr;
 
 		if (strncmp(aFilename, "zzz://", 6) == 0) {
-			zzz_stream = open_ZZZ_STREAMFILE(aFilename + 6, strlen(aFilename + 6));
+			zzz_stream = open_ZZZ_STREAMFILE(aFilename + 6);
 			if (zzz_stream == nullptr) {
 				return FILE_NOT_FOUND;
 			}

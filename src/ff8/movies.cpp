@@ -151,9 +151,9 @@ void ff8_bink_close(void *opaque)
 	delete f;
 }
 
-void *ff8_zzz_open(const char *fmv_name, size_t fmv_name_size)
+void *ff8_zzz_open(const char *fmv_name)
 {
-	return g_FF8ZzzArchiveOther.openFile(fmv_name, fmv_name_size);
+	return g_FF8ZzzArchiveOther.openFile(fmv_name);
 }
 
 int ff8_zzz_read(void *opaque, uint8_t *buf, int buf_size)
