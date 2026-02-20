@@ -150,7 +150,7 @@ char* ff8_format_midi_name(const char* midi_name)
 	// midi_name format: {num}{type}-{name}.sgt or {name}.sgt or _Missing.sgt
 	const char* truncated_name = midi_name;
 
-	if (!ff8_external_music_force_original_filenames && !external_music_path.starts_with("zzz://")) {
+	if (!ff8_external_music_force_original_filenames) {
 		truncated_name = strchr(midi_name, '-');
 
 		if (nullptr != truncated_name) {
@@ -445,6 +445,22 @@ bool play_music(const char* music_name, uint32_t music_id, int channel, NxAudioE
 	}
 
 	return playing;
+}
+
+bool play_music_ff8(const char* music_name, uint32_t music_id, int channel, NxAudioEngine::MusicOptions options = NxAudioEngine::MusicOptions(), char* fullpath = nullptr)
+{
+	bool ret = play_music(music_name, music_id, channel, options, fullpath);
+
+	if (!ret && remastered_edition) {
+		bool old_ff8_external_music_force_original_filenames = ff8_external_music_force_original_filenames;
+		ff8_external_music_force_original_filenames = true;
+		music_name = ff8_midi_name(music_id);
+		
+		ret = play_music(music_name, music_id, channel, options, "zzz://");
+		ff8_external_music_force_original_filenames = old_ff8_external_music_force_original_filenames;
+	}
+
+	return ret;
 }
 
 void ff7_play_midi(uint32_t music_id)
@@ -813,7 +829,7 @@ uint32_t ff8_play_midi(uint32_t music_id, int32_t volume, uint32_t unused1, uint
 		if (volume >= 0 && volume <= 127) {
 			options.targetVolume = volume / 127.0f;
 		}
-		play_music(music_name, music_id, channel, options);
+		play_music_ff8(music_name, music_id, channel, options);
 
 		if (backup_channel_1_after) {
 			// Backup channel 1 music state
@@ -874,7 +890,7 @@ uint32_t ff8_play_wav(uint32_t zero, char* filename, uint32_t volume)
 		if (volume >= 0 && volume < 127) {
 			options.targetVolume = volume / 127.0f;
 		}
-		play_music(music_name, music_id, channel, options, filename);
+		play_music_ff8(music_name, music_id, channel, options, filename);
 	}
 	else if (trace_all || trace_music) {
 		ffnx_trace("%s: is already playing music_id=%u, filename=%s, channel=%d, volume=%d\n", __func__, music_id, filename, channel, volume);
@@ -1106,7 +1122,7 @@ uint32_t ff8_load_midi_segment(void* directsound, const char* filename)
 		next_music_is_not_multi = false;
 		NxAudioEngine::MusicOptions options = NxAudioEngine::MusicOptions();
 		options.suppressOpeningSilence = true;
-		play_music(midi_name, 43, 0, options);
+		play_music_ff8(midi_name, 43, 0, options);
 		return 1; // Success
 	}
 

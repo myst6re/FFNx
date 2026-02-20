@@ -1641,9 +1641,9 @@ uint32_t load_external_texture(void* image_data, uint32_t dataSize, struct textu
 			{
 				char filename[MAX_PATH] = {};
 				if (VREF(tex_header, palettes) > 1) {
-					_snprintf(filename, sizeof(filename), "zzz://%s\\%d.png", VREF(tex_header, file.pc_name) + 512, VREF(tex_header, palette_index));
+					_snprintf(filename, sizeof(filename), "zzz://textures\\%s\\%d.png", VREF(tex_header, file.pc_name) + 512, VREF(tex_header, palette_index));
 				} else {
-					_snprintf(filename, sizeof(filename), "zzz://%s.png", VREF(tex_header, file.pc_name) + 512);
+					_snprintf(filename, sizeof(filename), "zzz://textures\\%s.png", VREF(tex_header, file.pc_name) + 512);
 				}
 				texture = newRenderer.createTextureLibPng(filename, VREFP(texture_set, ogl.width), VREFP(texture_set, ogl.height));
 			}
@@ -3201,9 +3201,10 @@ BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpvReserved)
 				remastered_edition = true;
 
 				use_external_music = true;
-				if (external_music_path.empty()) external_music_path = "zzz://data/music/dmusic/ogg";
+				if (external_music_path.empty()) external_music_path = "data/music/dmusic/ogg";
 				// Steam edition contains movies unpacked
 				enable_ffmpeg_videos = true;
+				ff8_external_music_force_original_filenames = true; // FIXME: allow old mods?
 
 				patch_code_byte(uint32_t(ff8_externals.set_game_paths) + 0x1F0, DRIVE_NO_ROOT_DIR);
 				memcpy_code(uint32_t(ff8_externals.archive_path_prefix_field), "\\ff8\\data\\x\\field\\", sizeof("\\ff8\\data\\x\\field\\"));

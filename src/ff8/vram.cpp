@@ -634,11 +634,11 @@ uint32_t ff8_credits_open_texture(char *fileName, char *buffer)
 	// {name}.lzs
 	strncpy(next_texture_name, strrchr(fileName, '\\') + 1, sizeof(next_texture_name));
 	if (strstr(fileName, "ff8.lzs")) {
-		snprintf(next_remastered_texture_name, sizeof(next_remastered_texture_name), "textures\\ff8logo\\%s", strrchr(fileName, '\\') + 1);
+		snprintf(next_remastered_texture_name, sizeof(next_remastered_texture_name), "ff8logo\\%s", strrchr(fileName, '\\') + 1);
 	} else if (strstr(fileName, "square.lzs")) {
-		snprintf(next_remastered_texture_name, sizeof(next_remastered_texture_name), "textures\\squarelogo\\%s", strrchr(fileName, '\\') + 1);
+		snprintf(next_remastered_texture_name, sizeof(next_remastered_texture_name), "squarelogo\\%s", strrchr(fileName, '\\') + 1);
 	} else {
-		snprintf(next_remastered_texture_name, sizeof(next_remastered_texture_name), "textures\\opening\\%s", strrchr(fileName, '\\') + 1);
+		snprintf(next_remastered_texture_name, sizeof(next_remastered_texture_name), "opening\\%s", strrchr(fileName, '\\') + 1);
 	}
 	next_bpp = Tim::Bpp16;
 
@@ -668,13 +668,13 @@ void ff8_upload_vram_triple_triad_1(int16_t *pos_and_size, uint8_t *texture_buff
 	if (texture_buffer == ff8_externals.cardgame_tim_texture_intro)
 	{
 		strncpy(next_texture_name, "cardgame/intro", sizeof(next_texture_name));
-		strncpy(next_remastered_texture_name, "textures\\back", sizeof(next_remastered_texture_name));
+		strncpy(next_remastered_texture_name, "cards\\back", sizeof(next_remastered_texture_name));
 		next_bpp = Tim::Bpp16;
 	}
 	else if (texture_buffer == ff8_externals.cardgame_tim_texture_game)
 	{
 		strncpy(next_texture_name, "cardgame/game", sizeof(next_texture_name));
-		strncpy(next_remastered_texture_name, "textures\\board", sizeof(next_remastered_texture_name));
+		strncpy(next_remastered_texture_name, "cards\\board", sizeof(next_remastered_texture_name));
 		next_bpp = Tim::Bpp16;
 	}
 
@@ -695,7 +695,7 @@ void ff8_upload_vram_triple_triad_2_texture_name(uint8_t *texture_buffer)
 	if (texture_buffer >= ff8_externals.cardgame_tim_texture_cards && texture_buffer < ff8_externals.cardgame_tim_texture_game)
 	{
 		strncpy(next_texture_name, "cardgame/cards", sizeof(next_texture_name));
-		strncpy(next_remastered_texture_name, "textures\\cards\\cards", sizeof(next_remastered_texture_name));
+		strncpy(next_remastered_texture_name, "cards\\cards", sizeof(next_remastered_texture_name));
 		if (next_pal_data == (uint16_t *)texture_buffer)
 		{
 			if (save_textures) Tim::fromTimData(texture_buffer - 20).saveMultiPaletteGrid(next_texture_name, 28, 4, 128, 2, true);
@@ -705,7 +705,7 @@ void ff8_upload_vram_triple_triad_2_texture_name(uint8_t *texture_buffer)
 	else if (texture_buffer >= ff8_externals.cardgame_tim_texture_icons && texture_buffer < ff8_externals.cardgame_tim_texture_font)
 	{
 		strncpy(next_texture_name, "cardgame/icons", sizeof(next_texture_name));
-		strncpy(next_remastered_texture_name, "textures\\cards\\text", sizeof(next_remastered_texture_name));
+		strncpy(next_remastered_texture_name, "cards\\text", sizeof(next_remastered_texture_name));
 		if (next_pal_data == (uint16_t *)texture_buffer)
 		{
 			if (save_textures) Tim::fromTimData(texture_buffer - 20).save(next_texture_name, 0, 0, true);
@@ -1375,7 +1375,7 @@ int ff8_field_texture_upload_one(char *image_buffer, char bpp, char a3, int x, i
 
 		if (chara_one_current_texture < model.texturesData.size()) {
 			next_bpp = Tim::Bpp(bpp);
-			snprintf(next_remastered_texture_name, MAX_PATH, "textures\\field.fs\\field_hd_new\\%s_%d", model.name, chara_one_current_texture);
+			snprintf(next_remastered_texture_name, MAX_PATH, "field.fs\\field_hd_new\\%s_%d", model.name, chara_one_current_texture);
 			snprintf(next_texture_name, MAX_PATH, "field/model/%s_chr/%s-%d", model.isMch ? "main" : "second", model.name, chara_one_current_texture);
 
 			++chara_one_current_texture;
@@ -1779,7 +1779,7 @@ void ff8_battle_upload_texture_palette(int16_t *pos_and_size, uint8_t *texture_b
 			// Remove extension
 			strncpy(next_texture_name, ff8_externals.battle_filenames[battle_file_id], strlen(ff8_externals.battle_filenames[battle_file_id]) - 4);
 			next_texture_name[strlen(ff8_externals.battle_filenames[battle_file_id]) - 4] = '\0';
-			snprintf(next_remastered_texture_name, sizeof(next_remastered_texture_name), "textures\\battle.fs\\hd_new\\%s_%d", next_texture_name, battle_texture_id);
+			snprintf(next_remastered_texture_name, sizeof(next_remastered_texture_name), "battle.fs\\hd_new\\%s_%d", next_texture_name, battle_texture_id);
 		}
 		snprintf(next_texture_name, sizeof(next_texture_name), "%s-%d", battle_texture_name, battle_texture_id);
 		++battle_texture_id;

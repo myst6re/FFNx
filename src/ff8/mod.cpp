@@ -286,7 +286,7 @@ bool ModdedTexture::findExternalTexture(const char *name, char *filename, uint8_
 		}
 
 		if (remastered_edition && g_FF8ZzzArchiveMain.fileExists(filename)) {
-			_snprintf(filename, MAX_PATH, "zzz://%s.png", remasterName);
+			_snprintf(filename, MAX_PATH, "zzz://textures\\%s.png", remasterName);
 
 			if (trace_all || trace_loaders) ffnx_trace("Using texture: %s\n", filename);
 

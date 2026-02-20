@@ -57,11 +57,7 @@ void NxAudioEngine::loadConfig()
 			if (trace_all || trace_sfx) ffnx_trace("NxAudioEngine::%s: %s\n", __func__, _fullpath);
 			break;
 		case NxAudioEngineLayer::NXAUDIOENGINE_MUSIC:
-			if (external_music_path.starts_with("zzz://")) {
-				sprintf(_fullpath, "%s/config.toml", external_music_path.c_str());
-			} else {
-				sprintf(_fullpath, "%s/%s/config.toml", basedir, external_music_path.c_str());
-			}
+			sprintf(_fullpath, "%s/%s/config.toml", basedir, external_music_path.c_str());
 			if (trace_all || trace_music) ffnx_trace("NxAudioEngine::%s: %s\n", __func__, _fullpath);
 			break;
 		case NxAudioEngineLayer::NXAUDIOENGINE_VOICE:
@@ -122,11 +118,7 @@ bool NxAudioEngine::getFilenameFullPath(char *_out, const char* _key, NxAudioEng
 			sprintf(_out, "%s/%s/%s.%s", basedir, external_sfx_path.c_str(), _key, extension.c_str());
 			break;
 		case NxAudioEngineLayer::NXAUDIOENGINE_MUSIC:
-			if (external_music_path.starts_with("zzz://")) {
-				sprintf(_out, "%s/%s.%s", external_music_path.c_str(), _key, extension.c_str());
-			} else {
-				sprintf(_out, "%s/%s/%s.%s", basedir, external_music_path.c_str(), _key, extension.c_str());
-			}
+			sprintf(_out, "%s/%s/%s.%s", basedir, external_music_path.c_str(), _key, extension.c_str());
 			break;
 		case NxAudioEngineLayer::NXAUDIOENGINE_VOICE:
 			sprintf(_out, "%s/%s/%s.%s", basedir, external_voice_path.c_str(), _key, extension.c_str());
@@ -142,6 +134,13 @@ bool NxAudioEngine::getFilenameFullPath(char *_out, const char* _key, NxAudioEng
 		if (fileExists(_out)) {
 			return true;
 		}
+	}
+
+	// Look again in ZZZ archives
+	if (remastered_edition && _type == NxAudioEngineLayer::NXAUDIOENGINE_MUSIC) {
+		sprintf(_out, "zzz://data\\music\\dmusic\\ogg\\%s.ogg", _key);
+
+		return fileExists(_out);
 	}
 
 	return false;

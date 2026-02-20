@@ -197,7 +197,7 @@ struct ff8_tex_header *ff8_load_tex_file(struct ff8_file_context* file_context, 
 		// Remastered alternative name
 		char langPath[16] = {}, suffix[ZZZ_FILENAME_MAX_SIZE] = {}, remasterFileName[ZZZ_FILENAME_MAX_SIZE] = {};
 		concat_lang_str(langPath);
-		_snprintf(suffix, sizeof(suffix), "textures\\%s", filename + 7 + strlen(ff8_externals.archive_path_prefix));
+		_snprintf(suffix, sizeof(suffix), "%s", filename + 7 + strlen(ff8_externals.archive_path_prefix));
 		// Non-paletted + lang path
 		_snprintf(remasterFileName, sizeof(remasterFileName), "%s_%s.png", suffix, langPath);
 		if (g_FF8ZzzArchiveMain.fileExists(remasterFileName)) {
