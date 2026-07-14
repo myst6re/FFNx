@@ -59,7 +59,7 @@ ff8_graphics_object *ff8_create_font_graphic_object(const char *path, ff8_create
         strcpy(buffer, path);
     }
 
-    void *dword_1D29F5C = *(void **)0x1D29F5C; // TODO
+    void *dword_1D29F5C = *(void **)0x1D2A284; // TODO
 
     return ((ff8_graphics_object*(*)(int,int,ff8_create_graphic_object*,char*,void*))(ff8_externals._load_texture))(1, 12, create_graphics_object_infos, buffer, dword_1D29F5C);
 }
@@ -114,7 +114,7 @@ void create_graphics_object_info_structure_for_font(ff8_create_graphic_object *c
     ff8_externals.create_graphics_object_info_structure(4, create_graphics_object_infos);
     create_graphics_object_infos->field_7C |= 0x80u;
     create_graphics_object_infos->flags |= 0x11u;
-    create_graphics_object_infos->field_18 = *(uint32_t *)0x1D29F60; // graphics_instance TODO
+    create_graphics_object_infos->field_18 = *(uint32_t *)0x1D2A288; // graphics_instance TODO
 }
 
 void ff8_load_fonts_field(char *tdw_tim_data, char *path)
@@ -151,8 +151,8 @@ void ff8_load_fonts_field(char *tdw_tim_data, char *path)
     }
     bool use_low_res = true;
 
-    if (*(uint32_t *)0xB86C80 == 2 && *(uint8_t *)0xB85E40) { // high res
-        ff8_file_container *file_container = ((ff8_file_container*(*)(const char*))0x51ADC0)("\\MENU\\");
+    if (*(uint32_t *)0xB86D38 == 2 && *(uint8_t *)0xB85E40) { // high res
+        ff8_file_container *file_container = ((ff8_file_container*(*)(const char*))0x51B410)("\\MENU\\");
         // Remove extension
         path[strlen(path) - 4] = '\0';
         // Get filename
@@ -165,12 +165,12 @@ void ff8_load_fonts_field(char *tdw_tim_data, char *path)
         char filename[MAX_PATH] = {};
         snprintf(filename, sizeof(filename), "%shires\\fieldtdw\\%s00.dat", ff8_externals.archive_path_prefix_menu, field_name);
         void *buffer = nullptr;
-        ((int(*)(void*,char*))0x4B8EA0)(&buffer, filename);
+        ((int(*)(void*,char*))0x4B9530)(&buffer, filename);
         if (buffer) {
             void *buffer2 = nullptr;
-            ((void(*)(int*,int**,unsigned int*))0x4B9260)((int *)buffer, (int **)&buffer2, &element_count); // Malloc
-            ((size_t(*)(void*,LPCSTR,size_t))0x4B8FB0)(buffer, "temp_evn.tim", element_count); // Write to file
-            ((size_t(*)(void*,LPCSTR,size_t))0x4B8FB0)(buffer2, "temp_odd.tim", element_count); // Write to file
+            ((void(*)(int*,int**,unsigned int*))0x4B98F0)((int *)buffer, (int **)&buffer2, &element_count); // Malloc
+            ((size_t(*)(void*,LPCSTR,size_t))0x4B9640)(buffer, "temp_evn.tim", element_count); // Write to file
+            ((size_t(*)(void*,LPCSTR,size_t))0x4B9640)(buffer2, "temp_odd.tim", element_count); // Write to file
             external_free(buffer);
             external_free(buffer2);
             buffer = nullptr;
@@ -179,12 +179,12 @@ void ff8_load_fonts_field(char *tdw_tim_data, char *path)
             use_low_res = false;
         }
         snprintf(filename, sizeof(filename), "%shires\\fieldtdw\\%s01.dat", ff8_externals.archive_path_prefix_menu, field_name);
-        ((int(*)(void*,char*))0x4B8EA0)(&buffer, filename);
+        ((int(*)(void*,char*))0x4B9530)(&buffer, filename);
         if (buffer) {
             void *buffer2 = nullptr;
-            ((void(*)(int*,int**,unsigned int*))0x4B9260)((int *)buffer, (int **)&buffer2, &element_count); // Malloc
-            ((size_t(*)(void*,LPCSTR,size_t))0x4B8FB0)(buffer, "temp_evn1.tim", element_count); // Write to file
-            ((size_t(*)(void*,LPCSTR,size_t))0x4B8FB0)(buffer2, "temp_odd1.tim", element_count); // Write to file
+            ((void(*)(int*,int**,unsigned int*))0x4B98F0)((int *)buffer, (int **)&buffer2, &element_count); // Malloc
+            ((size_t(*)(void*,LPCSTR,size_t))0x4B9640)(buffer, "temp_evn1.tim", element_count); // Write to file
+            ((size_t(*)(void*,LPCSTR,size_t))0x4B9640)(buffer2, "temp_odd1.tim", element_count); // Write to file
             external_free(buffer);
             external_free(buffer2);
             buffer = nullptr;
@@ -204,9 +204,9 @@ void ff8_load_fonts_field(char *tdw_tim_data, char *path)
 
     if (use_low_res) {
         void *buffer2 = nullptr;
-        ((void(*)(int*,int**,unsigned int*))0x4B9260)(tim, (int **)&buffer2, &element_count); // Malloc
-        ((size_t(*)(void*,LPCSTR,size_t))0x4B8FB0)(tim, "temp_evn.tim", element_count); // Write to file
-        ((size_t(*)(void*,LPCSTR,size_t))0x4B8FB0)(buffer2, "temp_odd.tim", element_count); // Write to file
+        ((void(*)(int*,int**,unsigned int*))0x4B98F0)(tim, (int **)&buffer2, &element_count); // Malloc
+        ((size_t(*)(void*,LPCSTR,size_t))0x4B9640)(tim, "temp_evn.tim", element_count); // Write to file
+        ((size_t(*)(void*,LPCSTR,size_t))0x4B9640)(buffer2, "temp_odd.tim", element_count); // Write to file
         external_free(buffer2);
 
         fonts_fieldtdw_even->graphics_object48 = ff8_create_font_graphic_object("temp_evn.tim", &create_graphics_object_infos, true);
@@ -240,7 +240,7 @@ void reset_font_graphics_object_field_58(ff8_font *font)
 
 void ff8_fonts_reset_field_58()
 {
-    ((void(*)())0x4B3080)();
+    ((void(*)())0x4B3710)();
 
     reset_font_graphics_object_field_58(fonts_fieldtdw_even);
     reset_font_graphics_object_field_58(fonts_fieldtdw_odd);
@@ -278,7 +278,7 @@ void ff8_fonts_draw()
     draw_graphics_object(graphic_object_font8_even, game_object);
     draw_graphics_object(graphic_object_font8_odd, game_object);
 
-    ((void(*)())0x4B3000)();
+    ((void(*)())0x4B3690)();
 }
 
 char *pointer_to_iterate_to = nullptr;
@@ -286,9 +286,9 @@ char *pointer_to_iterate_to = nullptr;
 void before_loop_fonts_sub_49F3D0()
 {
     ffnx_trace("%s\n", __func__);
-    ((void(*)())0x49AB90)(); // TODO
+    ((void(*)())0x49B080)(); // TODO
 
-    char *v7 = (char *)0x1D6B940; // TODO
+    char *v7 = (char *)0x1D6BC68; // TODO
 
     for (int i = 0; i < 9; ++i) {
         if (*v7 != 1) {
@@ -356,7 +356,7 @@ void set_font_vertices(
 
 void font_with_font8c_sub_4A1CF0(ff8_draw_menu_sprite_texture_infos_short *texture_infos, ff8_font *fonts)
 {
-    ((void(*)(ff8_draw_menu_sprite_texture_infos_short*,ff8_font*))0x49D190)(texture_infos, fonts);
+    ((void(*)(ff8_draw_menu_sprite_texture_infos_short*,ff8_font*))0x49D6F0)(texture_infos, fonts);
 
     return;
 
@@ -719,7 +719,7 @@ void fonts_with_font8c_1_sub_49D190(ff8_draw_menu_sprite_texture_infos_short *te
     ffnx_trace("%s\n", __func__);
 
     // Add missing information to texture_infos
-    struc_kernel_sysfont *kernel_sysfont = (struc_kernel_sysfont *)0x1D2B730; // TODO
+    struc_kernel_sysfont *kernel_sysfont = (struc_kernel_sysfont *)0x1D2BA58; // TODO
     texture_infos->palID = kernel_sysfont[*pointer_to_iterate_to++].field_1 + ((texture_infos->palID - 0x3812) << 1) + 0x3812;
 
     return jp_fonts_with_font8c(texture_infos);
@@ -743,7 +743,7 @@ void fonts_with_font8c_3_sub_4A1CF0(ff8_draw_menu_sprite_texture_infos_short *te
 
 int get_character_width(int character)
 {
-    uint8_t *font_char_width = (uint8_t *)0x1D2B4F0; // TODO
+    uint8_t *font_char_width = (uint8_t *)0x1D2B818; // TODO
 
     if ((character & 0x400) != 0) {
         character &= 0x3FF;
@@ -763,10 +763,10 @@ uint8_t *kernel_bin_get_section_sub_482220(int section_id)
 {
     ffnx_trace("%s\n", __func__);
 
-    struc_kernel_sysfont *kernel_sysfont_byte_2231B44 = (struc_kernel_sysfont *)0x1D2B730;
+    struc_kernel_sysfont *kernel_sysfont_byte_2231B44 = (struc_kernel_sysfont *)0x1D2BA58;
     struc_kernel_sysfont *kernel_sysfont = kernel_sysfont_byte_2231B44 + 1;
     for (int i = 0; i < 10; ++i) {
-        int character = ((uint8_t*(*)(int))0x47EC60)(section_id)[1] + i - 32;
+        int character = ((uint8_t*(*)(int))0x47EC70)(section_id)[1] + i - 32;
         int space = get_character_width(character);
         kernel_sysfont->field_0 ^= (space ^ kernel_sysfont->field_0) & 0xF;
         if (space <= 8) {
@@ -777,7 +777,7 @@ uint8_t *kernel_bin_get_section_sub_482220(int section_id)
         ++kernel_sysfont;
     }
 
-    return ((uint8_t*(*)(int))0x47EC60)(section_id);
+    return ((uint8_t*(*)(int))0x47EC70)(section_id);
 }
 
 int fill_texture_infos_for_font(int a1, ff8_draw_menu_sprite_texture_infos *texture_infos, int x, int y, int character, int current_color, uint32_t *field8)
@@ -816,23 +816,23 @@ ff8_draw_menu_sprite_texture_infos *fill_texture_infos_for_icon(int *a1, ff8_dra
 {
     int icon_id = 0;
     if (icon_param >= 64) {
-        uint16_t *icon_id_word_B86CCC = (uint16_t *)0xB86CCC;
+        uint16_t *icon_id_word_B86CCC = (uint16_t *)0xB86D84;
         icon_id = icon_id_word_B86CCC[icon_param];
     } else if (icon_param < 32 || icon_param > 47) {
         if (icon_param >= 48 && icon_param <= 63) { // Maybe sometimes icon_param <= 63 is not wanted?
             icon_id = icon_param + 80;
         }
     } else {
-        int key_from_key_id = ((int(*)(int))0x4A2760)(icon_param - 32);
+        int key_from_key_id = ((int(*)(int))0x4A2DF0)(icon_param - 32);
         if (key_from_key_id >= 0) {
             icon_id = key_from_key_id + 128;
         }
     }
-    int dword_1D2B1EC = *(int *)0x1D2B1EC;
+    int dword_1D2B1EC = *(int *)0x1D2B514;
     if (a1 != nullptr || texture_infos != nullptr) {
-        texture_infos = ((ff8_draw_menu_sprite_texture_infos*(*)(int*,ff8_draw_menu_sprite_texture_infos*,void*,int,uint16_t,uint16_t,int))0x4B6F20)(a1, texture_infos, ((void*(*)())ff8_externals.get_icon_sp1_data)(), icon_id, x, y, dword_1D2B1EC);
+        texture_infos = ((ff8_draw_menu_sprite_texture_infos*(*)(int*,ff8_draw_menu_sprite_texture_infos*,void*,int,uint16_t,uint16_t,int))0x4B75B0)(a1, texture_infos, ((void*(*)())ff8_externals.get_icon_sp1_data)(), icon_id, x, y, dword_1D2B1EC);
     }
-    x += uint8_t(((uint16_t(*)(void*,int))0x4B6D60)(((void*(*)())ff8_externals.get_icon_sp1_data)(), icon_id)) + 1;
+    x += uint8_t(((uint16_t(*)(void*,int))0x4B73F0)(((void*(*)())ff8_externals.get_icon_sp1_data)(), icon_id)) + 1;
 
     return texture_infos;
 }
@@ -935,7 +935,7 @@ ff8_draw_menu_sprite_texture_infos *input_get_command_keycodes_sub_4A0990(
         } else {
             character = current_byte - 32;
         }
-        *a1 = fill_texture_infos_for_font(*a1, texture_infos, x, y, character, current_color, (uint32_t *)0x1D2ADD8);
+        *a1 = fill_texture_infos_for_font(*a1, texture_infos, x, y, character, current_color, (uint32_t *)0x1D2B100);
         x += get_character_width(character);
         ++texture_infos;
     }
@@ -948,20 +948,20 @@ void menu_parse_and_render_text_sub_4A0B70(int *a1, int x, int y, uint8_t *text_
     ffnx_trace("%s\n", __func__);
 
     int x_orig = x;
-    int *dword_1D762E0 = (int *)0x1D762E0;
+    int *dword_1D762E0 = (int *)0x1D76608;
     int dword_227C6F0_orig = *dword_1D762E0;
     int battle_struct = ((int(*)(int))0x403E00)(0);
     uint8_t *output = (uint8_t *)(battle_struct + 768);
     *dword_1D762E0 = battle_struct + 896;
     int current_color = 7;
     uint8_t *text_it = text_data;
-    ff8_draw_menu_sprite_texture_infos *texture_infos = ((ff8_draw_menu_sprite_texture_infos*(*)())0x49A650)();
-    uint8_t *last_color_iterate_text_byte_1D762E4 = (uint8_t *)0x1D762E4;
+    ff8_draw_menu_sprite_texture_infos *texture_infos = ((ff8_draw_menu_sprite_texture_infos*(*)())0x49AB40)();
+    uint8_t *last_color_iterate_text_byte_1D762E4 = (uint8_t *)0x1D7660C;
 
     while (text_it) {
-        ((void(*)(uint8_t*,uint8_t*,int))0x4B84A0)(text_it, output, -1); // Expand text with names
+        ((void(*)(uint8_t*,uint8_t*,int))0x4B8B30)(text_it, output, -1); // Expand text with names
         *last_color_iterate_text_byte_1D762E4 = current_color;
-        text_it = ((uint8_t*(*)(uint8_t*))0x4B8430)(text_it); // To next line
+        text_it = ((uint8_t*(*)(uint8_t*))0x4B8AC0)(text_it); // To next line
         text_data = output;
         for (;;) {
             int current_byte = *text_data++;
@@ -996,14 +996,14 @@ void menu_parse_and_render_text_sub_4A0B70(int *a1, int x, int y, uint8_t *text_
                 } else {
                     character = current_byte - 32;
                 }
-                *a1 = fill_texture_infos_for_font(*a1, texture_infos, x, y, character, current_color, (uint32_t *)0x1D2B1EC);
+                *a1 = fill_texture_infos_for_font(*a1, texture_infos, x, y, character, current_color, (uint32_t *)0x1D2B514);
                 x += get_character_width(character);
                 ++texture_infos;
             }
         }
     }
 
-    ((void(*)(ff8_draw_menu_sprite_texture_infos*))0x49A670)(texture_infos);
+    ((void(*)(ff8_draw_menu_sprite_texture_infos*))0x49AB60)(texture_infos);
     *dword_1D762E0 = dword_227C6F0_orig;
 }
 
@@ -1011,13 +1011,13 @@ void window_parse_for_render_text_sub_4A0EE0(int *arg0, ff8_win_obj *win)
 {
     ffnx_trace("%s\n", __func__);
 
-    ((void(*)())0x49ABC0)();
-    uint8_t **dword_1D762E0 = (uint8_t **)0x1D762E0;
+    ((void(*)())0x49B0B0)();
+    uint8_t **dword_1D762E0 = (uint8_t **)0x1D76608;
     uint8_t *output = *dword_1D762E0;
     uint8_t *text_it = (uint8_t *)win->text_data1;
     *dword_1D762E0 += 128;
     int first_answer_line = win->first_question, last_anwser_line = win->last_question;
-    ff8_draw_menu_sprite_texture_infos *texture_infos = ((ff8_draw_menu_sprite_texture_infos*(*)())0x49A650)();
+    ff8_draw_menu_sprite_texture_infos *texture_infos = ((ff8_draw_menu_sprite_texture_infos*(*)())0x49AB40)();
     int x = win->field_30 + 2, y = win->field_32 - win->field_12 + 2;
     int current_line = 0;
     int current_color = win->current_color >> 4;
@@ -1025,18 +1025,18 @@ void window_parse_for_render_text_sub_4A0EE0(int *arg0, ff8_win_obj *win)
     if (first_answer_line <= 0) {
         x += 32;
     }
-    uint8_t *last_color_iterate_text_byte_1D762E4 = (uint8_t *)0x1D762E4;
+    uint8_t *last_color_iterate_text_byte_1D762E4 = (uint8_t *)0x1D7660C;
     *last_color_iterate_text_byte_1D762E4 = current_color;
 
     while (y < -16) {
         if (!text_it) {
-            ((void(*)(ff8_draw_menu_sprite_texture_infos*))0x49A670)(texture_infos);
+            ((void(*)(ff8_draw_menu_sprite_texture_infos*))0x49AB60)(texture_infos);
             dword_1D762E0 -= 128;
-            ((void(*)())0x49ABE0)();
+            ((void(*)())0x49B0D0)();
 
             return;
         }
-        text_it = ((uint8_t*(*)(uint8_t*))0x4B8430)(text_it); // To next line
+        text_it = ((uint8_t*(*)(uint8_t*))0x4B8AC0)(text_it); // To next line
         current_color = *last_color_iterate_text_byte_1D762E4 & 0xF;
         y += 16;
         ++current_line;
@@ -1047,9 +1047,9 @@ void window_parse_for_render_text_sub_4A0EE0(int *arg0, ff8_win_obj *win)
 
     while (text_it) {
         // Expand text with names
-        ((void(*)(uint8_t*,uint8_t*,int))0x4B84A0)(text_it, output, current_line >= win->text_data1_line ? win->text_data1_offset : -1);
+        ((void(*)(uint8_t*,uint8_t*,int))0x4B8B30)(text_it, output, current_line >= win->text_data1_line ? win->text_data1_offset : -1);
         *last_color_iterate_text_byte_1D762E4 = current_color;
-        text_it = ((uint8_t*(*)(uint8_t*))0x4B8430)(text_it); // To next line
+        text_it = ((uint8_t*(*)(uint8_t*))0x4B8AC0)(text_it); // To next line
         ++current_line;
         uint8_t *text_data = output;
         for (;;) {
@@ -1088,15 +1088,15 @@ void window_parse_for_render_text_sub_4A0EE0(int *arg0, ff8_win_obj *win)
                 } else {
                     character = current_byte - 32;
                 }
-                a1 = fill_texture_infos_for_font(a1, texture_infos, x, y, character, current_color, (uint32_t *)0x1D2B1EC);
+                a1 = fill_texture_infos_for_font(a1, texture_infos, x, y, character, current_color, (uint32_t *)0x1D2B514);
                 x += get_character_width(character);
             }
         }
     }
 
-    ((void(*)(ff8_draw_menu_sprite_texture_infos*))0x49A670)(texture_infos);
+    ((void(*)(ff8_draw_menu_sprite_texture_infos*))0x49AB60)(texture_infos);
     dword_1D762E0 -= 128;
-    ((void(*)())0x49ABE0)();
+    ((void(*)())0x49B0D0)();
 }
 
 ff8_draw_menu_sprite_texture_infos *battle_text_parse_common(
@@ -1114,7 +1114,7 @@ ff8_draw_menu_sprite_texture_infos *battle_text_parse_common(
         return texture_infos;
     }
 
-    ((void(*)())0x49AB90)(); // TODO
+    ((void(*)())0x49B080)(); // TODO
 
     int x_orig = x;
 
@@ -1148,7 +1148,7 @@ ff8_draw_menu_sprite_texture_infos *battle_text_parse_common(
         ++texture_infos;
     }
 
-    ((void(*)())0x49AB90)(); // TODO
+    ((void(*)())0x49B080)(); // TODO
 
     return texture_infos;
 }
@@ -1176,8 +1176,8 @@ ff8_draw_menu_sprite_texture_infos *battle_text_parse_display_related_sub_4B0400
 ) {
     ffnx_trace("%s\n", __func__);
 
-    DWORD *aicon_sp1_data = ((DWORD*(*)())0x4B6D40)();
-    DWORD *battle_input_dword_1D6D168 = (DWORD *)0x1D6D168;
+    DWORD *aicon_sp1_data = ((DWORD*(*)())0x4B73D0)();
+    DWORD *battle_input_dword_1D6D168 = (DWORD *)0x1D6D490;
 
     uint32_t v14 = *(DWORD *)((char *)aicon_sp1_data + uint16_t(aicon_sp1_data[*((uint16_t *)battle_input_dword_1D6D168 + 34) + 1]));
     uint32_t field8 = *battle_input_dword_1D6D168 | (((v14 >> 26) & 2) << 24);
@@ -1201,7 +1201,7 @@ int32_t ff8_open_tdw_field(char *id_path, void *data)
         if (tdw_header[1]) {
             ff8_load_fonts_field((char *)data + tdw_header[1], tdw_path);
             memcpy(font_character_width_local_field, (char *)data + tdw_header[0], sizeof(font_character_width_local_field));
-            ((void(*)())0x49EFB0)(); // TODO
+            ((void(*)())0x49F640)(); // TODO
         }
     }
 
@@ -1241,40 +1241,40 @@ void fonts_init_2()
 
     fonts_initialized = true;
 
-    replace_call(0x497D90 + 0x7, ff8_fonts_reset_field_58);
-    replace_call(0x497CA0 + 0xCD, ff8_fonts_draw);
+    replace_call(0x4981B0 + 0x7, ff8_fonts_reset_field_58);
+    replace_call(0x4980C0 + 0xCD, ff8_fonts_draw);
 
-    replace_call(0x4A2D70 + 0x5C, before_loop_fonts_sub_49F3D0); // For jp:sub_4A79B0
-    replace_call(0x49C090 + 0xB, fonts_with_font8c_1_sub_49D190);
-    replace_call(0x56F960 + 0x190, fonts_with_font8c_1_sub_49D190);
+    replace_call(0x4A3400 + 0x5C, before_loop_fonts_sub_49F3D0); // For jp:sub_4A79B0
+    replace_call(0x49C5F0 + 0xB, fonts_with_font8c_1_sub_49D190);
+    replace_call(0x56F5E0 + 0x190, fonts_with_font8c_1_sub_49D190);
 
-    replace_call(0x49C3B0 + 0xB, fonts_with_font8c_3_sub_4A1CF0);
+    replace_call(0x49C910 + 0xB, fonts_with_font8c_3_sub_4A1CF0);
 
-    //replace_function(0x49D190, font_with_font8c_sub_4A1CF0);
+    //replace_function(0x49D6F0, font_with_font8c_sub_4A1CF0);
 
     // Open tdw in field
-    replace_call(0x471000 + 0x88B, ff8_open_tdw_field);
+    replace_call(0x471010 + 0x88B, ff8_open_tdw_field);
 
-    replace_call(0x49EFB0 + 0xD2, kernel_bin_get_section_sub_482220);
-    replace_function(0x4A0640, get_character_width);
+    replace_call(0x49F640 + 0xD2, kernel_bin_get_section_sub_482220);
+    replace_function(0x4A0CD0, get_character_width);
 
     // Parse text
-    replace_function(0x4A0680, text_related_sub_4A0680);
-    replace_function(0x4A0990, input_get_command_keycodes_sub_4A0990);
-    replace_function(0x4A0B70, menu_parse_and_render_text_sub_4A0B70);
-    replace_function(0x4A0EE0, window_parse_for_render_text_sub_4A0EE0); // used in field
-    replace_function(0x4A6BC0, battle_text_parse_display_related_sub_4A6BC0);
-    replace_function(0x4B0400, battle_text_parse_display_related_sub_4B0400);
+    replace_function(0x4A0D10, text_related_sub_4A0680);
+    replace_function(0x4A1020, input_get_command_keycodes_sub_4A0990);
+    replace_function(0x4A1200, menu_parse_and_render_text_sub_4A0B70);
+    replace_function(0x4A1570, window_parse_for_render_text_sub_4A0EE0); // used in field
+    replace_function(0x4A7250, battle_text_parse_display_related_sub_4A6BC0);
+    replace_function(0x4B0A90, battle_text_parse_display_related_sub_4B0400);
 
-    /* patch_code_word(0x4A2890 + 0x28 + 1, 0x73EAu);
-    patch_code_word(0x4A2890 + 0x37 + 1, 0x23C2u);
-    patch_code_word(0x4A2890 + 0x46 + 1, 0x6DC2u);
-    patch_code_byte(0x4A2890 + 0x4B + 1, 0x5Fu); */
+    /* patch_code_word(0x4A2F20 + 0x28 + 1, 0x73EAu);
+    patch_code_word(0x4A2F20 + 0x37 + 1, 0x23C2u);
+    patch_code_word(0x4A2F20 + 0x46 + 1, 0x6DC2u);
+    patch_code_byte(0x4A2F20 + 0x4B + 1, 0x5Fu); */
 
     // Convert ASCII to ff8 encoding
-    replace_function(0x4A2890, convert_ascii_to_ff8_encoding_jp);
+    replace_function(0x4A2F20, convert_ascii_to_ff8_encoding_jp);
     // Cancel occidental font duo optimizations
-    patch_code_byte(0x4B84A0 + 0x4B, 0xFF);
+    patch_code_byte(0x4B8B30 + 0x4B, 0xFF);
 
     /* uint8_t jp_get_char_patch[] = {
         //0xF6,0xC4,0x04,           // test    ah, 4
@@ -1294,18 +1294,18 @@ void fonts_init_2()
         // loc_4A540E:
     };
 
-    memcpy_code(0x4A0680 + 0x10A, jp_get_char_patch, sizeof(jp_get_char_patch));
+    memcpy_code(0x4A0D10 + 0x10A, jp_get_char_patch, sizeof(jp_get_char_patch));
     // Fill with NOP
-    memset_code(0x4A0680 + 0x10A + sizeof(jp_get_char_patch), 0x90, 55 - sizeof(jp_get_char_patch));
+    memset_code(0x4A0D10 + 0x10A + sizeof(jp_get_char_patch), 0x90, 55 - sizeof(jp_get_char_patch));
     // Update addresses
-    //patch_code_dword(0x4A0680 + 0x10A + 11, 0x2231984);
-    patch_code_dword(0x4A0680 + 0x10A + /* 18 /* 1, 0x1D2B4F0);
+    //patch_code_dword(0x4A0D10 + 0x10A + 11, 0x2231984);
+    patch_code_dword(0x4A0D10 + 0x10A + /* 18 /* 1, 0x1D2B818);
 
-    patch_code_byte(0x4A0990 + 0x181, 0x53); // push ebx
-    replace_call_function(0x4A0680 + 0x181 + 1, get_character_width); // call get_character_width
+    patch_code_byte(0x4A1020 + 0x181, 0x53); // push ebx
+    replace_call_function(0x4A0D10 + 0x181 + 1, get_character_width); // call get_character_width
     uint8_t add_esp_4[] = {0x83, 0xC4, 0x04};
-    memcpy_code(0x4A0680 + 0x181 + 1 + 5, add_esp_4, sizeof(add_esp_4)); // add esp, 4
-    memset_code(0x4A0680 + 0x181 + 1 + 5 + sizeof(add_esp_4), 0x90, 55 - 1 - 5 - sizeof(add_esp_4)); // nop
+    memcpy_code(0x4A0D10 + 0x181 + 1 + 5, add_esp_4, sizeof(add_esp_4)); // add esp, 4
+    memset_code(0x4A0D10 + 0x181 + 1 + 5 + sizeof(add_esp_4), 0x90, 55 - 1 - 5 - sizeof(add_esp_4)); // nop
     */
 }
 
@@ -1314,7 +1314,7 @@ void ff8_load_fonts(ff8_file_container *file_container, int is_exit_menu)
     //((void(*)(ff8_file_container*,int))ff8_externals.load_fonts)(file_container, is_exit_menu);
 
     // Allocate old font pointer to avoid crashes
-    ff8_font **occ_font = (ff8_font **)0x1D2AD98;
+    ff8_font **occ_font = (ff8_font **)0x1D2B0C0;
     *occ_font = malloc_ff8_font_structure();
 
     ff8_create_graphic_object create_graphics_object_infos;
@@ -1351,11 +1351,11 @@ void ff8_load_fonts(ff8_file_container *file_container, int is_exit_menu)
     create_graphics_object_info_structure_for_font(&create_graphics_object_infos);
 
     if (file_container == nullptr) {
-        file_container = ((ff8_file_container*(*)(const char*))0x51ADC0)("\\MENU\\"); // menu fifls struct
+        file_container = ((ff8_file_container*(*)(const char*))0x51B410)("\\MENU\\"); // menu fifls struct
         is_flfifs_opened_locally = true;
     }
     create_graphics_object_infos.file_container = file_container;
-    if (*(uint32_t *)0xB86C80 == 2 && *(uint8_t *)0xB85E40) { // high res
+    if (*(uint32_t *)0xB86D38 == 2 && *(uint8_t *)0xB85E40) { // high res
         if (is_exit_menu_or_just_allocated) {
             fonts_sysevn->field_1 = 1;
             fonts_sysevn->field_3C = 0;
