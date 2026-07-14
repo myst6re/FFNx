@@ -32,6 +32,11 @@ ff8_font *fonts_sysevn = nullptr;
 ff8_font *fonts_sysodd = nullptr;
 ff8_graphics_object *graphic_object_font8_even = nullptr;
 ff8_graphics_object *graphic_object_font8_odd = nullptr;
+// ILP-JP: ff8_font wrappers around the font8 small-font graphics objects, so JP menu digits
+// can be drawn through the exe glyph rasterizer (0x49D6F0) just like sysfnt text. Built in
+// ff8_load_fonts once the font8 graphics objects exist. See jp_emit_small_digit.
+ff8_font *font8_even_font = nullptr;
+ff8_font *font8_odd_font = nullptr;
 uint8_t font_character_width_local_field[452];
 
 ff8_font *malloc_ff8_font_structure()
@@ -1180,7 +1185,11 @@ ff8_draw_menu_sprite_texture_infos *battle_text_parse_display_related_sub_4B0400
     DWORD *battle_input_dword_1D6D168 = (DWORD *)0x1D6D490;
 
     uint32_t v14 = *(DWORD *)((char *)aicon_sp1_data + uint16_t(aicon_sp1_data[*((uint16_t *)battle_input_dword_1D6D168 + 34) + 1]));
-    uint32_t field8 = *battle_input_dword_1D6D168 | (((v14 >> 26) & 2) << 24);
+    // ILP-JP: this path draws ONLY the battle party-HUD names (single caller sub_4B0C00).
+    // The JP font's colour-7 palette is a grayscale ramp (white ink), so the EN exe's blue-tinted
+    // battle base colour used as the modulation dyes the names blue. Retail JP draws them white,
+    // so neutralise the RGB modulation (0x808080 = 1.0x, no tint) while keeping the flags + blend bit.
+    uint32_t field8 = (*battle_input_dword_1D6D168 & 0xFF000000) | 0x808080 | (((v14 >> 26) & 2) << 24);
 
     return battle_text_parse_common(a1, texture_infos, x, y, text_data, current_color, &field8);
 }
@@ -1231,6 +1240,283 @@ void convert_ascii_to_ff8_encoding_jp(char *data)
     data[i] = 0;
 }
 
+// ILP-JP: Name-entry, fully reimplemented for the Japanese 18-row / 3-column kana
+// grid (the English exe's is 12-row / 2-column). The JP menu data (mngrp group,
+// section 5) holds the syllabaries as consecutive rows: hiragana = rowids 27..44,
+// katakana = rowids 46..63, 1:1 paired in gojuon order. We point off_B888C8[0]/[1]
+// at our own 18-entry row-lists (see fonts_init_2) and lay them out as 6 rows x 3
+// groups of 5 chars. Cursor navigation in Menu_NameEntry_Update is reworked to match.
+static const uint16_t jp_name_kata_rows[] = {46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,0xFFFF};
+static const uint16_t jp_name_hira_rows[] = {27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,0xFFFF};
+
+// Grid geometry, derived from the EN name-entry's own coordinate system (not guessed):
+// its cursor spans 14 columns at 18px (x=114+18*col) => 252px content width from a4=114,
+// and 6 rows y=98..194 => 96px content height. For a 3-group x 6-row JP layout:
+//   column pitch = 252/3 = 84 ; row pitch = 96/5 ~= 19 ; char advance fits 5 per group = 14.
+#define JP_NAME_CHARW  14   // per-character x advance
+#define JP_NAME_GROUPW 84   // per-column (group) x spacing = 252/3
+#define JP_NAME_ROWH   19   // per-row y spacing = 96/5
+#define JP_NAME_COLS   3    // groups per visual row
+#define JP_NAME_GROUPCHARS 5
+
+int __cdecl jp_name_entry_draw_grid(int a1, int *a2, uint32_t *a3, int a4, int a5)
+{
+    uint8_t tab = *(uint8_t *)(a1 + 0x2C);
+    const uint16_t *rowlist = *(const uint16_t **)(0xB888C8 + 8 * tab);
+    int ctx = *a2;
+
+    for (int i = 0; ; i++)
+    {
+        uint16_t rowid = rowlist[i];
+        if (rowid == 0xFFFF) break;
+
+        int x = a4 + (i % JP_NAME_COLS) * JP_NAME_GROUPW;
+        int y = a5 + (i / JP_NAME_COLS) * JP_NAME_ROWH;
+        int ypacked = y << 16;
+        const uint8_t *s = (const uint8_t *)((char *(*)(int, int, int, int))0x4BD630)(1, 5, rowid, 0);
+
+        bool ended = false;
+        for (int col = 0; col < JP_NAME_GROUPCHARS; col++)
+        {
+            uint8_t b = ended ? 0 : *s++;
+            if (b == 0) { ended = true; x += JP_NAME_CHARW; continue; }
+            int cell;
+            if (b >= 24 && b < 32) // 2-byte JP lead (kanji); single-byte kana falls through
+            {
+                uint8_t b2 = *s++;
+                cell = (b > 27) ? ((b2 + 224 * b - 6304) | 0x400) : (b2 + 224 * b - 5408);
+            }
+            else
+            {
+                cell = (int)b - 32;
+            }
+            get_character_width(cell);
+            ctx = ((int(*)(int, void *, int, int, int))0x4BDD60)(ctx, a3, cell, 7, ypacked | (uint16_t)x);
+            a3 += 5;
+            x += JP_NAME_CHARW;
+        }
+
+        a3[0] = 0x01000000; // GPU primitive header (see const_gpu_sprite_prim_tag)
+        a3[1] = 0xE100041F;
+        a3 += 2;
+    }
+
+    return (int)a3;
+}
+
+// ILP-JP: menu_draw_text (sub_4BDE30), reimplemented so kanji labels render (name-entry
+// title/HELP, 決定, etc). The exe packs the glyph cell into a 16-bit U/V field
+// (12*(cell%21 | (cell/21)<<8)) which OVERFLOWS for kanji (cell >= 462); the downstream
+// handler then reconstructs the wrong character. This version computes the even/odd atlas
+// U/V DIRECTLY from the cell (char2 = cell>>1 keeps V<256, no overflow) and calls
+// jp_fonts_with_font8c - the exact tail the original glyph path runs. For kana the emitted
+// primitive + draw call are byte-identical to the original, so the ~200 game-wide callers
+// are unaffected; only kanji (>=462) change (they now render instead of garbling). The
+// newline / icon / clip / batch / buffer-return logic all match the original exactly.
+int __cdecl jp_menu_draw_text(int *a1, int a2, int a3, int a4, uint8_t *a5, int a6)
+{
+    if (!a5) return a2;
+    if (a4 > 256 || a4 < -8) return a2;
+
+    int right_clip = *(int16_t *)0x1D77148; // movsx word_1D77148
+    int left_clip = *(int16_t *)0x1D76AC6;  // movsx word_1D76AC6
+    ((void(*)())0x49B080)();                // batch begin
+
+    uint8_t *v9 = (uint8_t *)a2;
+    int x = a3;
+
+    for (;;)
+    {
+        uint8_t c = *a5++;
+        if (c == 2) { x = a3; a4 += 13; continue; } // new line
+        if (c == 5) // icon
+        {
+            *(uint32_t *)v9 = 0x01000000;
+            *(uint32_t *)(v9 + 4) = 0xE100041F;
+            int icon = ((int(*)(int))0x49F930)(*a5++);
+            v9 = (uint8_t *)((int(*)(int, int, int, int, int, int))0x4B7210)((int)a1, (int)(v9 + 8), icon, x, a4, *(uint32_t *)0x1D2B100);
+            x += ((int(*)(int))0x4A0CB0)(icon) + 1; // get_icon_width
+            continue;
+        }
+        if (c <= 24 || x > right_clip) break;
+
+        int cell;
+        if (c < 32) { uint8_t b2 = *a5++; cell = b2 + 224 * c - 5408; }
+        else cell = (int)c - 32;
+
+        if (x >= left_clip)
+        {
+            ff8_draw_menu_sprite_texture_infos_short *p = (ff8_draw_menu_sprite_texture_infos_short *)v9;
+            p->texID = 0x04000000;
+            p->color = (a6 & 0xFFFFFFF8) == 0 ? *(uint32_t *)0x1D2B100 : *(uint32_t *)0x1D2B104;
+            p->x = (uint16_t)x;
+            p->y = (uint16_t)a4;
+            p->w = 12;
+            p->h = 12;
+            int char2 = cell >> 1; // even/odd split, exactly as the handler does - no overflow
+            p->u = (uint8_t)(12 * (char2 % 21));
+            p->v = (uint8_t)(12 * (char2 / 21));
+            p->palID = (uint16_t)((cell & 1 ? 14418 : 14354) + ((a6 & 7) << 7));
+            jp_fonts_with_font8c(p);
+            v9 += sizeof(ff8_draw_menu_sprite_texture_infos_short);
+        }
+        x += get_character_width(cell);
+    }
+
+    *(uint32_t *)v9 = 0x01000000;
+    *(uint32_t *)(v9 + 4) = 0xE100041F;
+    ((void(*)())0x49B080)(); // batch end
+    return (int)(v9 + 8);
+}
+
+// ILP-JP: JP menu digits are SMALL (8x8) glyphs that live in the font8_even/odd textures
+// (128x64), NOT in the sysfnt atlas. The JP icon.sp1 ids 307-316 sample them via VRAM coords
+// (sprite u=136..176, v=152) with a tpage bit selecting even-vs-odd; on FFNx the raw sprite
+// emitter can't bind those split GL textures -> garbage. We instead draw each digit straight
+// from the font8 graphics object through the exe rasterizer (like sysfnt text). Font8-local
+// coords (verified by decoding font8_even/odd.TEX): local u = sprite_u - 128, v = 0, 8x8.
+//   font8_odd  holds EVEN digits: 0->u8  2->u16 4->u24 6->u32 8->u40
+//   font8_even holds ODD  digits: 1->u16 3->u24 5->u32 7->u40 9->u48
+// .odd selects which font8 texture; .u is the font8-local U.
+static const struct { uint8_t u, odd; } JP_SMALL_DIGIT[10] = {
+    {8, 1}, {16, 0}, {16, 1}, {24, 0}, {24, 1},
+    {32, 0}, {32, 1}, {40, 0}, {40, 1}, {48, 0}
+};
+
+// Emit one small JP digit (0-9) at (x,y) from the font8 texture. color_idx = palette index 0-7
+// (as passed to the number drawers). Mirrors jp_menu_draw_text's descriptor, but draws from
+// the font8 ff8_font (128x64) via font_with_font8c_sub_4A1CF0 -> exe rasterizer 0x49D6F0.
+static uint8_t *jp_emit_small_digit(uint8_t *dst, int digit, int x, int y, int color_idx)
+{
+    ff8_font *f = JP_SMALL_DIGIT[digit].odd ? font8_odd_font : font8_even_font;
+    if (f == nullptr || f->graphics_object48 == nullptr) {
+        return dst; // font8 not loaded - skip (should not happen once fonts init'd)
+    }
+    ff8_draw_menu_sprite_texture_infos_short *p = (ff8_draw_menu_sprite_texture_infos_short *)dst;
+    p->texID = 0x04000000;
+    p->color = (color_idx & 0xFFFFFFF8) == 0 ? *(uint32_t *)0x1D2B100 : *(uint32_t *)0x1D2B104;
+    p->x = (uint16_t)x;
+    p->y = (uint16_t)y;
+    p->w = 8;
+    p->h = 8;
+    p->u = JP_SMALL_DIGIT[digit].u; // font8-local u
+    p->v = 0;
+    // final CLUT for this font8 texture + colour, matching jp_fonts_with_font8c's palID recompute
+    p->palID = (uint16_t)(((f->field_3E >> 4) & 0x3F) | ((f->field_40 + (color_idx & 7)) << 6));
+    font_with_font8c_sub_4A1CF0(p, f);
+    return dst + sizeof(ff8_draw_menu_sprite_texture_infos_short);
+}
+
+// ILP-JP: draw one AICON_SP1_DATA sprite (menu/icon.sp1) for the buffer-based number drawer.
+// If the sprite samples the font8 small-font region (VRAM u>=128, v in [152,200)) it's a small
+// glyph living in the split font8_even/odd textures (digits AND symbols like ':' '/'); draw it
+// from font8 (parity = the sprite's tpage 0x40 bit) so it doesn't garble on FFNx. Blank sprites
+// (count 0, e.g. field padding) draw nothing. Real icons fall back to the raw sprite emitter.
+// AICON_SP1_DATA is a static buffer at 0x1D2BAE8 (loaded verbatim from icon.sp1).
+static uint8_t *jp_emit_sprite(int a1, uint8_t *dst, unsigned int id, int x, int y,
+                               uint32_t rawcolor, int color_idx)
+{
+    const uint8_t *base = *(const uint8_t *const *)0x1D2BAE8; // AICON_SP1_DATA is a pointer
+    if (base == nullptr) return dst;
+    uint32_t entry = *(const uint32_t *)(base + 4 * id + 4);
+    if ((entry >> 16) == 0) return dst; // blank sprite -> draw nothing (padding)
+    uint32_t v10 = *(const uint32_t *)(base + (entry & 0xFFFF));
+    uint8_t su = (uint8_t)(v10 & 0xFF), sv = (uint8_t)((v10 >> 8) & 0xFF);
+    if (su >= 128 && sv >= 152 && sv < 200) // font8 small-font glyph
+    {
+        ff8_font *f = ((v10 >> 16) & 0x40) ? font8_odd_font : font8_even_font;
+        if (f != nullptr && f->graphics_object48 != nullptr)
+        {
+            ff8_draw_menu_sprite_texture_infos_short *p = (ff8_draw_menu_sprite_texture_infos_short *)dst;
+            p->texID = 0x04000000;
+            p->color = (color_idx & 0xFFFFFFF8) == 0 ? *(uint32_t *)0x1D2B100 : *(uint32_t *)0x1D2B104;
+            p->x = (uint16_t)x;
+            p->y = (uint16_t)y;
+            p->w = 8;
+            p->h = 8;
+            p->u = (uint8_t)(su - 128);
+            p->v = (uint8_t)(sv - 152);
+            p->palID = (uint16_t)(((f->field_3E >> 4) & 0x3F) | ((f->field_40 + (color_idx & 7)) << 6));
+            font_with_font8c_sub_4A1CF0(p, f);
+            return dst + sizeof(ff8_draw_menu_sprite_texture_infos_short);
+        }
+    }
+    // real icon: original raw sprite emitter
+    return (uint8_t *)((int(*)(int, int, unsigned int, int, int, uint32_t, int))0x4B78D0)(
+               a1, (int)dst, id, x, y, rawcolor, (color_idx << 6) + 2);
+}
+
+// ILP-JP: menu number drawer #1 (sub_49F850). Draws the pre-formatted digit buffer. JP digit
+// chars 83-92 -> sprite ids 307-316 = the small 8x8 digits, which we render via the even/odd
+// atlas glyph path (jp_emit_small_digit) because the raw sprite emitter garbles them on FFNx
+// (see JP_SMALL_DIGIT). Any non-digit sprite still goes through the original raw path with the
+// cap raised to 0x200 (EN 2013 exe hardcodes 0x110; JP retail caps at 0x200).
+int __cdecl jp_num_draw(int a1, int *a2, int a3, int a4, uint8_t *a5, int a6)
+{
+    uint32_t v6 = (*(uint32_t *)0x1D2B100 & 0xFFFFFF) | 0x64000000;
+    if (a4 > 256) return (int)a2;
+    if (a4 < -8) return (int)a2;
+    if (!a5) return (int)a2;
+    ((void(*)())0x49B080)();
+    uint8_t *v9 = (uint8_t *)a2;
+    int x = a3;
+    for (;;)
+    {
+        unsigned int c = *a5++;
+        if (!c) break;
+        if (c > 0x18)
+        {
+            if (c < 0x20) { c = 224 * c + *a5++ - 5376; } // 2-byte lead (unused for digits)
+            unsigned int id = c + 224;
+            if (id < 0x200) // font8 small-font glyphs -> font8; blanks skip; real icons raw
+                v9 = jp_emit_sprite(a1, v9, id, x, a4, v6, a6);
+            x += 8;
+        }
+    }
+    *(uint32_t *)v9 = 0x01000000;
+    *(uint32_t *)(v9 + 4) = 0xE100041E;
+    ((void(*)(int, int *))0x49D6A0)(a1, (int *)v9); // nullsub_10
+    ((void(*)())0x49B080)();
+    return (int)(v9 + 8);
+}
+
+// ILP-JP: SECOND menu number drawer (sub_4A3400, reached via sub_4A3530). Used by the
+// junction / status detail panels (LV, HP, ...) and ~45 other menu callers. The EN exe path
+// draws font glyphs via a UV table that indexes kana in JP + a fixed even palette, so it
+// can't render JP digits. We draw the same small even/odd-atlas digits drawer #1 uses
+// (jp_emit_small_digit), right-aligned to the packed X (X=int16 low, Y=high16). a4=value,
+// a6=palette idx 0-7. Advance = 8px per digit (the exe's number advance).
+int __cdecl jp_num_draw2(int a1, int a2, int a3, unsigned int a4, int a5, int a6)
+{
+    int y = a3 >> 16;
+    int xright = (int16_t)(a3 & 0xFFFF);
+
+    // decimal digits, most-significant first, no leading zeros (value 0 -> single "0")
+    uint8_t dig[12];
+    int n = 0;
+    {
+        uint8_t tmp[12];
+        int m = 0;
+        unsigned int v = a4;
+        do { tmp[m++] = (uint8_t)(v % 10); v /= 10; } while (v && m < 12);
+        for (int k = m - 1; k >= 0; --k) dig[n++] = tmp[k];
+    }
+
+    int x = xright - 8 * n; // right-align, 8px per small digit
+    ((void(*)())0x49B080)();
+    uint8_t *v9 = (uint8_t *)a2;
+    for (int idx = 0; idx < n; ++idx)
+    {
+        v9 = jp_emit_small_digit(v9, dig[idx], x, y, a6);
+        x += 8;
+    }
+    *(uint32_t *)v9 = 0x01000000;
+    *(uint32_t *)(v9 + 4) = 0xE100041E;
+    ((void(*)(int, int *))0x49D6A0)(a1, (int *)v9); // nullsub_10
+    ((void(*)())0x49B080)();
+    return (int)(v9 + 8);
+}
+
 void fonts_init_2()
 {
     ffnx_trace("%s: fonts_initialized=%d is_japanese_font_loaded=%d\n", __func__, fonts_initialized, fonts_sysevn->graphics_object48 != nullptr);
@@ -1253,7 +1539,11 @@ void fonts_init_2()
     //replace_function(0x49D6F0, font_with_font8c_sub_4A1CF0);
 
     // Open tdw in field
-    replace_call(0x471010 + 0x88B, ff8_open_tdw_field);
+    // ILP-JP: DISABLED for now. myst6re's WIP field-font path writes temp .tim files
+    // via the exe writer -> FFNx dotemuCreateFileA, which mis-treats them as save files
+    // (PathAppendA on a bad path) and crashes on the 2013 DotEmu build. Menu JP works
+    // without this; field JP text is a follow-up (needs a dotemu-safe temp path).
+    // replace_call(0x471010 + 0x88B, ff8_open_tdw_field);
 
     replace_call(0x49F640 + 0xD2, kernel_bin_get_section_sub_482220);
     replace_function(0x4A0CD0, get_character_width);
@@ -1265,6 +1555,32 @@ void fonts_init_2()
     replace_function(0x4A1570, window_parse_for_render_text_sub_4A0EE0); // used in field
     replace_function(0x4A7250, battle_text_parse_display_related_sub_4A6BC0);
     replace_function(0x4B0A90, battle_text_parse_display_related_sub_4B0400);
+
+    // ILP-JP: name-entry character grid (null-stop + 2-byte-aware). See jp_name_entry_draw_grid.
+    replace_function(0x4E7470, jp_name_entry_draw_grid);
+
+    // ILP-JP: menu_draw_text - kanji-capable (even/odd) glyph emit. See jp_menu_draw_text.
+    replace_function(0x4BDE30, jp_menu_draw_text);
+
+    // ILP-JP: menu number drawer - raise sprite-id cap so JP full-width digits draw.
+    replace_function(0x49F850, jp_num_draw);
+
+    // ILP-JP: second menu number drawer (junction/status LV/HP etc). See jp_num_draw2.
+    replace_function(0x4A3400, jp_num_draw2);
+
+
+    // ILP-JP: point the name-entry tab row-lists at our own full 18-row JP tables
+    // (tab 0 = カタカナ -> katakana rowids 46..63, tab 1 = ひらがな -> hiragana 27..44).
+    // off_B888C8 entry = {row-list ptr (4), x-offset (2), pad (2)}; we only set the ptr.
+    {
+        DWORD oldProtect;
+        if (VirtualProtect((void *)0xB888C8, 16, PAGE_READWRITE, &oldProtect))
+        {
+            *(uint32_t *)(0xB888C8 + 0) = (uint32_t)(uintptr_t)jp_name_kata_rows;
+            *(uint32_t *)(0xB888C8 + 8) = (uint32_t)(uintptr_t)jp_name_hira_rows;
+            VirtualProtect((void *)0xB888C8, 16, oldProtect, &oldProtect);
+        }
+    }
 
     /* patch_code_word(0x4A2F20 + 0x28 + 1, 0x73EAu);
     patch_code_word(0x4A2F20 + 0x37 + 1, 0x23C2u);
@@ -1397,6 +1713,28 @@ void ff8_load_fonts(ff8_file_container *file_container, int is_exit_menu)
 
     graphic_object_font8_even = ff8_create_font_graphic_object("font8_even.tim", &create_graphics_object_infos);
     graphic_object_font8_odd = ff8_create_font_graphic_object("font8_odd.tim", &create_graphics_object_infos);
+
+    // ILP-JP: wrap the font8 graphics objects in ff8_font structs so the menu number drawers
+    // can render the small (8x8) JP digits through the exe rasterizer. font8 textures are
+    // 128x64, single page, ratio 1 (same setup as the low-res sysfnt fonts above).
+    if (graphic_object_font8_even != nullptr) {
+        if (font8_even_font == nullptr) font8_even_font = malloc_ff8_font_structure();
+        font8_even_font->graphics_object48 = graphic_object_font8_even;
+        font8_even_font->field_1 = 0;
+        font8_even_font->field_30 = 1;
+        font8_even_font->field_34 = 1;
+        font8_even_font->field_3C = 0;
+        fill_font_structure(font8_even_font, 128, 64, 1);
+    }
+    if (graphic_object_font8_odd != nullptr) {
+        if (font8_odd_font == nullptr) font8_odd_font = malloc_ff8_font_structure();
+        font8_odd_font->graphics_object48 = graphic_object_font8_odd;
+        font8_odd_font->field_1 = 0;
+        font8_odd_font->field_30 = 1;
+        font8_odd_font->field_34 = 1;
+        font8_odd_font->field_3C = 0;
+        fill_font_structure(font8_odd_font, 128, 64, 1);
+    }
 
     if (is_flfifs_opened_locally) {
         ff8_externals.free_file_container(file_container);
