@@ -1180,7 +1180,7 @@ ff8_draw_menu_sprite_texture_infos *battle_text_parse_display_related_sub_4B0400
     DWORD *battle_input_dword_1D6D168 = (DWORD *)0x1D6D168;
 
     uint32_t v14 = *(DWORD *)((char *)aicon_sp1_data + uint16_t(aicon_sp1_data[*((uint16_t *)battle_input_dword_1D6D168 + 34) + 1]));
-    uint32_t field8 = *battle_input_dword_1D6D168 | (((v14 >> 26) & 2) << 24);
+    uint32_t field8 = (*battle_input_dword_1D6D168 & 0xFF000000) | 0x808080 | (((v14 >> 26) & 2) << 24);
 
     return battle_text_parse_common(a1, texture_infos, x, y, text_data, current_color, &field8);
 }
