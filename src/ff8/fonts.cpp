@@ -21,6 +21,7 @@
 /****************************************************************************/
 
 #include <stdint.h>
+#include "./file.h"
 #include "../globals.h"
 #include "../patch.h"
 #include "../log.h"
@@ -33,6 +34,97 @@ ff8_font *fonts_sysodd = nullptr;
 ff8_graphics_object *graphic_object_font8_even = nullptr;
 ff8_graphics_object *graphic_object_font8_odd = nullptr;
 uint8_t font_character_width_local_field[452];
+
+static constexpr uint8_t ff8_remastered_font_alignment_data[] = {
+    0x85, 0x86, 0x88, 0x88, 0x88, 0xB8, 0x47, 0x74, 0x7A, 0x77, 0x89, 0x77, 0x55, 0x44, 0x84, 0x77,
+    0x74, 0x47, 0x89, 0x87, 0x68, 0x86, 0x38, 0x76, 0x96, 0x87, 0x86, 0x66, 0x88, 0x98, 0x88, 0x68,
+    0x66, 0x66, 0x65, 0x36, 0x54, 0x93, 0x66, 0x66, 0x54, 0x64, 0x96, 0x66, 0x76, 0x66, 0x77, 0x55,
+    0x55, 0x34, 0x44, 0x76, 0x77, 0x67, 0x66, 0xA6, 0x66, 0x66, 0x66, 0x66, 0x66, 0x34, 0x44, 0x66,
+    0x66, 0x66, 0x66, 0xA6, 0x5D, 0x95, 0x99, 0x66, 0xA9, 0x77, 0x49, 0x9A, 0xA7, 0x74, 0x35, 0xD7,
+    0x88, 0x97, 0x74, 0x79, 0x93, 0xAA, 0x89, 0x8E, 0x8C, 0x8A, 0x88, 0x88, 0x8A, 0x8F, 0x88, 0x8C,
+    0xC8, 0x09, 0x00, 0x00, 0x10, 0x00, 0x00, 0x00, 0x08, 0x00, 0x00, 0x00, 0x0C, 0x01, 0x00, 0x00,
+    0x00, 0x00, 0xE0, 0x01, 0x10, 0x00, 0x10, 0x00, 0x00, 0x00, 0x52, 0xCA, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0xEF, 0xBD, 0xAD, 0xB5, 0x4A, 0xA9, 0x08, 0xA1, 0x00, 0x00, 0xE7, 0x9C, 0xFF, 0x83, 0xFF, 0x83,
+    0xFF, 0x83, 0xFF, 0x83, 0xFF, 0x83, 0xFF, 0x83, 0xFF, 0x83, 0xFF, 0x83, 0xFF, 0x83, 0xFF, 0x83,
+    0x4A, 0xA9, 0xAD, 0xB5, 0x10, 0xC2, 0x94, 0xD2, 0x00, 0x00, 0xA5, 0x94, 0xFF, 0x83, 0xFF, 0x83,
+    0xFF, 0x83, 0xFF, 0x83, 0xFF, 0x83, 0xFF, 0x83, 0xFF, 0x83, 0xFF, 0x83, 0xFF, 0x83, 0xFF, 0x83,
+    0xA5, 0x94, 0x31, 0x86, 0xD6, 0x86, 0x7B, 0x87, 0x00, 0x00, 0xA5, 0x94, 0xFF, 0x83, 0xFF, 0x83,
+    0xFF, 0x83, 0xFF, 0x83, 0xFF, 0x83, 0xFF, 0x83, 0xFF, 0x83, 0xFF, 0x83, 0xFF, 0x83, 0xFF, 0x83,
+    0xA9, 0x94, 0x73, 0x8C, 0x5A, 0x88, 0x1D, 0x80, 0x00, 0x00, 0xA5, 0x94, 0xFF, 0x83, 0xFF, 0x83,
+    0xFF, 0x83, 0xFF, 0x83, 0xFF, 0x83, 0xFF, 0x83, 0xFF, 0x83, 0xFF, 0x83, 0xFF, 0x83, 0xFF, 0x83,
+    0xE4, 0x90, 0x22, 0x8A, 0xC2, 0x8A, 0xA0, 0x83, 0x00, 0x00, 0xA5, 0x94, 0xFF, 0x83, 0xFF, 0x83,
+    0xFF, 0x83, 0xFF, 0x83, 0xFF, 0x83, 0xFF, 0x83, 0xFF, 0x83, 0xFF, 0x83, 0xFF, 0x83, 0xFF, 0x83,
+    0x06, 0xA1, 0xE8, 0xD9, 0x2A, 0xE2, 0xCD, 0xF6, 0x00, 0x00, 0xC6, 0x98, 0xFF, 0x83, 0xFF, 0x83,
+    0xFF, 0x83, 0xFF, 0x83, 0xFF, 0x83, 0xFF, 0x83, 0xFF, 0x83, 0xFF, 0x83, 0xFF, 0x83, 0xFF, 0x83,
+    0x88, 0xA0, 0x92, 0xC8, 0x58, 0xE0, 0x1D, 0xF4, 0x00, 0x00, 0xE7, 0x9C, 0xFF, 0x83, 0xFF, 0x83,
+    0xFF, 0x83, 0xFF, 0x83, 0xFF, 0x83, 0xFF, 0x83, 0xFF, 0x83, 0xFF, 0x83, 0xFF, 0x83, 0xFF, 0x83,
+    0x4A, 0xA9, 0x10, 0x42, 0xB5, 0x56, 0x9C, 0x73, 0x0C, 0x3C, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x40, 0x00, 0x78, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+};
+
+static constexpr uint8_t ff8_remastered_font_jp_alignment_data[] = {
+    0xBC, 0xCB, 0xCC, 0xCB, 0xCC, 0xCC, 0xCC, 0xBC, 0xBC, 0xBB, 0xCC, 0x9B, 0xCC, 0xCC, 0xCC, 0xCC,
+    0xCC, 0xCC, 0xBC, 0xB9, 0xCB, 0xBC, 0xCC, 0xBC, 0xCC, 0x9C, 0x86, 0x98, 0x88, 0x99, 0x58, 0x86,
+    0xBB, 0xC9, 0xCA, 0xCB, 0xBB, 0xCA, 0xBB, 0x9A, 0xBB, 0xAA, 0xBB, 0x9B, 0xBB, 0xBB, 0xBA, 0xBB,
+    0xBB, 0xBB, 0xBB, 0xA8, 0x9A, 0xBB, 0xBA, 0xBB, 0xCB, 0xCB, 0xBB, 0xCA, 0xCB, 0xBA, 0xBB, 0xCA,
+    0xBB, 0xBB, 0xBB, 0xAB, 0x98, 0xBC, 0xCA, 0xAA, 0xBB, 0xBB, 0xBA, 0xCA, 0xCA, 0xBA, 0xA9, 0xAA,
+    0x99, 0x99, 0x99, 0x99, 0x89, 0xAA, 0xAA, 0x9A, 0x99, 0x88, 0x9A, 0x76, 0x79, 0x9B, 0x9A, 0x9A,
+    0x99, 0xA9, 0xAD, 0x9A, 0x95, 0x9B, 0x99, 0xC9, 0xAC, 0x55, 0x55, 0xCC, 0xCC, 0x56, 0x55, 0xBA,
+    0xC8, 0xCC, 0xBC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCB, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCB,
+    0xCC, 0xCC, 0xCC, 0xBC, 0xCB, 0xCC, 0xCC, 0xCC, 0xCC, 0xBC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC,
+    0xCA, 0xCC, 0xCC, 0xCC, 0xCB, 0xCC, 0xCA, 0xCC, 0xCB, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC,
+    0xCB, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCA, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCB,
+    0xBC, 0xCC, 0xCC, 0xCC, 0xBC, 0xCC, 0xCC, 0xCC, 0xCC, 0xBC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC,
+    0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCB,
+    0xCC, 0xCB, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCB, 0xCC, 0xCC, 0xCC, 0xCC, 0xBC, 0xCC, 0xCB, 0xCC,
+    0xBC, 0xBC, 0xCC, 0xBC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC,
+    0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCB, 0xCC, 0xBC, 0xBC, 0xCC, 0xAC,
+    0xCC, 0xBC, 0xCC, 0xCC, 0xCC, 0xCC, 0xBC, 0xCC, 0xCB, 0xCC, 0xCC, 0xCC, 0x8C, 0xCC, 0xCC, 0xCC,
+    0xCC, 0xCC, 0xCB, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC,
+    0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0x66, 0xCC, 0xCC, 0xBC, 0xCC, 0xCC,
+    0xCC, 0xCC, 0xCC, 0xCB, 0xCC, 0xCC, 0xBC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xBC, 0xCC,
+    0xCC, 0xCC, 0xCC, 0xCC, 0xCB, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC,
+    0xCC, 0xAC, 0xCC, 0xCC, 0xCC, 0xBC, 0xCC, 0xCC, 0xCC, 0xCB, 0xCC, 0xCB, 0xCC, 0xCC, 0xCC, 0xCC,
+    0xAC, 0xCC, 0xCC, 0xCC, 0xBC, 0xCC, 0xBC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC,
+    0xCC, 0xCC, 0xCC, 0xCC, 0xCB, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCB, 0xCC, 0xCC,
+    0xCC, 0xBC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCB, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC,
+    0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCB, 0xCC, 0xCC, 0xCC, 0xCB, 0xCC, 0xCC, 0xCC,
+    0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCB, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xBC, 0xCC, 0xCC,
+    0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0xCC, 0x09,
+};
+
+static_assert(sizeof(ff8_remastered_font_alignment_data) == 0x1B9);
+static_assert(sizeof(ff8_remastered_font_jp_alignment_data) == 0x1B9);
+
+static uint32_t ff8_load_fonts_hardcoded_tdw(uint32_t font_id, uint32_t unknown_arg2, uint32_t unknown_arg3)
+{
+    const auto load_fonts = reinterpret_cast<uint32_t (*)(uint32_t, uint32_t, uint32_t)>(ff8_externals.load_fonts);
+    const uint32_t result = load_fonts(font_id, unknown_arg2, unknown_arg3);
+
+    if (font_id == 0 && ff8_is_remastered_font_asset())
+    {
+        uint8_t *font_alignment_data = reinterpret_cast<uint8_t *>(ff8_externals.dword_1D2B808) + 0x10;
+        memcpy(font_alignment_data, JP_VERSION ? ff8_remastered_font_jp_alignment_data : ff8_remastered_font_alignment_data, sizeof(JP_VERSION ? ff8_remastered_font_jp_alignment_data : ff8_remastered_font_alignment_data));
+    }
+
+    return result;
+}
+
+static uint32_t ff8_get_character_width_hardcoded_tdw(uint32_t character_id)
+{
+    if (character_id == 173) return 9;
+    if (character_id == 174) return 10;
+
+    const uint8_t *font_alignment_data = ff8_is_remastered_font_asset()
+        ? (JP_VERSION ? ff8_remastered_font_jp_alignment_data : ff8_remastered_font_alignment_data)
+        : reinterpret_cast<uint8_t *>(ff8_externals.dword_1D2B808) + 0x10;
+    const uint8_t packed_widths = font_alignment_data[character_id >> 1];
+    return ((character_id & 1) != 0 ? packed_widths >> 4 : packed_widths) & 0xF;
+}
 
 ff8_font *malloc_ff8_font_structure()
 {
@@ -59,9 +151,7 @@ ff8_graphics_object *ff8_create_font_graphic_object(const char *path, ff8_create
         strcpy(buffer, path);
     }
 
-    void *dword_1D29F5C = *(void **)0x1D29F5C; // TODO
-
-    return ((ff8_graphics_object*(*)(int,int,ff8_create_graphic_object*,char*,void*))(ff8_externals._load_texture))(1, 12, create_graphics_object_infos, buffer, dword_1D29F5C);
+    return ((ff8_graphics_object*(*)(int,int,ff8_create_graphic_object*,char*,void*))(ff8_externals._load_texture))(1, 12, create_graphics_object_infos, buffer, *ff8_externals.dword_1D2A284);
 }
 
 void free_font_graphics_object(ff8_font *font)
@@ -114,7 +204,7 @@ void create_graphics_object_info_structure_for_font(ff8_create_graphic_object *c
     ff8_externals.create_graphics_object_info_structure(4, create_graphics_object_infos);
     create_graphics_object_infos->field_7C |= 0x80u;
     create_graphics_object_infos->flags |= 0x11u;
-    create_graphics_object_infos->field_18 = *(uint32_t *)0x1D29F60; // graphics_instance TODO
+    create_graphics_object_infos->field_18 = *ff8_externals.dword_1D2A288;
 }
 
 void ff8_load_fonts_field(char *tdw_tim_data, char *path)
@@ -141,18 +231,16 @@ void ff8_load_fonts_field(char *tdw_tim_data, char *path)
 
     if (fonts_fieldtdw_even == nullptr) {
         fonts_fieldtdw_even = malloc_ff8_font_structure();
-    } else {
-        free_font_graphics_object(fonts_fieldtdw_even);
     }
+    free_font_graphics_object(fonts_fieldtdw_even);
     if (fonts_fieldtdw_odd == nullptr) {
         fonts_fieldtdw_odd = malloc_ff8_font_structure();
-    } else {
-        free_font_graphics_object(fonts_fieldtdw_odd);
     }
+    free_font_graphics_object(fonts_fieldtdw_odd);
     bool use_low_res = true;
 
-    if (*(uint32_t *)0xB86C80 == 2 && *(uint8_t *)0xB85E40) { // high res
-        ff8_file_container *file_container = ((ff8_file_container*(*)(const char*))0x51ADC0)("\\MENU\\");
+    if (*ff8_externals.config_highres_font_multiplier == 2 && *ff8_externals.config_use_highres_font) { // high res
+        ff8_file_container *file_container = ff8_externals.get_file_container_sub_51B410("\\MENU\\");
         // Remove extension
         path[strlen(path) - 4] = '\0';
         // Get filename
@@ -165,12 +253,12 @@ void ff8_load_fonts_field(char *tdw_tim_data, char *path)
         char filename[MAX_PATH] = {};
         snprintf(filename, sizeof(filename), "%shires\\fieldtdw\\%s00.dat", ff8_externals.archive_path_prefix_menu, field_name);
         void *buffer = nullptr;
-        ((int(*)(void*,char*))0x4B8EA0)(&buffer, filename);
+        ff8_externals.open_file_menu_sub_4B9530(&buffer, filename);
         if (buffer) {
             void *buffer2 = nullptr;
-            ((void(*)(int*,int**,unsigned int*))0x4B9260)((int *)buffer, (int **)&buffer2, &element_count); // Malloc
-            ((size_t(*)(void*,LPCSTR,size_t))0x4B8FB0)(buffer, "temp_evn.tim", element_count); // Write to file
-            ((size_t(*)(void*,LPCSTR,size_t))0x4B8FB0)(buffer2, "temp_odd.tim", element_count); // Write to file
+            ff8_externals.tdw_malloc_sub_4B98F0((int *)buffer, (int **)&buffer2, &element_count);
+            ff8_externals.write_tdw_tmp_sub_4B9640(buffer, "temp_evn.tim", element_count);
+            ff8_externals.write_tdw_tmp_sub_4B9640(buffer2, "temp_odd.tim", element_count);
             external_free(buffer);
             external_free(buffer2);
             buffer = nullptr;
@@ -179,12 +267,12 @@ void ff8_load_fonts_field(char *tdw_tim_data, char *path)
             use_low_res = false;
         }
         snprintf(filename, sizeof(filename), "%shires\\fieldtdw\\%s01.dat", ff8_externals.archive_path_prefix_menu, field_name);
-        ((int(*)(void*,char*))0x4B8EA0)(&buffer, filename);
+        ff8_externals.open_file_menu_sub_4B9530(&buffer, filename);
         if (buffer) {
             void *buffer2 = nullptr;
-            ((void(*)(int*,int**,unsigned int*))0x4B9260)((int *)buffer, (int **)&buffer2, &element_count); // Malloc
-            ((size_t(*)(void*,LPCSTR,size_t))0x4B8FB0)(buffer, "temp_evn1.tim", element_count); // Write to file
-            ((size_t(*)(void*,LPCSTR,size_t))0x4B8FB0)(buffer2, "temp_odd1.tim", element_count); // Write to file
+            ff8_externals.tdw_malloc_sub_4B98F0((int *)buffer, (int **)&buffer2, &element_count);
+            ff8_externals.write_tdw_tmp_sub_4B9640(buffer, "temp_evn1.tim", element_count);
+            ff8_externals.write_tdw_tmp_sub_4B9640(buffer2, "temp_odd1.tim", element_count);
             external_free(buffer);
             external_free(buffer2);
             buffer = nullptr;
@@ -204,9 +292,9 @@ void ff8_load_fonts_field(char *tdw_tim_data, char *path)
 
     if (use_low_res) {
         void *buffer2 = nullptr;
-        ((void(*)(int*,int**,unsigned int*))0x4B9260)(tim, (int **)&buffer2, &element_count); // Malloc
-        ((size_t(*)(void*,LPCSTR,size_t))0x4B8FB0)(tim, "temp_evn.tim", element_count); // Write to file
-        ((size_t(*)(void*,LPCSTR,size_t))0x4B8FB0)(buffer2, "temp_odd.tim", element_count); // Write to file
+        ff8_externals.tdw_malloc_sub_4B98F0(tim, (int **)&buffer2, &element_count);
+        ff8_externals.write_tdw_tmp_sub_4B9640(tim, "temp_evn.tim", element_count);
+        ff8_externals.write_tdw_tmp_sub_4B9640(buffer2, "temp_odd.tim", element_count);
         external_free(buffer2);
 
         fonts_fieldtdw_even->graphics_object48 = ff8_create_font_graphic_object("temp_evn.tim", &create_graphics_object_infos, true);
@@ -221,8 +309,8 @@ void ff8_load_fonts_field(char *tdw_tim_data, char *path)
         fonts_fieldtdw_odd->field_3C = 0;
     }
 
-    fill_font_structure(fonts_sysevn, width, height, fonts_sysevn->field_30);
-    fill_font_structure(fonts_sysodd, width, height, fonts_sysodd->field_30);
+    fill_font_structure(fonts_fieldtdw_even, width, height, fonts_fieldtdw_even->field_30);
+    fill_font_structure(fonts_fieldtdw_odd, width, height, fonts_fieldtdw_odd->field_30);
 }
 
 void reset_graphics_object_field_58(ff8_graphics_object *graphic_object)
@@ -238,9 +326,9 @@ void reset_font_graphics_object_field_58(ff8_font *font)
     reset_graphics_object_field_58(font->graphics_object54);
 }
 
-void ff8_fonts_reset_field_58()
+void ff8_fonts_jp_rendering_reset_field_58()
 {
-    ((void(*)())0x4B3080)();
+    ((void(*)())ff8_externals.sub_4B3710)();
 
     reset_font_graphics_object_field_58(fonts_fieldtdw_even);
     reset_font_graphics_object_field_58(fonts_fieldtdw_odd);
@@ -254,7 +342,7 @@ void ff8_fonts_reset_field_58()
 
 void draw_graphics_object(ff8_graphics_object *graphic_object, game_obj *game_object)
 {
-    if (graphic_object != nullptr) ((void(*)(ff8_graphics_object*,game_obj*))0x4178D7)(graphic_object, game_object);
+    if (graphic_object != nullptr) ((void(*)(ff8_graphics_object*,game_obj*))ff8_externals.graphics_setrendererstate_draw_sub_4178D7)(graphic_object, game_object);
 }
 
 void draw_font(ff8_font *font, game_obj *game_object)
@@ -265,7 +353,7 @@ void draw_font(ff8_font *font, game_obj *game_object)
     draw_graphics_object(font->graphics_object54, game_object);
 }
 
-void ff8_fonts_draw()
+void ff8_fonts_jp_draw()
 {
     game_obj *game_object = common_externals.get_game_object();
 
@@ -278,366 +366,98 @@ void ff8_fonts_draw()
     draw_graphics_object(graphic_object_font8_even, game_object);
     draw_graphics_object(graphic_object_font8_odd, game_object);
 
-    ((void(*)())0x4B3000)();
+    ((void(*)())ff8_externals.sub_4B3690)();
 }
 
-char *pointer_to_iterate_to = nullptr;
+uint8_t *pointer_to_iterate_to = nullptr;
+int last_x = -1;
 
-void before_loop_fonts_sub_49F3D0()
+void ff8_fonts_jp_render_kernel_menus_before_loops(uint32_t a1, uint8_t *a2, int8_t a3)
 {
     ffnx_trace("%s\n", __func__);
-    ((void(*)())0x49AB90)(); // TODO
 
-    char *v7 = (char *)0x1D6B940; // TODO
+    ((void(*)(uint32_t,uint8_t*,int8_t))ff8_externals.sub_4B87A0)(a1, a2, a3);
 
     for (int i = 0; i < 9; ++i) {
-        if (*v7 != 1) {
+        if (*a2 != 1) {
             break;
         }
-        ++v7;
+        ++a2;
     }
 
-    pointer_to_iterate_to = v7;
+    pointer_to_iterate_to = a2;
 }
 
-void set_font_vertices(
-    ff8_graphics_object *graphics_object,
-    float x1, float y1, float w, float h, float z,
-    float u1, float v1, float u2, float v2, int color, int v7
-) {
-    ffnx_info("%s: x=%f y=%f w=%f h=%f z=%f uv1=(%f, %f) uv2=(%f, %f)\n", __func__, x1, y1, w, h, z, u1, v1, u2, v2);
-
-    if (!((int(*)(int,ff8_graphics_object*))0x417464)(1, graphics_object)) {
-        return;
-    }
-
-    float x2 = x1 + w, y2 = y1 + h;
-    ff8_vertex *vertices = graphics_object->vertices;
-
-    vertices[0].x = x1;
-    vertices[0].y = y1;
-    vertices[0].z = z;
-    vertices[0].field_C = 1.0;
-    vertices[0].u = u1;
-    vertices[0].v = v1;
-    vertices[0].color = color;
-    vertices[0].color_mask = 0xFF000000;
-
-    vertices[1].x = x1;
-    vertices[1].y = y2;
-    vertices[1].z = z;
-    vertices[1].field_C = 1.0;
-    vertices[1].u = u1;
-    vertices[1].v = v1 + v2;
-    vertices[1].color = color;
-    vertices[1].color_mask = 0xFF000000;
-
-    vertices[2].x = x2;
-    vertices[2].y = y1;
-    vertices[2].z = z;
-    vertices[2].field_C = 1.0;
-    vertices[2].u = u1 + u2;
-    vertices[2].v = v1;
-    vertices[2].color = color;
-    vertices[2].color_mask = 0xFF000000;
-
-    vertices[3].x = x2;
-    vertices[3].y = y2;
-    vertices[3].z = z;
-    vertices[3].field_C = 1.0;
-    vertices[3].u = u1 + u2;
-    vertices[3].v = v1 + v2;
-    vertices[3].color = color;
-    vertices[3].color_mask = 0xFF000000;
-
-    graphics_object->field_80 = v7;
-    *(uint8_t *)graphics_object->field_7C = v7;
-}
-
-void font_with_font8c_sub_4A1CF0(ff8_draw_menu_sprite_texture_infos_short *texture_infos, ff8_font *fonts)
+int call_draw_icon_sub_4B7210(int *a1, int a2, int x, uint16_t y, uint16_t a5, int a6)
 {
-    ((void(*)(ff8_draw_menu_sprite_texture_infos_short*,ff8_font*))0x49D190)(texture_infos, fonts);
+    ffnx_trace("%s: xy=(%d, %d)\n", __func__, x, y);
+    last_x = x - 7 + 154;
 
-    return;
-
-    uint8_t byte_223104C = *(uint8_t *)0x1D2AD8C;
-    if (byte_223104C) {
-        return;
-    }
-
-    float flt_2231088 = *(float *)0x1D2ADB4, flt_223108C = *(float *)0x1D2ADB8;
-    float *offset_menu_viewport_and_stuff_off_D8A428 = *(float **)0xB86D48;
-    double x_related_float = (double(texture_infos->x) + flt_2231088)
-                    * offset_menu_viewport_and_stuff_off_D8A428[4]
-                    + offset_menu_viewport_and_stuff_off_D8A428[6];
-    double y_related_float = (double(texture_infos->y) + flt_223108C)
-                    * offset_menu_viewport_and_stuff_off_D8A428[5]
-                    + offset_menu_viewport_and_stuff_off_D8A428[7];
-    double low_word_field_10 = double(texture_infos->w);
-    float width = low_word_field_10 * offset_menu_viewport_and_stuff_off_D8A428[4];
-    double high_word_field_10 = double(texture_infos->h & 0xFFFF);
-    uint8_t field_C_1 = texture_infos->u;
-    float height = high_word_field_10 * offset_menu_viewport_and_stuff_off_D8A428[5];
-    uint8_t field_D_1 = texture_infos->v;
-    float u_related1 = float(int(int64_t(double(field_C_1) * fonts->field_28)));
-    float v_related1 = float(int(int64_t(double(field_D_1) * fonts->field_2C)));
-    float u_related2, v_related2;
-
-    if (fonts->field_1) {
-        u_related2 = low_word_field_10 * offset_menu_viewport_and_stuff_off_D8A428[4];
-        v_related2 = high_word_field_10 * offset_menu_viewport_and_stuff_off_D8A428[5];
-    } else {
-        u_related2 = low_word_field_10 * fonts->field_28;
-        v_related2 = high_word_field_10 * fonts->field_2C;
-    }
-
-    float *flt_2231040 = (float *)0x1D2AD80;
-    float z_related = *flt_2231040;
-
-    uint8_t byte_2231084 = *(uint8_t *)0x1D2ADB0;
-    if (!byte_2231084) {
-        *flt_2231040 = 0.000016129032f + *flt_2231040;
-    }
-
-    uint16_t palID = texture_infos->palID;
-    int v7 = (palID >> 6) - fonts->field_40;
-
-    if (16 * (palID & 0x3F) != fonts->field_3E) {
-        /* if (field_C_1 >= 128u && field_D_1 >= 152u && field_D_1 < 200u) { // only in jp
-            ff8_graphics_object *graphics_object_font8 = (v7 & 1) == 0 ? graphic_object_font8_even : graphic_object_font8_odd;
-            texture_infos->field_D = field_D_1 + 104;
-            p_hundred *hundred_data = graphics_object_font8->hundred_data;
-            ff8_tex_header *tex_header = (ff8_tex_header *)(((ff8_texture_set *)(hundred_data->texture_set))->tex_header);
-            texture_infos->field_C = field_C_1 + 128;
-            texture_infos->field_E = (tex_header->field_DC >> 4) & 0x3F | (((tex_header->field_E0 & 0xFFFF) + uint16_t(v7 / 2)) << 6);
-            ((void(*)(ff8_draw_menu_sprite_texture_infos_short*,ff8_graphics_object*))0x49AE10)(texture_infos, graphics_object_font8);
-            return;
-        } */
-        v7 += 16;
-    }
-
-    float flt_2231090 = *(float *)0x1D2ADBC, flt_2231094 = *(float *)0x1D2ADC0;
-    float x2 = flt_2231090 + x_related_float, y2 = flt_2231094 + y_related_float;
-
-    uint8_t r = 0xFF, g = 0xFF, b = 0xFF;
-    if (2 * (texture_infos->color & 0xFF) <= 255) {
-        r = 2 * (texture_infos->color & 0xFF);
-    }
-    if (2 * ((texture_infos->color >> 8) & 0xFF) <= 255) {
-        g = 2 * ((texture_infos->color >> 8) & 0xFF);
-    }
-    if (2 * ((texture_infos->color >> 16) & 0xFF) <= 255) {
-        b = 2 * ((texture_infos->color >> 16) & 0xFF);
-    }
-    int color_related = 0x7FFFFFFF | (uint32_t(r) << 16) | (uint32_t(g) << 8) | uint32_t(b);
-
-    /**
-     * -----------------------------------------
-     * | graphics_object48 | graphics_object4C |
-     * -----------------------------------------
-     * | graphics_object50 | graphics_object54 |
-     * -----------------------------------------
-     */
-    int type;
-    if (u_related1 < 256.0) {
-        if (u_related1 + u_related2 <= 256.0) {
-            if (v_related1 < 256.0) {
-                type = v_related2 + v_related1 <= 256.0 ? 0 : 6; // graphics_object48 / graphics_object48-graphics_object50
-            } else {
-                type = 2; // graphics_object50
-            }
-        } else if (v_related1 < 256.0) {
-            type = v_related2 + v_related1 <= 256.0 ? 4 : 8; // graphics_object48-graphics_object4C / graphics_object48-graphics_object4C-graphics_object50-graphics_object54
-        } else {
-            type = 5; // graphics_object50-graphics_object54
+    uint8_t *pointer_to_iterate_to2 = pointer_to_iterate_to;
+    for (;;) {
+        uint8_t v22 = *pointer_to_iterate_to2++;
+        if (!v22) {
+            break;
         }
-    } else if (v_related1 < 256.0) {
-        type = v_related2 + v_related1 <= 256.0 ? 1 : 7; // graphics_object4C / graphics_object4C-graphics_object54
-    } else {
-        type = 3; // graphics_object54
+        last_x -= ff8_externals.kernel_bin_sysfont[v22].x_field_0 & 0xF;
     }
-    ff8_graphics_object *graphics_object;
+    ffnx_trace("%s: last_x=%d\n", __func__, last_x);
 
-    ffnx_info("%s: type=%d color=%X texture_infos->xy=(%d %d) texture_infos->uv=(%d %d) texture_infos->wh=(%d %d) viewport=(%f %f) x=%f y=%f w=%f h=%f z=%f\n", __func__,
-        type, color_related, texture_infos->x, texture_infos->y, texture_infos->u, texture_infos->v, texture_infos->w, texture_infos->h,
-        offset_menu_viewport_and_stuff_off_D8A428[4], offset_menu_viewport_and_stuff_off_D8A428[6],
-        x2, y2, width, height, z_related);
+    return ((int(*)(int*,int,int,uint16_t,uint16_t,int))ff8_externals.ff8_draw_icon_or_key1)(a1, a2, x, y, a5, a6);
+}
 
-    switch (type) {
-    case 0:
-        graphics_object = fonts->graphics_object48;
-        set_font_vertices(graphics_object,
-            x2 - 0.5, y2 - 0.5,
-            width, height,
-            z_related,
-            graphics_object->u_offset * u_related1, graphics_object->v_offset * v_related1,
-            graphics_object->u_offset * u_related2, graphics_object->v_offset * v_related2,
-            color_related, v7);
-        return;
-    case 1:
-        graphics_object = fonts->graphics_object4C;
-        set_font_vertices(graphics_object,
-            x2 - 0.5, y2 - 0.5,
-            width, height,
-            z_related,
-            graphics_object->u_offset * (u_related1 - 256.0), graphics_object->v_offset * v_related1,
-            graphics_object->u_offset * u_related2, graphics_object->v_offset * v_related2,
-            color_related, v7);
-        return;
-    case 2:
-        graphics_object = fonts->graphics_object50;
-        set_font_vertices(graphics_object,
-            x2 - 0.5, y2 - 0.5,
-            width, height,
-            z_related,
-            graphics_object->u_offset * u_related1, graphics_object->v_offset * (v_related1 - 256.0),
-            graphics_object->u_offset * u_related2, graphics_object->v_offset * v_related2,
-            color_related, v7);
-        return;
-    case 3:
-        graphics_object = fonts->graphics_object54;
-        set_font_vertices(graphics_object,
-            x2 - 0.5, y2 - 0.5,
-            width, height,
-            z_related,
-            graphics_object->u_offset * (u_related1 - 256.0), graphics_object->v_offset * (v_related1 - 256.0),
-            graphics_object->u_offset * u_related2, graphics_object->v_offset * v_related2,
-            color_related, v7);
-        return;
-    case 4:
-        graphics_object = fonts->graphics_object48;
-        set_font_vertices(graphics_object,
-            x2 - 0.5, y2 - 0.5,
-            width - (u_related2 - (255.0 - u_related1) - 1.0), height,
-            z_related,
-            graphics_object->u_offset * u_related1, 1.0,
-            graphics_object->v_offset * v_related1, graphics_object->v_offset * v_related2 + graphics_object->v_offset * v_related1,
-            color_related, v7);
-        graphics_object = fonts->graphics_object4C;
-        set_font_vertices(graphics_object,
-            width - (u_related2 - (255.0 - u_related1) - 1.0) + x2 - 0.5, y2 - 0.5,
-            u_related2 - (255.0 - u_related1) - 1.0, height,
-            z_related,
-            0.0, graphics_object->v_offset * v_related1,
-            graphics_object->u_offset * (u_related2 - (255.0 - u_related1) - 1.0), graphics_object->v_offset * v_related2 + graphics_object->v_offset * v_related1,
-            color_related, v7);
-        return;
-    case 5:
-        graphics_object = fonts->graphics_object50;
-        set_font_vertices(graphics_object,
-            x2 - 0.5, y2 - 0.5,
-            width - (u_related2 - (255.0 - u_related1) - 1.0), height,
-            z_related,
-            graphics_object->u_offset * u_related1, (v_related1 - 256.0) * graphics_object->v_offset,
-            1.0, graphics_object->v_offset * v_related2 + (v_related1 - 256.0) * graphics_object->v_offset,
-            color_related, v7);
-        graphics_object = fonts->graphics_object54;
-        set_font_vertices(graphics_object,
-            width - (u_related2 - (255.0 - u_related1) - 1.0) + x2 - 0.5, y2 - 0.5,
-            u_related2 - (255.0 - u_related1) - 1.0, height,
-            z_related,
-            0.0, (v_related1 - 256.0) * graphics_object->v_offset,
-            graphics_object->u_offset * (u_related2 - (255.0 - u_related1) - 1.0), graphics_object->v_offset * v_related2 + (v_related1 - 256.0) * graphics_object->v_offset,
-            color_related, v7);
-        return;
-    case 6:
-        graphics_object = fonts->graphics_object48;
-        set_font_vertices(graphics_object,
-            x2 - 0.5, y2 - 0.5,
-            width, height - (v_related2 - (255.0 - v_related1) - 1.0),
-            z_related,
-            graphics_object->u_offset * u_related1, graphics_object->u_offset * v_related1,
-            graphics_object->u_offset * u_related2 + graphics_object->u_offset * u_related1, 1.0,
-            color_related, v7);
-        graphics_object = fonts->graphics_object50;
-        set_font_vertices(graphics_object,
-            x2 - 0.5, height - (v_related2 - (255.0 - v_related1) - 1.0) + y2 - 0.5,
-            width, v_related2 - (255.0 - v_related1) - 1.0,
-            z_related,
-            graphics_object->u_offset * u_related1, 0.0,
-            graphics_object->u_offset * u_related2 + graphics_object->u_offset * u_related1, graphics_object->v_offset * (v_related2 - (255.0 - v_related1) - 1.0),
-            color_related, v7);
-        return;
-    case 7:
-        graphics_object = fonts->graphics_object4C;
-        set_font_vertices(graphics_object,
-            x2 - 0.5, y2 - 0.5,
-            width, height - (v_related2 - (255.0 - v_related1) - 1.0),
-            z_related,
-            (u_related1 - 256.0) * graphics_object->u_offset, graphics_object->u_offset * v_related1,
-            graphics_object->u_offset * u_related2 + (u_related1 - 256.0) * graphics_object->u_offset, 1.0,
-            color_related, v7);
-        graphics_object = fonts->graphics_object54;
-        set_font_vertices(graphics_object,
-            x2 - 0.5, height - (v_related2 - (255.0 - v_related1) - 1.0) + y2 - 0.5,
-            width, v_related2 - (255.0 - v_related1) - 1.0,
-            z_related,
-            (u_related1 - 256.0) * graphics_object->u_offset, 0.0,
-            graphics_object->u_offset * u_related2 + (u_related1 - 256.0) * graphics_object->u_offset, graphics_object->v_offset * (v_related2 - (255.0 - v_related1) - 1.0),
-            color_related, v7);
-        return;
-    case 8:
-        graphics_object = fonts->graphics_object48;
-        set_font_vertices(graphics_object,
-            x2 - 0.5, y2 - 0.5,
-            width - (u_related2 - (255.0 - u_related1) - 1.0), height - (v_related2 - (255.0 - v_related1) - 1.0),
-            z_related,
-            graphics_object->u_offset * u_related1, 1.0,
-            graphics_object->u_offset * v_related1, 1.0,
-            color_related, v7);
-        graphics_object = fonts->graphics_object4C;
-        set_font_vertices(graphics_object,
-            width - (u_related2 - (255.0 - u_related1) - 1.0) + x2 - 0.5, y2 - 0.5,
-            (u_related2 - (255.0 - u_related1) - 1.0) + 0.5, height - (v_related2 - (255.0 - v_related1) - 1.0),
-            z_related,
-            0.0, graphics_object->u_offset * v_related1,
-            graphics_object->u_offset * (u_related2 - (255.0 - u_related1) - 1.0), 1.0,
-            color_related, v7);
-        graphics_object = fonts->graphics_object50;
-        set_font_vertices(graphics_object,
-            x2 - 0.5, height - (v_related2 - (255.0 - v_related1) - 1.0) + y2 - 0.5,
-            width - (u_related2 - (255.0 - u_related1) - 1.0), (v_related2 - (255.0 - v_related1) - 1.0) + 0.5,
-            z_related,
-            graphics_object->u_offset * u_related1, 0.0,
-            1.0, graphics_object->v_offset * (v_related2 - (255.0 - v_related1) - 1.0),
-            color_related, v7);
-        graphics_object = fonts->graphics_object54;
-        set_font_vertices(graphics_object,
-            width - (u_related2 - (255.0 - u_related1) - 1.0) + x2 - 0.5, height - (v_related2 - (255.0 - v_related1) - 1.0) + y2 - 0.5,
-            (u_related2 - (255.0 - u_related1) - 1.0) + 0.5, (v_related2 - (255.0 - v_related1) - 1.0) + 0.5,
-            z_related,
-            0.0, 0.0,
-            graphics_object->u_offset * (u_related2 - (255.0 - u_related1) - 1.0), graphics_object->v_offset * (v_related2 - (255.0 - v_related1) - 1.0),
-            color_related, v7);
-        return;
-    }
+void ff8_fonts_jp_render_kernel_menus_after_loops(int *a1, void *a2)
+{
+    ffnx_trace("%s\n", __func__);
+    last_x = -1;
+}
+
+void *load_save_render_entry_icon(int *a1, void *draw_infos, int icon_id, uint16_t x, uint16_t y, int a6)
+{
+    return draw_infos;
+}
+
+void *load_save_render_entry_icon2(int *a1, void *draw_infos, uint16_t x, int y, char *a5, int a6)
+{
+    char *text = ((char*(*)(int,int,int,int))0x4BD630)(1, 5, 30, 0); // Get text
+
+    ffnx_trace("%s: %s\n", __func__, text);
+
+    char text2[256] = {};
+
+    strncpy(text2, text, sizeof(text2));
+
+    char *v10 = &text2[strlen(text2)];
+    v10[0] = a5[0];
+    v10[1] = a5[1];
+
+    return ((void*(*)(int*,void*,uint16_t,int,char*,int))0x49F850)(a1, draw_infos, x + 196 - 228, y, text2, a6);
 }
 
 void jp_fonts_with_font8c(ff8_draw_menu_sprite_texture_infos_short *texture_infos_short)
 {
-    ffnx_trace("%s\n", __func__);
     int v4 = (texture_infos_short->palID >> 6) - fonts_sysevn->field_40;
 
     texture_infos_short->palID = (fonts_sysevn->field_3E >> 4) & 0x3F | ((fonts_sysevn->field_40 + uint16_t(v4 / 2)) << 6);
     ff8_font *fonts = (v4 & 1) != 0 ? fonts_sysodd : fonts_sysevn;
 
     // font8 support
-    /* if (16 * (texture_infos_short->field_E & 0x3F) != fonts->field_3E
-            && texture_infos_short->field_C >= 128u && texture_infos_short->field_D >= 152u && texture_infos_short->field_D < 200u) {
+    /* if (16 * (texture_infos_short->palID & 0x3F) != fonts->field_3E
+            && texture_infos_short->u >= 128u && texture_infos_short->v >= 152u && texture_infos_short->v < 200u) {
         ff8_graphics_object *graphic_object = (v4 & 1) != 0 ? graphic_object_font8_odd : graphic_object_font8_even;
         if (graphic_object != nullptr) {
-            texture_infos_short->field_C += 128;
-            texture_infos_short->field_D += 104;
-            texture_infos_short->field_E = (((ff8_tex_header *)(((ff8_texture_set *)(graphic_object->hundred_data->texture_set))->tex_header))->field_DC >> 4) & 0x3F | ((LOWORD(((ff8_tex_header *)(((ff8_texture_set *)(graphic_object->hundred_data->texture_set))->tex_header))->field_E0) + uint16_t(v4 / 2)) << 6);
+            texture_infos_short->u += 128; // u >= 256
+            texture_infos_short->v += 104; // v >= 256 && v < 304
+            texture_infos_short->palID = (((ff8_tex_header *)(((ff8_texture_set *)(graphic_object->hundred_data->texture_set))->tex_header))->field_DC >> 4) & 0x3F | ((LOWORD(((ff8_tex_header *)(((ff8_texture_set *)(graphic_object->hundred_data->texture_set))->tex_header))->field_E0) + uint16_t(v4 / 2)) << 6);
 
-            return ((void(*)(ff8_draw_menu_sprite_texture_infos_short*,ff8_graphics_object*))0x49AE10)(texture_infos_short, graphic_object); // TODO
+            return ((void(*)(ff8_draw_menu_sprite_texture_infos_short*,ff8_graphics_object*))0x49B300)(texture_infos_short, graphic_object); // TODO
         }
     } */
 
-    font_with_font8c_sub_4A1CF0(texture_infos_short, fonts);
+    ((void(*)(ff8_draw_menu_sprite_texture_infos_short*,ff8_font*))ff8_externals.sub_49D6F0)(texture_infos_short, fonts);
 
     if (fonts->graphics_object48 != nullptr && fonts->graphics_object48->vertices != nullptr) {
-        ffnx_info("%s: (%lf, %lf, u=%lf, v=%lf) (%lf, %lf, u=%lf, v=%lf) (%lf, %lf, u=%lf, v=%lf)\n", __func__,
+        ffnx_info("%s: 48 (%lf, %lf, u=%lf, v=%lf) (%lf, %lf, u=%lf, v=%lf) (%lf, %lf, u=%lf, v=%lf)\n", __func__,
             fonts->graphics_object48->vertices[0].x, fonts->graphics_object48->vertices[0].y,
             fonts->graphics_object48->vertices[0].u, fonts->graphics_object48->vertices[0].v,
             fonts->graphics_object48->vertices[1].x, fonts->graphics_object48->vertices[1].y,
@@ -648,7 +468,7 @@ void jp_fonts_with_font8c(ff8_draw_menu_sprite_texture_infos_short *texture_info
     }
 
     if (fonts->graphics_object4C != nullptr && fonts->graphics_object4C->vertices != nullptr) {
-        ffnx_info("%s: (%lf, %lf, u=%lf, v=%lf) (%lf, %lf, u=%lf, v=%lf) (%lf, %lf, u=%lf, v=%lf)\n", __func__,
+        ffnx_info("%s: 4C (%lf, %lf, u=%lf, v=%lf) (%lf, %lf, u=%lf, v=%lf) (%lf, %lf, u=%lf, v=%lf)\n", __func__,
             fonts->graphics_object4C->vertices[0].x, fonts->graphics_object4C->vertices[0].y,
             fonts->graphics_object4C->vertices[0].u, fonts->graphics_object4C->vertices[0].v,
             fonts->graphics_object4C->vertices[1].x, fonts->graphics_object4C->vertices[1].y,
@@ -659,7 +479,7 @@ void jp_fonts_with_font8c(ff8_draw_menu_sprite_texture_infos_short *texture_info
     }
 
     if (fonts->graphics_object50 != nullptr && fonts->graphics_object50->vertices != nullptr) {
-        ffnx_info("%s: (%lf, %lf, u=%lf, v=%lf) (%lf, %lf, u=%lf, v=%lf) (%lf, %lf, u=%lf, v=%lf)\n", __func__,
+        ffnx_info("%s: 50 (%lf, %lf, u=%lf, v=%lf) (%lf, %lf, u=%lf, v=%lf) (%lf, %lf, u=%lf, v=%lf)\n", __func__,
             fonts->graphics_object50->vertices[0].x, fonts->graphics_object50->vertices[0].y,
             fonts->graphics_object50->vertices[0].u, fonts->graphics_object50->vertices[0].v,
             fonts->graphics_object50->vertices[1].x, fonts->graphics_object50->vertices[1].y,
@@ -670,7 +490,7 @@ void jp_fonts_with_font8c(ff8_draw_menu_sprite_texture_infos_short *texture_info
     }
 
     if (fonts->graphics_object54 != nullptr && fonts->graphics_object54->vertices != nullptr) {
-        ffnx_info("%s: (%lf, %lf, u=%lf, v=%lf) (%lf, %lf, u=%lf, v=%lf) (%lf, %lf, u=%lf, v=%lf)\n", __func__,
+        ffnx_info("%s: 54 (%lf, %lf, u=%lf, v=%lf) (%lf, %lf, u=%lf, v=%lf) (%lf, %lf, u=%lf, v=%lf)\n", __func__,
             fonts->graphics_object54->vertices[0].x, fonts->graphics_object54->vertices[0].y,
             fonts->graphics_object54->vertices[0].u, fonts->graphics_object54->vertices[0].v,
             fonts->graphics_object54->vertices[1].x, fonts->graphics_object54->vertices[1].y,
@@ -714,18 +534,58 @@ void jp_fonts_with_font8c(ff8_draw_menu_sprite_texture_infos_short *texture_info
     } */
 }
 
-void fonts_with_font8c_1_sub_49D190(ff8_draw_menu_sprite_texture_infos_short *texture_infos, ff8_font *fonts)
+void build_icon_graphic_object_font8(ff8_draw_menu_sprite_texture_infos_short *texture_infos_short, ff8_graphics_object *graphic_object)
 {
-    ffnx_trace("%s\n", __func__);
+    ffnx_trace("%s: uv=(%d, %d)\n", __func__, texture_infos_short->u, texture_infos_short->v);
+
+    int v4 = (texture_infos_short->palID >> 6) - fonts_sysevn->field_40;
+
+    if (16 * (texture_infos_short->palID & 0x3F) != ((ff8_tex_header *)(((ff8_texture_set *)(graphic_object->hundred_data->texture_set))->tex_header))->field_DC
+            && texture_infos_short->u >= 128u && texture_infos_short->v >= 152u && texture_infos_short->v < 200u) {
+        ff8_graphics_object *graphic_object = (v4 & 1) != 0 ? graphic_object_font8_odd : graphic_object_font8_even;
+        if (graphic_object != nullptr) {
+            texture_infos_short->u -= 128; // u >= 0
+            texture_infos_short->v -= 152; // v >= 0 && v < 48
+            texture_infos_short->palID = (((ff8_tex_header *)(((ff8_texture_set *)(graphic_object->hundred_data->texture_set))->tex_header))->field_DC >> 4) & 0x3F | ((LOWORD(((ff8_tex_header *)(((ff8_texture_set *)(graphic_object->hundred_data->texture_set))->tex_header))->field_E0) + uint16_t(v4 / 2)) << 6);
+
+            ((void(*)(ff8_draw_menu_sprite_texture_infos_short*,ff8_graphics_object*))0x49B300)(texture_infos_short, graphic_object); // TODO
+
+            *(int *)(graphic_object->field_7C) = (*(int *)graphic_object->field_7C - 16) / 2;
+            graphic_object->field_80 = (graphic_object->field_80 - 16) / 2;
+
+            return;
+        }
+    }
+
+    ((void(*)(ff8_draw_menu_sprite_texture_infos_short*,ff8_graphics_object*))0x49B300)(texture_infos_short, graphic_object);
+}
+
+void ff8_fonts_jp_render_kernel_menus(ff8_draw_menu_sprite_texture_infos_short *texture_infos, ff8_font *fonts)
+{
+    ffnx_trace("%s last_x=%d\n", __func__, last_x);
+    int8_t i = 0;
+
+    if (last_x != -1) {
+        int x = last_x;
+        for (;;) {
+            i = *pointer_to_iterate_to++;
+            if (i == 0 || x == texture_infos->x) {
+                break;
+            }
+
+            x += ff8_externals.kernel_bin_sysfont[i].x_field_0 & 0xF;
+        }
+    } else {
+        i = *pointer_to_iterate_to++;
+    }
 
     // Add missing information to texture_infos
-    struc_kernel_sysfont *kernel_sysfont = (struc_kernel_sysfont *)0x1D2B730; // TODO
-    texture_infos->palID = kernel_sysfont[*pointer_to_iterate_to++].field_1 + ((texture_infos->palID - 0x3812) << 1) + 0x3812;
+    texture_infos->palID = ff8_externals.kernel_bin_sysfont[i].pal_id_field_1 + ((texture_infos->palID - 0x3812) << 1) + 0x3812;
 
     return jp_fonts_with_font8c(texture_infos);
 }
 
-void fonts_with_font8c_3_sub_4A1CF0(ff8_draw_menu_sprite_texture_infos_short *texture_infos, ff8_font *fonts)
+void ff8_fonts_jp_render_simple_menus(ff8_draw_menu_sprite_texture_infos_short *texture_infos, ff8_font *fonts)
 {
     ffnx_trace("%s\n", __func__);
 
@@ -743,7 +603,9 @@ void fonts_with_font8c_3_sub_4A1CF0(ff8_draw_menu_sprite_texture_infos_short *te
 
 int get_character_width(int character)
 {
-    uint8_t *font_char_width = (uint8_t *)0x1D2B4F0; // TODO
+    const uint8_t *font_char_width = ff8_remastered_edition && ff8_is_remastered_font_asset()
+        ? ff8_remastered_font_jp_alignment_data
+        : reinterpret_cast<uint8_t *>(ff8_externals.dword_1D2B808 + 0x10);
 
     if ((character & 0x400) != 0) {
         character &= 0x3FF;
@@ -759,28 +621,28 @@ int get_character_width(int character)
     return width & 0xF;
 }
 
-uint8_t *kernel_bin_get_section_sub_482220(int section_id)
+uint8_t *ff8_fonts_jp_kernel_bin_get_section(int section_id)
 {
     ffnx_trace("%s\n", __func__);
 
-    struc_kernel_sysfont *kernel_sysfont_byte_2231B44 = (struc_kernel_sysfont *)0x1D2B730;
-    struc_kernel_sysfont *kernel_sysfont = kernel_sysfont_byte_2231B44 + 1;
+    struc_kernel_sysfont *kernel_sysfont = ff8_externals.kernel_bin_sysfont + 1;
     for (int i = 0; i < 10; ++i) {
-        int character = ((uint8_t*(*)(int))0x47EC60)(section_id)[1] + i - 32;
+        int character = ((uint8_t*(*)(int))ff8_externals.kernel_bin_get_section_sub_47EC70)(section_id)[1] + i - 32;
         int space = get_character_width(character);
-        kernel_sysfont->field_0 ^= (space ^ kernel_sysfont->field_0) & 0xF;
+        kernel_sysfont->x_field_0 ^= (space ^ kernel_sysfont->x_field_0) & 0xF;
         if (space <= 8) {
-            kernel_sysfont->field_0 = kernel_sysfont->field_0 & 0xF | (16 * ((8 - space) / 2));
+            kernel_sysfont->x_field_0 = kernel_sysfont->x_field_0 & 0xF | (16 * ((8 - space) / 2));
         } else {
-            kernel_sysfont->field_0 = kernel_sysfont->field_0 & 0xF;
+            kernel_sysfont->x_field_0 = kernel_sysfont->x_field_0 & 0xF;
         }
+        kernel_sysfont->uv_field_2 = (3072 * (character / 2 / 21)) | uint8_t(12 * (character / 2 % 21));
         ++kernel_sysfont;
     }
 
-    return ((uint8_t*(*)(int))0x47EC60)(section_id);
+    return ((uint8_t*(*)(int))ff8_externals.kernel_bin_get_section_sub_47EC70)(section_id);
 }
 
-int fill_texture_infos_for_font(int a1, ff8_draw_menu_sprite_texture_infos *texture_infos, int x, int y, int character, int current_color, uint32_t *field8)
+void fill_texture_infos_for_font(ff8_draw_menu_sprite_texture_infos *texture_infos, int x, int y, int character, int current_color, uint32_t *field8)
 {
     ffnx_trace("%s character=%X\n", __func__, character);
 
@@ -799,45 +661,44 @@ int fill_texture_infos_for_font(int a1, ff8_draw_menu_sprite_texture_infos *text
     texture_infos->inner.u = 12 * (character2 % 21);
     texture_infos->inner.v = 12 * (character2 / 21);
 
+    ffnx_trace("%s uv=(%d, %d) character2=%X is_extended_font=%d\n", __func__, texture_infos->inner.u, texture_infos->inner.v, character2, is_extended_font);
+
     // [jp]fonts_field_sub_4A0EE0
     if (is_extended_font && fonts_fieldtdw_odd->graphics_object48 != nullptr && fonts_fieldtdw_even->graphics_object48 != nullptr) {
         int is_odd = (texture_infos->inner.palID >> 6) - fonts_fieldtdw_even->field_40;
         texture_infos->inner.palID = ((texture_infos->inner.palID >> 6) << 6) | ((fonts_fieldtdw_even->field_3E >> 4) & 0x3F);
 
-        font_with_font8c_sub_4A1CF0(&texture_infos->inner, (is_odd & 1) != 0 ? fonts_fieldtdw_odd : fonts_fieldtdw_even);
+        ((void(*)(ff8_draw_menu_sprite_texture_infos_short*,ff8_font*))ff8_externals.sub_49D6F0)(&texture_infos->inner, (is_odd & 1) != 0 ? fonts_fieldtdw_odd : fonts_fieldtdw_even);
     } else { // [jp]fonts_sysoddeven_sub_4A0E00
         jp_fonts_with_font8c(&texture_infos->inner);
     }
-
-    return a1;
 }
 
-ff8_draw_menu_sprite_texture_infos *fill_texture_infos_for_icon(int *a1, ff8_draw_menu_sprite_texture_infos *texture_infos, int &x, int y, uint8_t icon_param)
+ff8_draw_menu_sprite_texture_infos *fill_texture_infos_for_icon(int *a1, ff8_draw_menu_sprite_texture_infos *texture_infos, int &x, int y, uint8_t icon_param, bool bound_icon_param_to_63 = false)
 {
     int icon_id = 0;
     if (icon_param >= 64) {
-        uint16_t *icon_id_word_B86CCC = (uint16_t *)0xB86CCC;
-        icon_id = icon_id_word_B86CCC[icon_param];
+        icon_id = ff8_externals.word_B86D84[icon_param];
     } else if (icon_param < 32 || icon_param > 47) {
-        if (icon_param >= 48 && icon_param <= 63) { // Maybe sometimes icon_param <= 63 is not wanted?
+        if (icon_param >= 48 && (!bound_icon_param_to_63 || icon_param <= 63)) {
             icon_id = icon_param + 80;
         }
     } else {
-        int key_from_key_id = ((int(*)(int))0x4A2760)(icon_param - 32);
+        int key_from_key_id = ((int(*)(int))ff8_externals.sub_4A2DF0)(icon_param - 32);
         if (key_from_key_id >= 0) {
             icon_id = key_from_key_id + 128;
         }
     }
-    int dword_1D2B1EC = *(int *)0x1D2B1EC;
     if (a1 != nullptr || texture_infos != nullptr) {
-        texture_infos = ((ff8_draw_menu_sprite_texture_infos*(*)(int*,ff8_draw_menu_sprite_texture_infos*,void*,int,uint16_t,uint16_t,int))0x4B6F20)(a1, texture_infos, ((void*(*)())ff8_externals.get_icon_sp1_data)(), icon_id, x, y, dword_1D2B1EC);
+        int dword_1D2B514 = *(int *)ff8_externals.dword_1D2B514;
+        texture_infos = ((ff8_draw_menu_sprite_texture_infos*(*)(int*,ff8_draw_menu_sprite_texture_infos*,void*,int,uint16_t,uint16_t,int))ff8_externals.sub_4B75B0)(a1, texture_infos, ((void*(*)())ff8_externals.get_icon_sp1_data)(), icon_id, x, y, dword_1D2B514);
     }
-    x += uint8_t(((uint16_t(*)(void*,int))0x4B6D60)(((void*(*)())ff8_externals.get_icon_sp1_data)(), icon_id)) + 1;
+    x += uint8_t(((uint16_t(*)(void*,int))ff8_externals.sub_4B73F0)(((void*(*)())ff8_externals.get_icon_sp1_data)(), icon_id)) + 1;
 
     return texture_infos;
 }
 
-int text_related_sub_4A0680(uint8_t *text_data, bool continue_on_new_line)
+int ff8_fonts_get_text_dimensions(uint8_t *text_data, bool continue_on_new_line)
 {
     ffnx_trace("%s\n", __func__);
 
@@ -867,13 +728,14 @@ int text_related_sub_4A0680(uint8_t *text_data, bool continue_on_new_line)
                 return max_x | (max_y << 16);
             }
         } else if (current_byte == 5) { // Icon
-            fill_texture_infos_for_icon(nullptr, nullptr, x, 0, *text_data++);
+            int next_byte = *text_data++;
+            fill_texture_infos_for_icon(nullptr, nullptr, x, 0, next_byte);
         } else if (current_byte <= 15) {
             ++text_data;
         } else if (current_byte >= 24) {
             int character;
             if (current_byte < 32) { // two-bytes
-                if (current_byte > 27) { // Field extended font
+                if (current_byte > 27) { // Field extended font (JP version only)
                     character = int(*text_data + 224 * current_byte - 6304) | 0x400;
                 } else {
                     character = *text_data + 224 * current_byte - 5408;
@@ -894,7 +756,7 @@ int text_related_sub_4A0680(uint8_t *text_data, bool continue_on_new_line)
     return max_x | (max_y << 16);
 }
 
-ff8_draw_menu_sprite_texture_infos *input_get_command_keycodes_sub_4A0990(
+ff8_draw_menu_sprite_texture_infos *ff8_fonts_parse_and_render_menu_texts_1(
     int *a1,
     ff8_draw_menu_sprite_texture_infos *texture_infos,
     int x,
@@ -935,7 +797,7 @@ ff8_draw_menu_sprite_texture_infos *input_get_command_keycodes_sub_4A0990(
         } else {
             character = current_byte - 32;
         }
-        *a1 = fill_texture_infos_for_font(*a1, texture_infos, x, y, character, current_color, (uint32_t *)0x1D2ADD8);
+        fill_texture_infos_for_font(texture_infos, x, y, character, current_color, ff8_externals.dword_1D2B100);
         x += get_character_width(character);
         ++texture_infos;
     }
@@ -943,25 +805,25 @@ ff8_draw_menu_sprite_texture_infos *input_get_command_keycodes_sub_4A0990(
     return texture_infos;
 }
 
-void menu_parse_and_render_text_sub_4A0B70(int *a1, int x, int y, uint8_t *text_data)
+void ff8_fonts_parse_and_render_menu_texts_2(int *a1, int x, int y, uint8_t *text_data)
 {
     ffnx_trace("%s\n", __func__);
 
     int x_orig = x;
-    int *dword_1D762E0 = (int *)0x1D762E0;
-    int dword_227C6F0_orig = *dword_1D762E0;
-    int battle_struct = ((int(*)(int))0x403E00)(0);
-    uint8_t *output = (uint8_t *)(battle_struct + 768);
-    *dword_1D762E0 = battle_struct + 896;
+    int *dword_1D76608 = (int *)ff8_externals.dword_1D76608;
+    int dword_227C6F0_orig = *dword_1D76608;
+    int some_struct = ((int(*)(int))ff8_externals.sub_403E00)(0);
+    uint8_t *output = (uint8_t *)(some_struct + 768);
+    *dword_1D76608 = some_struct + 896;
     int current_color = 7;
     uint8_t *text_it = text_data;
-    ff8_draw_menu_sprite_texture_infos *texture_infos = ((ff8_draw_menu_sprite_texture_infos*(*)())0x49A650)();
-    uint8_t *last_color_iterate_text_byte_1D762E4 = (uint8_t *)0x1D762E4;
+    ff8_draw_menu_sprite_texture_infos *texture_infos = ((ff8_draw_menu_sprite_texture_infos*(*)())ff8_externals.sub_49AB40)();
+    uint8_t *last_color_iterate_text_byte_1D762E4 = (uint8_t *)ff8_externals.dword_1D7660C;
 
     while (text_it) {
-        ((void(*)(uint8_t*,uint8_t*,int))0x4B84A0)(text_it, output, -1); // Expand text with names
+        ((void(*)(uint8_t*,uint8_t*,int))ff8_externals.sub_4B8B30)(text_it, output, -1); // Expand text with names
         *last_color_iterate_text_byte_1D762E4 = current_color;
-        text_it = ((uint8_t*(*)(uint8_t*))0x4B8430)(text_it); // To next line
+        text_it = ((uint8_t*(*)(uint8_t*))ff8_externals.sub_4B8AC0)(text_it); // To next line
         text_data = output;
         for (;;) {
             int current_byte = *text_data++;
@@ -996,60 +858,56 @@ void menu_parse_and_render_text_sub_4A0B70(int *a1, int x, int y, uint8_t *text_
                 } else {
                     character = current_byte - 32;
                 }
-                *a1 = fill_texture_infos_for_font(*a1, texture_infos, x, y, character, current_color, (uint32_t *)0x1D2B1EC);
+                fill_texture_infos_for_font(texture_infos, x, y, character, current_color, (uint32_t *)ff8_externals.dword_1D2B514); // jp: dword_22314BC
                 x += get_character_width(character);
                 ++texture_infos;
             }
         }
     }
 
-    ((void(*)(ff8_draw_menu_sprite_texture_infos*))0x49A670)(texture_infos);
-    *dword_1D762E0 = dword_227C6F0_orig;
+    ((void(*)(ff8_draw_menu_sprite_texture_infos*))ff8_externals.sub_49AB60)(texture_infos);
+    *dword_1D76608 = dword_227C6F0_orig;
 }
 
-void window_parse_for_render_text_sub_4A0EE0(int *arg0, ff8_win_obj *win)
+void ff8_fonts_parse_and_render_field_texts(int *a1, ff8_win_obj *win)
 {
     ffnx_trace("%s\n", __func__);
 
-    ((void(*)())0x49ABC0)();
-    uint8_t **dword_1D762E0 = (uint8_t **)0x1D762E0;
-    uint8_t *output = *dword_1D762E0;
+    ((void(*)())ff8_externals.sub_49B0B0)();
+    uint8_t **dword_1D76608 = (uint8_t **)ff8_externals.dword_1D76608;
+    uint8_t *output = *dword_1D76608;
     uint8_t *text_it = (uint8_t *)win->text_data1;
-    *dword_1D762E0 += 128;
+    *dword_1D76608 += 128;
     int first_answer_line = win->first_question, last_anwser_line = win->last_question;
-    ff8_draw_menu_sprite_texture_infos *texture_infos = ((ff8_draw_menu_sprite_texture_infos*(*)())0x49A650)();
+    ff8_draw_menu_sprite_texture_infos *texture_infos = ((ff8_draw_menu_sprite_texture_infos*(*)())ff8_externals.sub_49AB40)();
     int x = win->field_30 + 2, y = win->field_32 - win->field_12 + 2;
     int current_line = 0;
     int current_color = win->current_color >> 4;
-    int a1 = *arg0;
     if (first_answer_line <= 0) {
-        x += 32;
+        x += 34;
     }
-    uint8_t *last_color_iterate_text_byte_1D762E4 = (uint8_t *)0x1D762E4;
+    uint8_t *last_color_iterate_text_byte_1D762E4 = (uint8_t *)ff8_externals.dword_1D7660C;
     *last_color_iterate_text_byte_1D762E4 = current_color;
 
     while (y < -16) {
-        if (!text_it) {
-            ((void(*)(ff8_draw_menu_sprite_texture_infos*))0x49A670)(texture_infos);
-            dword_1D762E0 -= 128;
-            ((void(*)())0x49ABE0)();
+        if (text_it == nullptr) {
+            ((void(*)(ff8_draw_menu_sprite_texture_infos*))ff8_externals.sub_49AB60)(texture_infos);
+            *dword_1D76608 -= 128;
+            ((void(*)())ff8_externals.sub_49B0D0)();
 
             return;
         }
-        text_it = ((uint8_t*(*)(uint8_t*))0x4B8430)(text_it); // To next line
+        text_it = ((uint8_t*(*)(uint8_t*))ff8_externals.sub_4B8AC0)(text_it); // To next line
         current_color = *last_color_iterate_text_byte_1D762E4 & 0xF;
         y += 16;
         ++current_line;
-        if (y >= -16) {
-            break;
-        }
     }
 
-    while (text_it) {
+    while (text_it != nullptr) {
         // Expand text with names
-        ((void(*)(uint8_t*,uint8_t*,int))0x4B84A0)(text_it, output, current_line >= win->text_data1_line ? win->text_data1_offset : -1);
+        ((void(*)(uint8_t*,uint8_t*,int))ff8_externals.sub_4B8B30)(text_it, output, current_line >= win->text_data1_line ? win->text_data1_offset : -1);
         *last_color_iterate_text_byte_1D762E4 = current_color;
-        text_it = ((uint8_t*(*)(uint8_t*))0x4B8430)(text_it); // To next line
+        text_it = ((uint8_t*(*)(uint8_t*))ff8_externals.sub_4B8AC0)(text_it); // To next line
         ++current_line;
         uint8_t *text_data = output;
         for (;;) {
@@ -1063,7 +921,7 @@ void window_parse_for_render_text_sub_4A0EE0(int *arg0, ff8_win_obj *win)
             if (current_byte == 2) { // New line
                 x = win->field_30 + 2;
                 if (first_answer_line <= current_line && last_anwser_line >= current_line) {
-                    x += 32;
+                    x += 34;
                 }
                 y += 16;
                 break;
@@ -1071,7 +929,7 @@ void window_parse_for_render_text_sub_4A0EE0(int *arg0, ff8_win_obj *win)
 
             if (current_byte == 5) { // Icons
                 // x is modified
-                texture_infos = fill_texture_infos_for_icon(arg0, texture_infos, x, y, *text_data++);
+                texture_infos = fill_texture_infos_for_icon(a1, texture_infos, x, y, *text_data++, true);
             } else if (current_byte == 6) { // Color
                 current_color = (*text_data++) & 0xF;
             } else if (current_byte <= 15) {
@@ -1088,15 +946,15 @@ void window_parse_for_render_text_sub_4A0EE0(int *arg0, ff8_win_obj *win)
                 } else {
                     character = current_byte - 32;
                 }
-                a1 = fill_texture_infos_for_font(a1, texture_infos, x, y, character, current_color, (uint32_t *)0x1D2B1EC);
+                fill_texture_infos_for_font(texture_infos, x, y, character, current_color, (uint32_t *)ff8_externals.dword_1D2B514);
                 x += get_character_width(character);
             }
         }
     }
 
-    ((void(*)(ff8_draw_menu_sprite_texture_infos*))0x49A670)(texture_infos);
-    dword_1D762E0 -= 128;
-    ((void(*)())0x49ABE0)();
+    ((void(*)(ff8_draw_menu_sprite_texture_infos*))ff8_externals.sub_49AB60)(texture_infos);
+    *dword_1D76608 -= 128;
+    ((void(*)())ff8_externals.sub_49B0D0)();
 }
 
 ff8_draw_menu_sprite_texture_infos *battle_text_parse_common(
@@ -1114,7 +972,7 @@ ff8_draw_menu_sprite_texture_infos *battle_text_parse_common(
         return texture_infos;
     }
 
-    ((void(*)())0x49AB90)(); // TODO
+    ((void(*)())ff8_externals.sub_49B080)();
 
     int x_orig = x;
 
@@ -1143,17 +1001,17 @@ ff8_draw_menu_sprite_texture_infos *battle_text_parse_common(
         } else {
             character = current_byte - 32;
         }
-        *a1 = fill_texture_infos_for_font(*a1, texture_infos, x, y, character, current_color & 7, field8);
+        fill_texture_infos_for_font(texture_infos, x, y, character, current_color & 7, field8);
         x += get_character_width(character);
         ++texture_infos;
     }
 
-    ((void(*)())0x49AB90)(); // TODO
+    ((void(*)())ff8_externals.sub_49B080)();
 
     return texture_infos;
 }
 
-ff8_draw_menu_sprite_texture_infos *battle_text_parse_display_related_sub_4A6BC0(
+ff8_draw_menu_sprite_texture_infos *ff8_fonts_parse_and_render_battle_texts_1(
     int *a1,
     ff8_draw_menu_sprite_texture_infos *texture_infos,
     int x,
@@ -1163,10 +1021,10 @@ ff8_draw_menu_sprite_texture_infos *battle_text_parse_display_related_sub_4A6BC0
 ) {
     ffnx_trace("%s\n", __func__);
 
-    return battle_text_parse_common(a1, texture_infos, x, y, text_data, current_color, ((uint32_t*(*)(int))0x403E00)(0) + 228);
+    return battle_text_parse_common(a1, texture_infos, x, y, text_data, current_color, ((uint32_t*(*)(int))ff8_externals.sub_403E00)(0) + 228);
 }
 
-ff8_draw_menu_sprite_texture_infos *battle_text_parse_display_related_sub_4B0400(
+ff8_draw_menu_sprite_texture_infos *ff8_fonts_parse_and_render_battle_texts_2(
     int *a1,
     ff8_draw_menu_sprite_texture_infos *texture_infos,
     int x,
@@ -1176,24 +1034,21 @@ ff8_draw_menu_sprite_texture_infos *battle_text_parse_display_related_sub_4B0400
 ) {
     ffnx_trace("%s\n", __func__);
 
-    DWORD *aicon_sp1_data = ((DWORD*(*)())0x4B6D40)();
-    DWORD *battle_input_dword_1D6D168 = (DWORD *)0x1D6D168;
+    DWORD *aicon_sp1_data = ((DWORD*(*)())ff8_externals.get_icon_sp1_data)();
+    DWORD *battle_menu_state = (DWORD *)ff8_externals.battle_menu_state;
 
-    uint32_t v14 = *(DWORD *)((char *)aicon_sp1_data + uint16_t(aicon_sp1_data[*((uint16_t *)battle_input_dword_1D6D168 + 34) + 1]));
-    uint32_t field8 = (*battle_input_dword_1D6D168 & 0xFF000000) | 0x808080 | (((v14 >> 26) & 2) << 24);
+    uint32_t v14 = *(DWORD *)((char *)aicon_sp1_data + uint16_t(aicon_sp1_data[*((uint16_t *)battle_menu_state + 34) + 1]));
+    uint32_t field8 = (*battle_menu_state & 0xFF000000) | 0x808080 | (((v14 >> 26) & 2) << 24);
 
     return battle_text_parse_common(a1, texture_infos, x, y, text_data, current_color, &field8);
 }
 
 int32_t ff8_open_tdw_field(char *id_path, void *data)
 {
-    ffnx_trace("%s\n", __func__);
-
     char tdw_path[MAX_PATH] = {};
 
     strncpy(tdw_path, id_path, strnlen(id_path, MAX_PATH) - 2);
     strcat(tdw_path, "tdw");
-    ffnx_trace("%s %s\n", __func__, tdw_path);
 
     if (ff8_externals.sm_pc_read(tdw_path, data) != 8) {
         uint32_t *tdw_header = (uint32_t *)data;
@@ -1201,7 +1056,7 @@ int32_t ff8_open_tdw_field(char *id_path, void *data)
         if (tdw_header[1]) {
             ff8_load_fonts_field((char *)data + tdw_header[1], tdw_path);
             memcpy(font_character_width_local_field, (char *)data + tdw_header[0], sizeof(font_character_width_local_field));
-            ((void(*)())0x49EFB0)(); // TODO
+            ((void(*)())ff8_externals.syfont_set_kernel_bin_pointers_sub_49F640)();
         }
     }
 
@@ -1231,7 +1086,7 @@ void convert_ascii_to_ff8_encoding_jp(char *data)
     data[i] = 0;
 }
 
-void fonts_init_2()
+void fonts_init_jp()
 {
     ffnx_trace("%s: fonts_initialized=%d is_japanese_font_loaded=%d\n", __func__, fonts_initialized, fonts_sysevn->graphics_object48 != nullptr);
 
@@ -1241,84 +1096,74 @@ void fonts_init_2()
 
     fonts_initialized = true;
 
-    replace_call(0x497D90 + 0x7, ff8_fonts_reset_field_58);
-    replace_call(0x497CA0 + 0xCD, ff8_fonts_draw);
+    // Rendering
+    replace_call(ff8_externals.engine_draw_2D_texture_sub_4980C0 + 0xF0 + 0x7, ff8_fonts_jp_rendering_reset_field_58);
+    replace_call(ff8_externals.engine_draw_2D_texture_sub_4980C0 + 0xCD, ff8_fonts_jp_draw);
 
-    replace_call(0x4A2D70 + 0x5C, before_loop_fonts_sub_49F3D0); // For jp:sub_4A79B0
-    replace_call(0x49C090 + 0xB, fonts_with_font8c_1_sub_49D190);
-    replace_call(0x56F960 + 0x190, fonts_with_font8c_1_sub_49D190);
+    // Menu simple text
+    replace_call(ff8_externals.sub_49C910 + 0xB, ff8_fonts_jp_render_simple_menus);
+    // Menu simple text with kernel.bin changes
+    replace_call(ff8_externals.syfont_set_kernel_bin_pointers_sub_49F640 + 0xD2, ff8_fonts_jp_kernel_bin_get_section);
+    replace_call(ff8_externals.sub_49C5F0 + 0xB, ff8_fonts_jp_render_kernel_menus);
+    replace_call(ff8_externals.sub_4A3400 + 0x21, ff8_fonts_jp_render_kernel_menus_before_loops);
+    replace_call(ff8_externals.sub_4A3400 + 0xCE, ff8_fonts_jp_render_kernel_menus_after_loops);
+    // Try to bring back save entry icons
+    //replace_call(0x4E6020 + 0x82, load_save_render_entry_icon);
+    //replace_call(0x4E6020 + 0xC3, load_save_render_entry_icon2);
+    // Battle simple text with kernel.bin changes
+    // TODO: rewrite the sub completely without font use (icon instead)
+    /* replace_call(0x56F5E0 + 0x86, call_draw_icon_sub_4B7210);
+    replace_call(0x56F5E0 + 0xFE, ff8_fonts_jp_render_kernel_menus_before_loops);
+    replace_call(0x56F5E0 + 0x1C0, ff8_fonts_jp_render_kernel_menus_after_loops); */
 
-    replace_call(0x49C3B0 + 0xB, fonts_with_font8c_3_sub_4A1CF0);
+    // Complex text parsing
+    replace_function(ff8_externals.font_text_size_calculation_sub_4A0D10, ff8_fonts_get_text_dimensions); // For text size calculation
+    replace_function(ff8_externals.sub_4A1020, ff8_fonts_parse_and_render_menu_texts_1); // Menu texts and icons
+    replace_function(ff8_externals.font_parse_and_render_menu_2_sub_4A1200, ff8_fonts_parse_and_render_menu_texts_2); // Menu texts
+    replace_function(ff8_externals.render_text_field_sub_4A1570, ff8_fonts_parse_and_render_field_texts); // Field
+    replace_function(ff8_externals.parse_battle_texts1_sub_4A7250, ff8_fonts_parse_and_render_battle_texts_1); // Battle
+    replace_function(ff8_externals.parse_and_render_battle_texts_hud_sub_4B0A90, ff8_fonts_parse_and_render_battle_texts_2); // Battle HUD
 
-    //replace_function(0x49D190, font_with_font8c_sub_4A1CF0);
+    // font8
+    /* replace_call(0x49BAB0 + 0x23, build_icon_graphic_object_font8);
+    replace_call(0x49BB30 + 0x29, build_icon_graphic_object_font8);
+    replace_call(0x49C610 + 0x2D, build_icon_graphic_object_font8);
+    replace_call(0x49C660 + 0x115, build_icon_graphic_object_font8);
+    replace_call(0x49C660 + 0x16C, build_icon_graphic_object_font8);
+    replace_call(0x49C660 + 0x210, build_icon_graphic_object_font8);
+    replace_call(0x49C660 + 0x269, build_icon_graphic_object_font8);
+    replace_call(0x49CB10 + 0x24, build_icon_graphic_object_font8);
+    replace_call(0x49CB50 + 0x168, build_icon_graphic_object_font8);
+    replace_call(0x49CB50 + 0x1AD, build_icon_graphic_object_font8);
+    replace_call(0x49CB50 + 0x1D0, build_icon_graphic_object_font8);
+    replace_call(0x49CB50 + 0x1F5, build_icon_graphic_object_font8);
+    replace_call(0x49CB50 + 0x218, build_icon_graphic_object_font8);
+    replace_call(0x49CB50 + 0x279, build_icon_graphic_object_font8);
+    replace_call(0x49CB50 + 0x29B, build_icon_graphic_object_font8);
+    replace_call(0x49CB50 + 0x2DD, build_icon_graphic_object_font8);
+    replace_call(0x49CB50 + 0x2FF, build_icon_graphic_object_font8); */
 
     // Open tdw in field
-    replace_call(0x471000 + 0x88B, ff8_open_tdw_field);
+    replace_call(ff8_externals.read_field_data + 0x88B, ff8_open_tdw_field);
 
-    replace_call(0x49EFB0 + 0xD2, kernel_bin_get_section_sub_482220);
-    replace_function(0x4A0640, get_character_width);
-
-    // Parse text
-    replace_function(0x4A0680, text_related_sub_4A0680);
-    replace_function(0x4A0990, input_get_command_keycodes_sub_4A0990);
-    replace_function(0x4A0B70, menu_parse_and_render_text_sub_4A0B70);
-    replace_function(0x4A0EE0, window_parse_for_render_text_sub_4A0EE0); // used in field
-    replace_function(0x4A6BC0, battle_text_parse_display_related_sub_4A6BC0);
-    replace_function(0x4B0400, battle_text_parse_display_related_sub_4B0400);
-
-    /* patch_code_word(0x4A2890 + 0x28 + 1, 0x73EAu);
-    patch_code_word(0x4A2890 + 0x37 + 1, 0x23C2u);
-    patch_code_word(0x4A2890 + 0x46 + 1, 0x6DC2u);
-    patch_code_byte(0x4A2890 + 0x4B + 1, 0x5Fu); */
+    // Kerning
+    replace_function(uint32_t(ff8_externals.get_character_width), get_character_width);
 
     // Convert ASCII to ff8 encoding
-    replace_function(0x4A2890, convert_ascii_to_ff8_encoding_jp);
+    replace_function(ff8_externals.convert_ascii_to_ff8enc_sub_4A2F20, convert_ascii_to_ff8_encoding_jp);
     // Cancel occidental font duo optimizations
-    patch_code_byte(0x4B84A0 + 0x4B, 0xFF);
-
-    /* uint8_t jp_get_char_patch[] = {
-        //0xF6,0xC4,0x04,           // test    ah, 4
-        //0x74,0x0C,                // jz      short loc_4A53FB
-        //0x25,0xFF,0x03,0x00,0x00, // and     eax, 3FFh
-        //0xB9,0x00,0x00,0x00,0x00, // mov     ecx, offset font_character_with_local_field_unk_2231984
-        //0xEB,0x05,                // jmp     short loc_4A5400
-        // loc_4A53FB:
-        0xB9,0x00,0x00,0x00,0x00, // mov     ecx, offset font_character_width_global_byte_22317C0
-        // loc_4A5400:
-        0x8B,0xD0,                // mov     edx, eax
-        0xD1,0xFA,                // sar     edx, 1
-        0xA8,0x01,                // test    al, 1
-        0x8A,0x0C,0x0A,           // mov     cl, [edx+ecx]
-        0x74,0x03,                // jz      short loc_4A540E
-        0xC0,0xE9,0x04            // shr     cl, 4
-        // loc_4A540E:
-    };
-
-    memcpy_code(0x4A0680 + 0x10A, jp_get_char_patch, sizeof(jp_get_char_patch));
-    // Fill with NOP
-    memset_code(0x4A0680 + 0x10A + sizeof(jp_get_char_patch), 0x90, 55 - sizeof(jp_get_char_patch));
-    // Update addresses
-    //patch_code_dword(0x4A0680 + 0x10A + 11, 0x2231984);
-    patch_code_dword(0x4A0680 + 0x10A + /* 18 /* 1, 0x1D2B4F0);
-
-    patch_code_byte(0x4A0990 + 0x181, 0x53); // push ebx
-    replace_call_function(0x4A0680 + 0x181 + 1, get_character_width); // call get_character_width
-    uint8_t add_esp_4[] = {0x83, 0xC4, 0x04};
-    memcpy_code(0x4A0680 + 0x181 + 1 + 5, add_esp_4, sizeof(add_esp_4)); // add esp, 4
-    memset_code(0x4A0680 + 0x181 + 1 + 5 + sizeof(add_esp_4), 0x90, 55 - 1 - 5 - sizeof(add_esp_4)); // nop
-    */
+    patch_code_dword(ff8_externals.sub_4B8B30 + 0x4B, 0x100); // Replace `current_byte >= 232` to `current_byte >= 256`
 }
 
-void ff8_load_fonts(ff8_file_container *file_container, int is_exit_menu)
+void ff8_load_fonts_jp(ff8_file_container *file_container, int is_exit_menu)
 {
-    //((void(*)(ff8_file_container*,int))ff8_externals.load_fonts)(file_container, is_exit_menu);
-
-    // Allocate old font pointer to avoid crashes
-    ff8_font **occ_font = (ff8_font **)0x1D2AD98;
-    *occ_font = malloc_ff8_font_structure();
-
     ff8_create_graphic_object create_graphics_object_infos;
     bool is_flfifs_opened_locally = false;
+
+    // Fake empty standard font
+    if (*ff8_externals.fonts == nullptr) {
+        *ff8_externals.fonts = malloc_ff8_font_structure();
+    }
 
     if (fonts_fieldtdw_even == nullptr) {
         fonts_fieldtdw_even = malloc_ff8_font_structure();
@@ -1351,11 +1196,11 @@ void ff8_load_fonts(ff8_file_container *file_container, int is_exit_menu)
     create_graphics_object_info_structure_for_font(&create_graphics_object_infos);
 
     if (file_container == nullptr) {
-        file_container = ((ff8_file_container*(*)(const char*))0x51ADC0)("\\MENU\\"); // menu fifls struct
+        file_container = ff8_externals.get_file_container_sub_51B410("\\MENU\\");
         is_flfifs_opened_locally = true;
     }
     create_graphics_object_infos.file_container = file_container;
-    if (*(uint32_t *)0xB86C80 == 2 && *(uint8_t *)0xB85E40) { // high res
+    if (*ff8_externals.config_highres_font_multiplier == 2 && *ff8_externals.config_use_highres_font) { // high res
         if (is_exit_menu_or_just_allocated) {
             fonts_sysevn->field_1 = 1;
             fonts_sysevn->field_3C = 0;
@@ -1402,10 +1247,20 @@ void ff8_load_fonts(ff8_file_container *file_container, int is_exit_menu)
         ff8_externals.free_file_container(file_container);
     }
 
-    fonts_init_2();
+    fonts_init_jp();
 }
 
-void ff8_cleanup_fonts()
+void ff8_load_icons_jp(ff8_file_container *file_container, int is_exit_menu)
+{
+    bool use_highres_font = *ff8_externals.config_use_highres_font;
+
+    // Disable highres icons for JP version
+    *ff8_externals.config_use_highres_font = false;
+    ((void(*)(ff8_file_container*,int))ff8_externals.load_icons)(file_container, is_exit_menu);
+    *ff8_externals.config_use_highres_font = use_highres_font;
+}
+
+void ff8_cleanup_fonts_jp()
 {
     if (fonts_fieldtdw_even != nullptr) {
         free_font_graphics_object(fonts_fieldtdw_even);
@@ -1439,99 +1294,23 @@ void ff8_cleanup_fonts()
     ((void(*)())ff8_externals.pubintro_cleanup_textures_menu)();
 }
 
-int fonts_sysoddeven_sub_4A0E70(int a1, ff8_draw_menu_sprite_texture_infos_short *texture_infos)
-{
-    ffnx_trace("%s: texID=%X color=%X pos=(%d, %d) uv=(%d, %d) palID=%X size=(%d, %d)\n", __func__,
-        texture_infos->texID, texture_infos->color, texture_infos->x, texture_infos->y, texture_infos->u, texture_infos->v, texture_infos->palID, texture_infos->w, texture_infos->h);
-
-    return ((int(*)(int,ff8_draw_menu_sprite_texture_infos_short*))0x4A0E70)(a1, texture_infos);
-}
-
-int fonts_sysoddeven_sub_4A0E00(int a1, ff8_draw_menu_sprite_texture_infos *texture_infos)
-{
-    ffnx_trace("%s: texID=%X color=%X pos=(%d, %d) uv=(%d, %d) palID=%X size=(%d, %d)\n", __func__,
-        texture_infos->inner.texID, texture_infos->inner.color, texture_infos->inner.x, texture_infos->inner.y, texture_infos->inner.u, texture_infos->inner.v, texture_infos->inner.palID, texture_infos->inner.w, texture_infos->inner.h);
-
-    return ((int(*)(int,ff8_draw_menu_sprite_texture_infos*))0x4A0E00)(a1, texture_infos);
-}
-
-int font_with_font8c_sub_4A1CF0_jp(ff8_draw_menu_sprite_texture_infos_short *texture_infos, ff8_font *fonts)
-{
-    float *offset_menu_viewport_and_stuff_off_D8A428 = *(float **)0xD8A428;
-
-    ffnx_info("%s: texture_infos->x_related=%d texture_infos->y_related=%d viewport=(%f %f)\n", __func__, texture_infos->x, texture_infos->y,
-        offset_menu_viewport_and_stuff_off_D8A428[4], offset_menu_viewport_and_stuff_off_D8A428[6]);
-
-    int ret = ((int(*)(ff8_draw_menu_sprite_texture_infos_short*,ff8_font*))0x4A1CF0)(texture_infos, fonts);
-
-    if (fonts->graphics_object48 != nullptr && fonts->graphics_object48->vertices != nullptr) {
-        ffnx_info("%s: (%lf, %lf, u=%lf, v=%lf) (%lf, %lf, u=%lf, v=%lf) (%lf, %lf, u=%lf, v=%lf)\n", __func__,
-            fonts->graphics_object48->vertices[0].x, fonts->graphics_object48->vertices[0].y,
-            fonts->graphics_object48->vertices[0].u, fonts->graphics_object48->vertices[0].v,
-            fonts->graphics_object48->vertices[1].x, fonts->graphics_object48->vertices[1].y,
-            fonts->graphics_object48->vertices[1].u, fonts->graphics_object48->vertices[1].v,
-            fonts->graphics_object48->vertices[2].x, fonts->graphics_object48->vertices[2].y,
-            fonts->graphics_object48->vertices[2].u, fonts->graphics_object48->vertices[2].v
-        );
-    }
-
-    if (fonts->graphics_object4C != nullptr && fonts->graphics_object4C->vertices != nullptr) {
-        ffnx_info("%s: (%lf, %lf, u=%lf, v=%lf) (%lf, %lf, u=%lf, v=%lf) (%lf, %lf, u=%lf, v=%lf)\n", __func__,
-            fonts->graphics_object4C->vertices[0].x, fonts->graphics_object4C->vertices[0].y,
-            fonts->graphics_object4C->vertices[0].u, fonts->graphics_object4C->vertices[0].v,
-            fonts->graphics_object4C->vertices[1].x, fonts->graphics_object4C->vertices[1].y,
-            fonts->graphics_object4C->vertices[1].u, fonts->graphics_object4C->vertices[1].v,
-            fonts->graphics_object4C->vertices[2].x, fonts->graphics_object4C->vertices[2].y,
-            fonts->graphics_object4C->vertices[2].u, fonts->graphics_object4C->vertices[2].v
-        );
-    }
-
-    if (fonts->graphics_object50 != nullptr && fonts->graphics_object50->vertices != nullptr) {
-        ffnx_info("%s: (%lf, %lf, u=%lf, v=%lf) (%lf, %lf, u=%lf, v=%lf) (%lf, %lf, u=%lf, v=%lf)\n", __func__,
-            fonts->graphics_object50->vertices[0].x, fonts->graphics_object50->vertices[0].y,
-            fonts->graphics_object50->vertices[0].u, fonts->graphics_object50->vertices[0].v,
-            fonts->graphics_object50->vertices[1].x, fonts->graphics_object50->vertices[1].y,
-            fonts->graphics_object50->vertices[1].u, fonts->graphics_object50->vertices[1].v,
-            fonts->graphics_object50->vertices[2].x, fonts->graphics_object50->vertices[2].y,
-            fonts->graphics_object50->vertices[2].u, fonts->graphics_object50->vertices[2].v
-        );
-    }
-
-    if (fonts->graphics_object54 != nullptr && fonts->graphics_object54->vertices != nullptr) {
-        ffnx_info("%s: (%lf, %lf, u=%lf, v=%lf) (%lf, %lf, u=%lf, v=%lf) (%lf, %lf, u=%lf, v=%lf)\n", __func__,
-            fonts->graphics_object54->vertices[0].x, fonts->graphics_object54->vertices[0].y,
-            fonts->graphics_object54->vertices[0].u, fonts->graphics_object54->vertices[0].v,
-            fonts->graphics_object54->vertices[1].x, fonts->graphics_object54->vertices[1].y,
-            fonts->graphics_object54->vertices[1].u, fonts->graphics_object54->vertices[1].v,
-            fonts->graphics_object54->vertices[2].x, fonts->graphics_object54->vertices[2].y,
-            fonts->graphics_object54->vertices[2].u, fonts->graphics_object54->vertices[2].v
-        );
-    }
-
-    return ret;
-}
-
 void fonts_init()
 {
-    if (JP_VERSION) {
-        replace_call(0x4A5B40 + 0x26E, fonts_sysoddeven_sub_4A0E00);
-        replace_call(0x4C23C0 + 0x1CF, fonts_sysoddeven_sub_4A0E70);
-
-        replace_call(0x4A0AB0 + 0x47, font_with_font8c_sub_4A1CF0_jp);
-        replace_call(0x4A0AB0 + 0x55, font_with_font8c_sub_4A1CF0_jp);
-        replace_call(0x4A0E00 + 0x4A, font_with_font8c_sub_4A1CF0_jp);
-        replace_call(0x4A0E00 + 0x5F, font_with_font8c_sub_4A1CF0_jp);
-        replace_call(0x4A0E70 + 0x47, font_with_font8c_sub_4A1CF0_jp);
-        replace_call(0x4A0E70 + 0x59, font_with_font8c_sub_4A1CF0_jp);
+    // Use hardcoded values for remastered edition
+    if (ff8_remastered_edition && !ff8_enable_japanese_font) {
+        replace_call(ff8_externals.sub_4972A0 + 0x16, ff8_load_fonts_hardcoded_tdw);
+        replace_function(reinterpret_cast<uint32_t>(ff8_externals.get_character_width), ff8_get_character_width_hardcoded_tdw);
     }
 
     if (JP_VERSION || !ff8_enable_japanese_font) {
         return;
     }
 
-    replace_call(ff8_externals.menu_enter2 + 0x16, ff8_load_fonts);
-    replace_call(ff8_externals.sub_4972A0 + 0x16, ff8_load_fonts);
-    replace_call(ff8_externals.sub_497F20 + 0xB3, ff8_load_fonts);
+    replace_function(ff8_externals.load_fonts, ff8_load_fonts_jp);
 
-    replace_call(ff8_externals.pubintro_cleanup_textures + 0x0, ff8_cleanup_fonts);
+    replace_call(ff8_externals.menu_enter2 + 0x1F, ff8_load_icons_jp);
+    replace_call(ff8_externals.sub_4972A0 + 0x1F, ff8_load_icons_jp);
+    replace_call(ff8_externals.sub_497F20 + 0xBB, ff8_load_icons_jp);
+
+    replace_call(ff8_externals.pubintro_cleanup_textures + 0x0, ff8_cleanup_fonts_jp);
 }

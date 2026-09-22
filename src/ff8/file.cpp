@@ -863,13 +863,13 @@ bool ff8_steam_redirection(const char *lpFileName, char *newPath, bool *isZzzFil
 
 		redirected = true;
 	}
-	else if (strstr(lpFileName, "temp.fi") || strstr(lpFileName, "temp.fl") || strstr(lpFileName, "temp.fs") || strstr(lpFileName, "temp_evn.") || strstr(lpFileName, "temp_odd."))
+	else if (strstr(lpFileName, "temp.fi") || strstr(lpFileName, "temp.fl") || strstr(lpFileName, "temp.fs") || strstr(lpFileName, "temp_evn.") || strstr(lpFileName, "temp_odd.") || strstr(lpFileName, "temp_evn1.") || strstr(lpFileName, "temp_odd1."))
 	{
 		// Search for the last '\' character and get a pointer to the next char
-		const char* pos = strrchr(lpFileName, 92) + 1;
+		const char* pos = strrchr(lpFileName, 92);
 
 		get_userdata_path(newPath, MAX_PATH, false);
-		PathAppendA(newPath, pos);
+		PathAppendA(newPath, pos == nullptr ? lpFileName : pos + 1);
 
 		redirected = true;
 	}

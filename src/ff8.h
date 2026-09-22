@@ -808,9 +808,9 @@ struct ff8_font
 };
 
 struct struc_kernel_sysfont {
-    uint8_t field_0;
-    uint8_t field_1;
-    uint16_t field_2;
+    uint8_t x_field_0;
+    uint8_t pal_id_field_1;
+    uint16_t uv_field_2;
 };
 
 struct ff8_audio_fmt
@@ -1246,6 +1246,7 @@ struct ff8_externals
 	uint32_t sub_534640;
 	uint32_t sub_4972A0;
 	uint32_t load_fonts;
+	uint32_t load_icons;
 	uint32_t sub_497F20;
 	uint32_t cdcheck_main_loop;
 	uint32_t cdcheck_sub_52F9E0;
@@ -1367,7 +1368,10 @@ struct ff8_externals
 	uint32_t main_menu_render_sub_4E5550;
 	uint32_t main_menu_controller;
 	uint32_t sub_4C2FF0;
-	uint32_t menu_sub_4D4D30;
+	uint32_t menu_23_render_sub_4D58A0;
+	uint32_t menu_23_controller_sub_4D4D30;
+	uint32_t font_parse_and_render_menu_2_sub_4A1200;
+	uint32_t sub_403E00;
 	uint32_t menu_chocobo_world_controller;
 	uint32_t create_save_file_sub_4C6E50;
 	uint32_t create_save_chocobo_world_file_sub_4C6620;
@@ -1667,6 +1671,8 @@ struct ff8_externals
 	BYTE* field_dialog_current_choice;
 	uint32_t sub_470440;
 	uint32_t sub_49ACD0;
+	uint32_t sub_4974B0;
+	uint32_t convert_ascii_to_ff8enc_sub_4A2F20;
 	uint32_t sub_4A0880;
 	uint32_t sub_4A09A0;
 	uint32_t sub_49FC10;
@@ -1900,6 +1906,61 @@ struct ff8_externals
 	void (*calc_model_triangle_condition_sub_45EE10)();
 	int *dword_1DC6314;
 	int32_t *calc_model_poly_condition_result_dword_1CA8A70;
+	ff8_file_container* (*get_file_container_sub_51B410)(const char*);
+	uint32_t *config_highres_font_multiplier;
+	uint8_t *config_use_highres_font;
+	void **dword_1D2A284;
+	uint32_t *dword_1D2A288;
+	uint32_t engine_draw_2D_texture_sub_4980C0;
+	uint32_t graphics_setrendererstate_draw_sub_4178D7;
+	uint32_t sub_4B3690;
+	uint32_t sub_4B3710;
+	uint32_t sub_49C910;
+	uint32_t sub_49D6F0;
+	uint32_t menu_controller_sub_4D3A60;
+	uint32_t sub_4D41B0;
+	uint32_t sub_4BF490;
+	uint32_t sub_4A3530;
+	uint32_t sub_4A3400;
+	uint32_t sub_49C5F0;
+	uint32_t sub_4B87A0;
+	ff8_font **dword_1D2B0C0;
+	uint32_t sub_472A50;
+	uint32_t sub_47D2A0;
+	uint32_t tdw_set_sub_49F600;
+	uint32_t syfont_set_kernel_bin_pointers_sub_49F640;
+	uint32_t kernel_bin_get_section_sub_47EC70;
+	struc_kernel_sysfont *kernel_bin_sysfont;
+	uint32_t sub_4B9A40;
+	void(*tdw_malloc_sub_4B98F0)(int*,int**,unsigned int*);
+	uint32_t load_file_in_memory_sub_4B96C0;
+	int(*open_file_menu_sub_4B9530)(void*,char*);
+	size_t(*write_tdw_tmp_sub_4B9640)(void*,LPCSTR,size_t);
+	uint32_t sub_4A1020;
+	uint32_t sub_4A0EC0;
+	uint32_t font_text_size_calculation_sub_4A0D10;
+	uint16_t *word_B86D84;
+	uint32_t sub_4A2DF0;
+	uint32_t sub_4B73F0;
+	uint32_t *dword_1D2B100;
+	uint32_t render_text_field_sub_4A1570;
+	uint32_t sub_49B0B0;
+	uint32_t dword_1D76608;
+	uint32_t sub_49AB40;
+	uint32_t dword_1D7660C;
+	uint32_t sub_4B8AC0;
+	uint32_t sub_4B8B30;
+	uint32_t sub_4B75B0;
+	uint32_t sub_49AB60;
+	uint32_t sub_49B0D0;
+	uint32_t dword_1D2B514;
+	uint32_t parse_battle_texts1_sub_4A7250;
+	uint32_t sub_49B080;
+	uint32_t sub_4B1B00;
+	uint32_t battle_menu_hud_renderer_sub_4B1740;
+	uint32_t sub_4B0F10;
+	uint32_t sub_4B0C00;
+	uint32_t parse_and_render_battle_texts_hud_sub_4B0A90;
 };
 
 void ff8gl_field_78(struct ff8_polygon_set *polygon_set, struct ff8_game_obj *game_object);
