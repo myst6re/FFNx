@@ -596,7 +596,7 @@ void ff8_fonts_jp_render_simple_menus(ff8_draw_menu_sprite_texture_infos_short *
 
     texture_infos->palID = ((character & 1) ? 14418 : 14354) + ((texture_infos->palID - 14354) << 1);
 
-    ffnx_trace("%s: uv=(%d, %d) palID=%X\n", __func__, texture_infos->u, texture_infos->v, texture_infos->palID);
+    ffnx_trace("%s: uv=(%d, %d) palID=%X character=%d\n", __func__, texture_infos->u, texture_infos->v, texture_infos->palID, character);
 
     return jp_fonts_with_font8c(texture_infos);
 }
@@ -642,13 +642,13 @@ uint8_t *ff8_fonts_jp_kernel_bin_get_section(int section_id)
     return ((uint8_t*(*)(int))ff8_externals.kernel_bin_get_section_sub_47EC70)(section_id);
 }
 
-void fill_texture_infos_for_font(ff8_draw_menu_sprite_texture_infos *texture_infos, int x, int y, int character, int current_color, uint32_t *field8)
+void fill_texture_infos_for_font(ff8_draw_menu_sprite_texture_infos *texture_infos, int x, int y, int character, int current_color, uint32_t *field8, uint32_t command = 0x5000000)
 {
-    ffnx_trace("%s character=%X\n", __func__, character);
+    ffnx_trace("%s character=%X xy=(%d, %d)\n", __func__, character, x, y);
 
     bool is_extended_font = (character & 0x400) != 0;
 
-    texture_infos->command = 0x5000000;
+    texture_infos->command = command;
     // << 7 only in jp version + 14418 only in jp version
     texture_infos->inner.palID = ((current_color & 7) << 7) + ((character & 1) ? 14418 : 14354);
     texture_infos->inner.color = (current_color & 0xFFFFFFF8) == 0 ? *field8 : *(field8 + 1);
@@ -754,6 +754,13 @@ int ff8_fonts_get_text_dimensions(uint8_t *text_data, bool continue_on_new_line)
         max_y = y;
     }
     return max_x | (max_y << 16);
+}
+
+int sub_4BDD60(int a1, ff8_draw_menu_sprite_texture_infos *texture_infos, int character, int current_color, int xy)
+{
+    fill_texture_infos_for_font(texture_infos, xy & 0xFFFF, xy >> 16, character, current_color, ff8_externals.dword_1D2B100, 0x4000000);
+
+    return a1;
 }
 
 ff8_draw_menu_sprite_texture_infos *ff8_fonts_parse_and_render_menu_texts_1(
@@ -1086,6 +1093,479 @@ void convert_ascii_to_ff8_encoding_jp(char *data)
     data[i] = 0;
 }
 
+#define JP_NAME_CHARW       16
+#define JP_NAME_CHARW_WIDE  17
+#define JP_NAME_GROUPW      90
+#define JP_NAME_GROUPW_LAST 85
+#define JP_NAME_ROWH        19
+#define JP_NAME_COLS        3
+#define JP_NAME_GROUPCHARS  5
+
+static constexpr uint16_t ff8_jp_name_grid_page0[] = {
+    0x002E, 0x002F, 0x0030, 0x0031, 0x0032, 0x0033, 0x0034, 0x0035,
+    0x0036, 0x0037, 0x0038, 0x0039, 0x003A, 0x003B, 0x003C, 0x003D,
+    0x003E, 0x003F, 0xFFFF
+};
+static constexpr uint16_t ff8_jp_name_grid_page1[] = {
+    0x001B, 0x001C, 0x001D, 0x001E, 0x001F, 0x0020, 0x0021, 0x0022,
+    0x0023, 0x0024, 0x0025, 0x0026, 0x0027, 0x0028, 0x0029, 0x002A,
+    0x002B, 0x002C, 0xFFFF
+};
+static constexpr uint16_t ff8_jp_name_grid_page2[] = {
+    0x0041, 0x0042, 0x0043, 0x0044, 0x0045, 0x0046, 0x0047, 0x0048,
+    0x0049, 0x004A, 0x004B, 0x004C, 0xFFFF
+};
+
+uint32_t *jp_name_entry_draw_grid(uint8_t *a1, int *a2, uint32_t *a3, int a4, int a5)
+{
+    uint8_t tab = a1[44];
+    const bool lastPage = tab == 2;
+    const uint16_t groupw = lastPage ? JP_NAME_GROUPW_LAST : JP_NAME_GROUPW;
+    const uint16_t *rowlist = tab == 0 ? ff8_jp_name_grid_page0 : (tab == 1 ? ff8_jp_name_grid_page1 : ff8_jp_name_grid_page2);
+    int ctx = *a2;
+
+    for (int i = 0; ; i++)
+    {
+        uint16_t rowid = rowlist[i];
+        if (rowid == 0xFFFF) {
+            break;
+        }
+
+        int x = a4 + (i % JP_NAME_COLS) * groupw;
+        int y = a5 + (i / JP_NAME_COLS) * JP_NAME_ROWH;
+        int ypacked = y << 16;
+        const uint8_t *s = (const uint8_t *)((char *(*)(int, int, int, int))0x4BD630)(1, 5, rowid, 0);
+
+        bool ended = false;
+        for (int col = 0; col < JP_NAME_GROUPCHARS; col++)
+        {
+            uint8_t b = *s++;
+            ctx = sub_4BDD60(ctx, (ff8_draw_menu_sprite_texture_infos *)a3, int(b) - 32, 7, ypacked | uint16_t(x + (lastPage ? JP_NAME_CHARW : JP_NAME_CHARW_WIDE) * col));
+            a3 += 5;
+        }
+
+        a3[0] = 0x01000000;
+        a3[1] = 0xE100041F;
+        a3 += 2;
+    }
+
+    return a3;
+}
+
+void menu_name_controller_alter_structure(uint8_t *a1)
+{
+    ffnx_trace("%s\n", __func__);
+    if (a1[47])
+    {
+        ((void(*)(char,int16_t,int16_t))0x4BD6E0)(0, 34, 16 * a1[46] + 98);
+    }
+    else
+    {
+        uint8_t tab = a1[44];
+        int y = a1[45], x = y % 15 / 5;
+        if (tab != 2)
+        {
+            x = JP_NAME_CHARW * (y % 5) + 90 * x;
+        }
+        else
+        {
+            x = JP_NAME_CHARW_WIDE * (5 * x + y % 5);
+        }
+        ((void(*)(char,int16_t,int16_t))0x4BD6E0)(0, int16_t(x) + 100, 19 * (int16_t(y) / 15) + 96);
+    }
+}
+
+void menu_name_controller(int a1)
+{
+    ffnx_trace("%s: %d\n", __func__, *(WORD *)(a1 + 16));
+    ((void(*)(DWORD))0x4BD690)(*(DWORD *)(a1 + 40));
+
+    uint8_t tab = *(uint8_t *)(a1 + 44);
+    const bool lastPage = tab == 2;
+    const uint8_t page_bounds = lastPage ? 3 : 5;
+    const uint16_t *rowlist = tab == 0 ? ff8_jp_name_grid_page0 : (tab == 1 ? ff8_jp_name_grid_page1 : ff8_jp_name_grid_page2);
+    int16_t dword_1D76A98 = *(int16_t *)0x1D76A98;
+    int16_t dword_1D76A9A = *(int16_t *)0x1D76A9A;
+    int16_t dword_1D76A9C = *(int16_t *)0x1D76A9C;
+
+    switch (*(WORD *)(a1 + 16))
+    {
+    case 0:
+        *(DWORD *)(a1 + 40) = 0;
+        *(WORD *)(a1 + 16) = 1;
+        break;
+    case 1: {
+        int v3 = *(DWORD *)(a1 + 40) + 256;
+        *(DWORD *)(a1 + 40) = v3;
+        if ( v3 >= 4096 )
+        {
+            *(DWORD *)(a1 + 40) = 4096;
+            *(WORD *)(a1 + 16) = 2;
+        }
+        menu_name_controller_alter_structure((uint8_t *)a1);
+        break;
+    }
+    case 2:
+        *(BYTE *)(a1 + 47) = 0;
+        *(WORD *)(a1 + 16) = 3;
+        menu_name_controller_alter_structure((uint8_t *)a1);
+        break;
+    case 3: {
+        int v46 = *(uint8_t *)(a1 + 45) % 15; // 14 -> 15
+        int v5 = *(uint8_t *)(a1 + 45) / 15; // 14 -> 15
+        if ((dword_1D76A98 & 0x10000000) != 0)
+        {
+            if (--v5 >= 0)
+                ((void(*)(int))0x4B92A0)(1);
+            else
+                v5 = 0;
+        }
+        if ((dword_1D76A9A & 0x4000) != 0)
+        {
+            if (v5 < page_bounds)
+                ((void(*)(int))0x4B92A0)(1);
+            ++v5;
+        }
+        if (v5 > page_bounds)
+            v5 = page_bounds;
+        if ((dword_1D76A9A & 0x2000) != 0)
+        {
+            if ( ++v46 < 15 ) // 14 -> 15
+                ((void(*)(int))0x4B92A0)(1);
+            else
+                v46 = 14; // 13 -> 14
+        }
+        if ((dword_1D76A9A & 0x8000) != 0)
+        {
+            ((void(*)(int))0x4B92A0)(1);
+            if (--v46 < 0)
+            {
+                v46 = 0;
+                *(WORD *)(a1 + 16) = 4;
+            }
+        }
+        char v6 = *(BYTE *)(a1 + 47);
+        uint8_t v7 = v46 + 15 * v5; // 14 -> 15
+        *(BYTE *)(a1 + 45) = v7;
+        menu_name_controller_alter_structure((uint8_t *)a1);
+        if ((dword_1D76A9C & 0x10) != 0)
+        {
+            ((void(*)(int))0x4B92A0)(3);
+            int v10 = *(DWORD *)(a1 + 36);
+            if ( *(BYTE *)v10 )
+                *(BYTE *)(v10 + strlen((const char *)(v10 + 1))) = 0;
+        }
+        else if ((dword_1D76A9A & 0x40) != 0)
+        {
+            ((void(*)(int))0x4B92A0)(2);
+            BYTE *v11 = *(BYTE **)(a1 + 36);
+            int v12 = **(uint8_t **)(a1 + 32);
+            int v13 = 0;
+            int v14 = 0;
+            BYTE *v15 = v11;
+            if (!**(BYTE **)(a1 + 32))
+            {
+                v13 = v12 - 1;
+            }
+            else
+            {
+                do
+                {
+                    if (!*v15++) break;
+                    ++v13;
+                    ++v14;
+                }
+                while ( v14 < v12 );
+                if ( v13 >= v12 )
+                    v13 = v12 - 1;
+            }
+            int v47 = *(uint8_t *)(a1 + 45) % 5;
+            v11[v13] = ((char *(*)(int, int, int, int))0x4BD630)(
+                1,
+                5,
+                *(rowlist + *(uint8_t *)(a1 + 45) / 5),
+                0)[v47];
+            v11[v13 + 1] = 0;
+        }
+        else
+        {
+            if ((dword_1D76A9C & 8) != 0)
+            {
+                ((void(*)(int))0x4B92A0)(1);
+                *(BYTE *)(a1 + 44) = (*(BYTE *)(a1 + 44) + 1) % 3; // Instead of % 2
+            }
+            if ((dword_1D76A9C & 4) != 0)
+            {
+                ((void(*)(int))0x4B92A0)(1);
+                *(BYTE *)(a1 + 44) = (*(uint8_t *)(a1 + 44) - 1 + (*(uint8_t *)(a1 + 44) - 1 < 0 ? 2 : 0)) % 3; // Instead of % 2
+            }
+            if ((dword_1D76A9C & 0x800) != 0)
+            {
+                ((void(*)(int))0x4B92A0)(1);
+                *(BYTE *)(a1 + 46) = 3;
+                *(WORD *)(a1 + 16) = 4;
+            }
+        }
+        break;
+    }
+    case 4:
+        *(BYTE *)(a1 + 47) = 1;
+        *(WORD *)(a1 + 16) = 5;
+        break;
+    case 5: {
+        int v17 = *(uint8_t *)(a1 + 46);
+        char v48 = *(BYTE *)(a1 + 46);
+        if ((dword_1D76A9C & 8) != 0)
+        {
+            ((void(*)(int))0x4B92A0)(1);
+            *(BYTE *)(a1 + 44) = (*(BYTE *)(a1 + 44) + 1) % 3; // Instead of % 2
+        }
+        if ((dword_1D76A9C & 4) != 0)
+        {
+            ((void(*)(int))0x4B92A0)(1);
+            *(BYTE *)(a1 + 44) = (*(uint8_t *)(a1 + 44) - 1 + (*(uint8_t *)(a1 + 44) - 1 < 0 ? 2 : 0)) % 3; // Instead of % 2
+        }
+        if ((dword_1D76A9A & 0x4000) != 0)
+        {
+            ((void(*)(int))0x4B92A0)(1);
+            v48 = ++v17;
+            if ( v17 >= 6 )
+            {
+                v17 = 0;
+                v48 = 0;
+            }
+        }
+        if ((dword_1D76A9A & 0x1000) != 0)
+        {
+            ((void(*)(int))0x4B92A0)(1);
+            v48 = --v17;
+            if ( v17 < 0 )
+            {
+                v17 = 5;
+                v48 = 5;
+            }
+        }
+        if ((dword_1D76A9C & 0x40) == 0)
+            break;
+        ffnx_trace("%s: 2 %d\n", __func__, v17);
+        switch (v17)
+        {
+        case 0:
+            ((void(*)(int))0x4B92A0)(2);
+            *(BYTE *)(a1 + 44) = 0;
+            break;
+        case 1:
+            ((void(*)(int))0x4B92A0)(2);
+            *(BYTE *)(a1 + 44) = 1;
+            break;
+        case 2:
+            ((void(*)(int))0x4B92A0)(2);
+            *(BYTE *)(a1 + 44) = 2;
+            break;
+        case 3: {
+            BYTE *v25 = *(BYTE **)(a1 + 36);
+            int sfx = 5;
+            if (strlen((const char *)v25))
+            {
+                for (;;)
+                {
+                    int v26 = (char)*v25++;
+                    if (!v26) break;
+                    if (v26 != *((uint8_t*(*)(int))ff8_externals.kernel_bin_get_section_sub_47EC70)(11))
+                    {
+                        sfx = 2;
+                        *(WORD *)(a1 + 16) = 6;
+                        break;
+                    }
+                }
+            }
+
+            ((void(*)(int))0x4B92A0)(sfx);
+            break;
+        }
+        case 4: {
+            ((void(*)(int))0x4B92A0)(3);
+            int v24 = *(DWORD *)(a1 + 36);
+            if (*(BYTE *)v24)
+                *(BYTE *)(v24 + strlen((const char *)(v24 + 1))) = 0;
+            break;
+        }
+        case 5: {
+            ((void(*)(int))0x4B92A0)(2);
+            char *text = ((char *(*)(int, int, int, int))0x4BD630)(1, 5, *(uint16_t *)(*(DWORD *)(a1 + 32) + 2), 0);
+            strcpy(*(char **)(a1 + 36), text);
+            break;
+        }
+        }
+        if ((dword_1D76A9C & 0x800) != 0)
+        {
+            ((void(*)(int))0x4B92A0)(1);
+            v17 = 3;
+        }
+        *(BYTE *)(a1 + 46) = v17;
+        menu_name_controller_alter_structure((uint8_t *)a1);
+        if ((dword_1D76A9A & 0x2000) != 0)
+        {
+            ((void(*)(int))0x4B92A0)(2);
+            *(WORD *)(a1 + 16) = 1;
+        }
+        break;
+    }
+    case 6:
+        ((void(*)())0x495EF0)();
+        menu_name_controller_alter_structure((uint8_t *)a1);
+        *(WORD *)(a1 + 16) = 7;
+        break;
+    case 7: {
+        int v33 = *(DWORD *)(a1 + 40);
+        *(DWORD *)(a1 + 40) = v33 - 256;
+        if (v33 - 256 < 0)
+        {
+            *(DWORD *)(a1 + 40) = 0;
+            ((void(*)(int))0x4BE610)(a1);
+            ((void(*)())0x4BDAC0)();
+            *(WORD *)(a1 + 16) = 2;
+        }
+        menu_name_controller_alter_structure((uint8_t *)a1);
+        break;
+    }
+    }
+
+    BYTE *v36 = *(BYTE **)(a1 + 32), *v37 = *(BYTE **)(a1 + 36);
+    int v38 = 0, v39 = (uint8_t)*v36, v40 = 0;
+
+    if (!*v36)
+    {
+        v38 = v39 - 1;
+    }
+    else
+    {
+        do
+        {
+            if (!*v37++) break;
+            ++v38;
+            ++v40;
+        }
+        while (v40 < v39);
+        if (v38 >= v39)
+            v38 = v39 - 1;
+    }
+    *(BYTE *)(a1 + 48) = v38;
+
+    ((void(*)(DWORD))0x4BD690)(*(DWORD *)(a1 + 40));
+}
+
+__int16 *__cdecl menu_draw_text_sub_4C23C0(
+    int *a1,
+    DrawIconTextureInfosShort *previous_draw_text_value,
+    int x,
+    int y,
+    unsigned __int8 *text,
+    int analog_related)
+{
+    int xb; // edi
+    int v8; // ebp
+    DrawIconTextureInfosShort *previous_draw_text_value2; // esi
+    int text_character; // ebx
+    unsigned __int8 *text2; // eax
+    int icon_id; // ebx
+    int chara_width; // eax
+    int character; // ebx
+    __int16 v15; // ax
+    __int16 palID; // dx
+    int color; // eax
+    __int16 v18; // ax
+    int text_character2; // [esp-14h] [ebp-28h]
+    int v20; // [esp+8h] [ebp-Ch]
+    int v21; // [esp+Ch] [ebp-8h]
+    int v22; // [esp+10h] [ebp-4h]
+    
+    if ( !text )
+        return (__int16 *)previous_draw_text_value;
+    xb = x;
+    v8 = *a1;
+    v21 = word_227D230;
+    v22 = word_227CBAE;
+    v20 = *a1;
+    if ( y > 256 )
+        return (__int16 *)previous_draw_text_value;
+    if ( y < -8 )
+        return (__int16 *)previous_draw_text_value;
+    sub_49F3D0();
+    previous_draw_text_value2 = previous_draw_text_value;
+    while ( 1 )
+    {
+        while ( 1 )
+        {
+            while ( 1 )
+            {
+                text_character = *text;
+                text2 = ++text;
+                if ( text_character != 2 )
+                    break;
+                xb = x;
+                y += 13;
+            }
+            if ( text_character != 5 )
+            break;
+            previous_draw_text_value2->texID = 0x1000000;
+            previous_draw_text_value2->color = 0xE100041F;
+            sub_4A1CB0(v8);
+            text_character2 = *text++;
+            icon_id = sub_4A3F10(text_character2);
+            previous_draw_text_value2 = (DrawIconTextureInfosShort *)draw_icon_character_win_related_sub_4BBCD0(
+                (int)a1,
+                (DrawIconTextureInfos *)&previous_draw_text_value2->x,
+                icon_id,
+                xb,
+                y,
+                dword_22310AC[0]);
+                chara_width = get_chara_width_sub_4A5290(icon_id);
+                v8 = *a1;
+                xb += chara_width + 1;
+                v20 = *a1;
+            }
+            if ( text_character <= 24 || xb > v21 )
+            break;
+            if ( text_character < 32 )
+            {
+                text = text2 + 1;
+                character = *text2 + 224 * text_character - 0x1520;
+            }
+            else
+            {
+                character = text_character - 32;
+            }
+            if ( xb >= v22 )
+            {
+                previous_draw_text_value2->texID = 0x4000000;
+                v15 = 0x3812;
+                if ( (character & 1) != 0 )
+                v15 = 0x3852;                           // only in jp!
+                palID = v15 + ((analog_related & 7) << 7);// << 7 only in jap
+                color = dword_22310B0;
+                previous_draw_text_value2->palID = palID;
+                if ( (analog_related & 0xFFFFFFF8) == 0 )
+                color = dword_22310AC[0];
+                previous_draw_text_value2->color = color;
+                *(_DWORD *)&previous_draw_text_value2->w = 0xC000C;
+                *(_DWORD *)&previous_draw_text_value2->x = (unsigned __int16)xb | (y << 16);
+                LOBYTE(v18) = 0;
+                HIBYTE(v18) = (char)(character >> 1) / 21;// only in jp!
+                *(_WORD *)&previous_draw_text_value2->u = 12 * (((character >> 1) % 21) | v18);// only in jp!
+                v8 = fonts_sysoddeven_sub_4A0E70(v20, previous_draw_text_value2);
+                v20 = v8;
+                ++previous_draw_text_value2;
+            }
+            xb += get_character_width_sub_4A52B0(character);
+        }
+        previous_draw_text_value2->texID = 0x1000000;
+        previous_draw_text_value2->color = 0xE100041F;
+        sub_4A1CB0(v8);
+        sub_49F3D0();
+        return &previous_draw_text_value2->x;
+    }
+
 void fonts_init_jp()
 {
     ffnx_trace("%s: fonts_initialized=%d is_japanese_font_loaded=%d\n", __func__, fonts_initialized, fonts_sysevn->graphics_object48 != nullptr);
@@ -1100,8 +1580,36 @@ void fonts_init_jp()
     replace_call(ff8_externals.engine_draw_2D_texture_sub_4980C0 + 0xF0 + 0x7, ff8_fonts_jp_rendering_reset_field_58);
     replace_call(ff8_externals.engine_draw_2D_texture_sub_4980C0 + 0xCD, ff8_fonts_jp_draw);
 
+    // Name selection menu
+    replace_function(0x4E7470, jp_name_entry_draw_grid);
+    replace_function(0x4E6990, menu_name_controller);
+    patch_code_byte(0x4E7170 + 0x4D, 41); // x: 48 -> 41
+    patch_code_dword(0x4E7170 + 0x70, 110); // x: 124 -> 110
+    patch_code_dword(0x4E7170 + 0x13A, 92); // x: 106 -> 92
+    patch_code_dword(0x4E7170 + 0x145, 272); // x: 258 -> 272
+    patch_code_word(0x4E7170 + 0x2AE, 92);
+    patch_code_word(0x4E7170 + 0x2BE, 272);
+    patch_code_byte(0x4E7170 + 0x193, 100); // x: 114 -> 110
+    patch_code_byte(0x4E7170 + 0x27E, 100);
+    patch_code_byte(0x4E7170 + 0x27C, 96); // y: 98 -> 96
+    patch_code_word(0x4E7170 + 0x26D, 66); // x: 80 -> 66
+
+    /* patch_code_dword(0x4E6990 + 0xAA, 15);
+    patch_code_byte(0x4E6990 + 0x125, 15);
+    patch_code_dword(0x4E6990 + 0x130, 14);
+    patch_code_dword(0x4E6990 + 0x283, 5);
+    patch_code_byte(0x4E6990 + 0x2F7, 0xB8);
+    patch_code_dword(0x4E6990 + 0x2F7 + 1, 3);
+    patch_code_byte(0x4E6990 + 0x2F7 + 5, 0x99);
+    // Fix third page change glitch
+    patch_code_dword(0x4E6990 + 0x45A, 0x022C46C6);
+    patch_code_byte(0x4E6990 + 0x45A + 4, 0xE9);
+    patch_code_dword(0x4E6990 + 0x45A + 5, 49); */
+
     // Menu simple text
     replace_call(ff8_externals.sub_49C910 + 0xB, ff8_fonts_jp_render_simple_menus);
+    replace_function(0x4BDD60, sub_4BDD60);
+    replace_function(0x4BDE30, menu_draw_text_sub_4C23C0);
     // Menu simple text with kernel.bin changes
     replace_call(ff8_externals.syfont_set_kernel_bin_pointers_sub_49F640 + 0xD2, ff8_fonts_jp_kernel_bin_get_section);
     replace_call(ff8_externals.sub_49C5F0 + 0xB, ff8_fonts_jp_render_kernel_menus);
