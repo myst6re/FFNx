@@ -585,11 +585,15 @@ void ff8_fonts_jp_render_kernel_menus(ff8_draw_menu_sprite_texture_infos_short *
     return jp_fonts_with_font8c(texture_infos);
 }
 
+/*
+ * This method should be not used at all, since it cannot recreate the original "character" value
+ */
 void ff8_fonts_jp_render_simple_menus(ff8_draw_menu_sprite_texture_infos_short *texture_infos, ff8_font *fonts)
 {
     ffnx_trace("%s\n", __func__);
 
     uint16_t field_c_divided_by_12 = *(uint16_t *)&texture_infos->u / 12;
+    // FIXME: Buggy when original character value > 5461
     int character = (field_c_divided_by_12 >> 8) * 21 + (field_c_divided_by_12 & 0xFF);
 
     *(uint16_t *)&texture_infos->u = 12 * (((character >> 1) % 21) | (((character >> 1) / 21) << 8));
@@ -674,7 +678,7 @@ void fill_texture_infos_for_font(ff8_draw_menu_sprite_texture_infos *texture_inf
     }
 }
 
-ff8_draw_menu_sprite_texture_infos *fill_texture_infos_for_icon(int *a1, ff8_draw_menu_sprite_texture_infos *texture_infos, int &x, int y, uint8_t icon_param, bool bound_icon_param_to_63 = false)
+int get_icon_id(uint8_t icon_param, bool bound_icon_param_to_63 = false)
 {
     int icon_id = 0;
     if (icon_param >= 64) {
@@ -689,6 +693,12 @@ ff8_draw_menu_sprite_texture_infos *fill_texture_infos_for_icon(int *a1, ff8_dra
             icon_id = key_from_key_id + 128;
         }
     }
+
+    return icon_id;
+}
+
+ff8_draw_menu_sprite_texture_infos *fill_texture_infos_for_icon(int *a1, ff8_draw_menu_sprite_texture_infos *texture_infos, int &x, int y, int icon_id)
+{
     if (a1 != nullptr || texture_infos != nullptr) {
         int dword_1D2B514 = *(int *)ff8_externals.dword_1D2B514;
         texture_infos = ((ff8_draw_menu_sprite_texture_infos*(*)(int*,ff8_draw_menu_sprite_texture_infos*,void*,int,uint16_t,uint16_t,int))ff8_externals.sub_4B75B0)(a1, texture_infos, ((void*(*)())ff8_externals.get_icon_sp1_data)(), icon_id, x, y, dword_1D2B514);
@@ -729,7 +739,7 @@ int ff8_fonts_get_text_dimensions(uint8_t *text_data, bool continue_on_new_line)
             }
         } else if (current_byte == 5) { // Icon
             int next_byte = *text_data++;
-            fill_texture_infos_for_icon(nullptr, nullptr, x, 0, next_byte);
+            fill_texture_infos_for_icon(nullptr, nullptr, x, 0, get_icon_id(next_byte));
         } else if (current_byte <= 15) {
             ++text_data;
         } else if (current_byte >= 24) {
@@ -773,7 +783,7 @@ ff8_draw_menu_sprite_texture_infos *ff8_fonts_parse_and_render_menu_texts_1(
 ) {
     ffnx_trace("%s\n", __func__);
 
-    int x_orig = x;
+    const int x_orig = x;
 
     if (text_data == nullptr || y > 256 || y < -8) {
         return texture_infos;
@@ -816,7 +826,7 @@ void ff8_fonts_parse_and_render_menu_texts_2(int *a1, int x, int y, uint8_t *tex
 {
     ffnx_trace("%s\n", __func__);
 
-    int x_orig = x;
+    const int x_orig = x;
     int *dword_1D76608 = (int *)ff8_externals.dword_1D76608;
     int dword_227C6F0_orig = *dword_1D76608;
     int some_struct = ((int(*)(int))ff8_externals.sub_403E00)(0);
@@ -848,7 +858,7 @@ void ff8_fonts_parse_and_render_menu_texts_2(int *a1, int x, int y, uint8_t *tex
 
             if (current_byte == 5) { // Icons
                 // x is modified
-                texture_infos = fill_texture_infos_for_icon(a1, texture_infos, x, y, *text_data++);
+                texture_infos = fill_texture_infos_for_icon(a1, texture_infos, x, y, get_icon_id(*text_data++));
             } else if (current_byte == 6) { // Color
                 current_color = (*text_data++) & 0xF;
             } else if (current_byte <= 15) {
@@ -936,7 +946,7 @@ void ff8_fonts_parse_and_render_field_texts(int *a1, ff8_win_obj *win)
 
             if (current_byte == 5) { // Icons
                 // x is modified
-                texture_infos = fill_texture_infos_for_icon(a1, texture_infos, x, y, *text_data++, true);
+                texture_infos = fill_texture_infos_for_icon(a1, texture_infos, x, y, get_icon_id(*text_data++, true));
             } else if (current_byte == 6) { // Color
                 current_color = (*text_data++) & 0xF;
             } else if (current_byte <= 15) {
@@ -1155,20 +1165,14 @@ uint32_t *jp_name_entry_draw_grid(uint8_t *a1, int *a2, uint32_t *a3, int a4, in
 void menu_name_controller_alter_structure(uint8_t *a1)
 {
     ffnx_trace("%s\n", __func__);
-    if (a1[47])
-    {
+    if (a1[47]) {
         ((void(*)(char,int16_t,int16_t))0x4BD6E0)(0, 34, 16 * a1[46] + 98);
-    }
-    else
-    {
+    } else {
         uint8_t tab = a1[44];
         int y = a1[45], x = y % 15 / 5;
-        if (tab != 2)
-        {
+        if (tab != 2) {
             x = JP_NAME_CHARW * (y % 5) + 90 * x;
-        }
-        else
-        {
+        } else {
             x = JP_NAME_CHARW_WIDE * (5 * x + y % 5);
         }
         ((void(*)(char,int16_t,int16_t))0x4BD6E0)(0, int16_t(x) + 100, 19 * (int16_t(y) / 15) + 96);
@@ -1177,19 +1181,19 @@ void menu_name_controller_alter_structure(uint8_t *a1)
 
 void menu_name_controller(int a1)
 {
-    ffnx_trace("%s: %d\n", __func__, *(WORD *)(a1 + 16));
     ((void(*)(DWORD))0x4BD690)(*(DWORD *)(a1 + 40));
 
     uint8_t tab = *(uint8_t *)(a1 + 44);
     const bool lastPage = tab == 2;
-    const uint8_t page_bounds = lastPage ? 3 : 5;
+    const uint8_t last_row = lastPage ? 3 : 5;
     const uint16_t *rowlist = tab == 0 ? ff8_jp_name_grid_page0 : (tab == 1 ? ff8_jp_name_grid_page1 : ff8_jp_name_grid_page2);
     int16_t dword_1D76A98 = *(int16_t *)0x1D76A98;
     int16_t dword_1D76A9A = *(int16_t *)0x1D76A9A;
     int16_t dword_1D76A9C = *(int16_t *)0x1D76A9C;
 
-    switch (*(WORD *)(a1 + 16))
-    {
+    ffnx_trace("%s: %d tab=%d dword_1D76A98=%X dword_1D76A9A=%X dword_1D76A9C=%X\n", __func__, *(WORD *)(a1 + 16), tab, dword_1D76A98, dword_1D76A9A, dword_1D76A9C);
+
+    switch (*(WORD *)(a1 + 16)) {
     case 0:
         *(DWORD *)(a1 + 40) = 0;
         *(WORD *)(a1 + 16) = 1;
@@ -1197,8 +1201,7 @@ void menu_name_controller(int a1)
     case 1: {
         int v3 = *(DWORD *)(a1 + 40) + 256;
         *(DWORD *)(a1 + 40) = v3;
-        if ( v3 >= 4096 )
-        {
+        if ( v3 >= 4096 ) {
             *(DWORD *)(a1 + 40) = 4096;
             *(WORD *)(a1 + 16) = 2;
         }
@@ -1211,96 +1214,82 @@ void menu_name_controller(int a1)
         menu_name_controller_alter_structure((uint8_t *)a1);
         break;
     case 3: {
-        int v46 = *(uint8_t *)(a1 + 45) % 15; // 14 -> 15
-        int v5 = *(uint8_t *)(a1 + 45) / 15; // 14 -> 15
-        if ((dword_1D76A98 & 0x10000000) != 0)
-        {
-            if (--v5 >= 0)
+        int col = *(uint8_t *)(a1 + 45) % 15; // 14 -> 15
+        int row = *(uint8_t *)(a1 + 45) / 15; // 14 -> 15
+        if ((dword_1D76A9A & 0x1000) != 0) { // up
+            if (--row >= 0) {
                 ((void(*)(int))0x4B92A0)(1);
-            else
-                v5 = 0;
+            } else {
+                row = 0;
+            }
         }
-        if ((dword_1D76A9A & 0x4000) != 0)
-        {
-            if (v5 < page_bounds)
+        if ((dword_1D76A9A & 0x4000) != 0) { // down
+            if (row < last_row) {
                 ((void(*)(int))0x4B92A0)(1);
-            ++v5;
+            }
+            ++row;
         }
-        if (v5 > page_bounds)
-            v5 = page_bounds;
-        if ((dword_1D76A9A & 0x2000) != 0)
-        {
-            if ( ++v46 < 15 ) // 14 -> 15
+        if (row > last_row) {
+            row = last_row;
+        }
+        if ((dword_1D76A9A & 0x2000) != 0) { // right
+            if (++col < 15) { // 14 -> 15
                 ((void(*)(int))0x4B92A0)(1);
-            else
-                v46 = 14; // 13 -> 14
+            } else {
+                col = 14; // 13 -> 14
+            }
         }
-        if ((dword_1D76A9A & 0x8000) != 0)
-        {
+        if ((dword_1D76A9A & 0x8000) != 0) { // left
             ((void(*)(int))0x4B92A0)(1);
-            if (--v46 < 0)
-            {
-                v46 = 0;
+            if (--col < 0) {
+                col = 0;
                 *(WORD *)(a1 + 16) = 4;
             }
         }
-        char v6 = *(BYTE *)(a1 + 47);
-        uint8_t v7 = v46 + 15 * v5; // 14 -> 15
-        *(BYTE *)(a1 + 45) = v7;
+        *(BYTE *)(a1 + 45) = col + 15 * row; // 14 -> 15
         menu_name_controller_alter_structure((uint8_t *)a1);
-        if ((dword_1D76A9C & 0x10) != 0)
-        {
+        if ((dword_1D76A9C & 0x10) != 0) {
             ((void(*)(int))0x4B92A0)(3);
             int v10 = *(DWORD *)(a1 + 36);
-            if ( *(BYTE *)v10 )
+            if (*(BYTE *)v10) {
                 *(BYTE *)(v10 + strlen((const char *)(v10 + 1))) = 0;
-        }
-        else if ((dword_1D76A9A & 0x40) != 0)
-        {
+            }
+        } else if ((dword_1D76A9A & 0x40) != 0) {
             ((void(*)(int))0x4B92A0)(2);
             BYTE *v11 = *(BYTE **)(a1 + 36);
             int v12 = **(uint8_t **)(a1 + 32);
             int v13 = 0;
             int v14 = 0;
             BYTE *v15 = v11;
-            if (!**(BYTE **)(a1 + 32))
-            {
+            if (!**(BYTE **)(a1 + 32)) {
                 v13 = v12 - 1;
-            }
-            else
-            {
+            } else {
                 do
                 {
                     if (!*v15++) break;
                     ++v13;
                     ++v14;
-                }
-                while ( v14 < v12 );
-                if ( v13 >= v12 )
+                } while ( v14 < v12 );
+                if ( v13 >= v12 ) {
                     v13 = v12 - 1;
+                }
             }
-            int v47 = *(uint8_t *)(a1 + 45) % 5;
             v11[v13] = ((char *(*)(int, int, int, int))0x4BD630)(
                 1,
                 5,
                 *(rowlist + *(uint8_t *)(a1 + 45) / 5),
-                0)[v47];
+                0)[*(uint8_t *)(a1 + 45) % 5];
             v11[v13 + 1] = 0;
-        }
-        else
-        {
-            if ((dword_1D76A9C & 8) != 0)
-            {
+        } else {
+            if ((dword_1D76A9C & 8) != 0) {
                 ((void(*)(int))0x4B92A0)(1);
                 *(BYTE *)(a1 + 44) = (*(BYTE *)(a1 + 44) + 1) % 3; // Instead of % 2
             }
-            if ((dword_1D76A9C & 4) != 0)
-            {
+            if ((dword_1D76A9C & 4) != 0) {
                 ((void(*)(int))0x4B92A0)(1);
-                *(BYTE *)(a1 + 44) = (*(uint8_t *)(a1 + 44) - 1 + (*(uint8_t *)(a1 + 44) - 1 < 0 ? 2 : 0)) % 3; // Instead of % 2
+                *(BYTE *)(a1 + 44) = (*(uint8_t *)(a1 + 44) - 1 + (*(uint8_t *)(a1 + 44) - 1 < 0 ? 3 : 0)) % 3; // Instead of % 2
             }
-            if ((dword_1D76A9C & 0x800) != 0)
-            {
+            if ((dword_1D76A9C & 0x800) != 0) { // Start
                 ((void(*)(int))0x4B92A0)(1);
                 *(BYTE *)(a1 + 46) = 3;
                 *(WORD *)(a1 + 16) = 4;
@@ -1314,98 +1303,82 @@ void menu_name_controller(int a1)
         break;
     case 5: {
         int v17 = *(uint8_t *)(a1 + 46);
-        char v48 = *(BYTE *)(a1 + 46);
-        if ((dword_1D76A9C & 8) != 0)
-        {
+        if ((dword_1D76A9C & 8) != 0) {
             ((void(*)(int))0x4B92A0)(1);
             *(BYTE *)(a1 + 44) = (*(BYTE *)(a1 + 44) + 1) % 3; // Instead of % 2
         }
-        if ((dword_1D76A9C & 4) != 0)
-        {
+        if ((dword_1D76A9C & 4) != 0) {
             ((void(*)(int))0x4B92A0)(1);
-            *(BYTE *)(a1 + 44) = (*(uint8_t *)(a1 + 44) - 1 + (*(uint8_t *)(a1 + 44) - 1 < 0 ? 2 : 0)) % 3; // Instead of % 2
+            *(BYTE *)(a1 + 44) = (*(uint8_t *)(a1 + 44) - 1 + (*(uint8_t *)(a1 + 44) - 1 < 0 ? 3 : 0)) % 3; // Instead of % 2
         }
-        if ((dword_1D76A9A & 0x4000) != 0)
-        {
+        if ((dword_1D76A9A & 0x4000) != 0) {
             ((void(*)(int))0x4B92A0)(1);
-            v48 = ++v17;
-            if ( v17 >= 6 )
-            {
+            if (++v17 >= 6) {
                 v17 = 0;
-                v48 = 0;
             }
         }
-        if ((dword_1D76A9A & 0x1000) != 0)
-        {
+        if ((dword_1D76A9A & 0x1000) != 0) {
             ((void(*)(int))0x4B92A0)(1);
-            v48 = --v17;
-            if ( v17 < 0 )
-            {
+            if (--v17 < 0) {
                 v17 = 5;
-                v48 = 5;
             }
         }
-        if ((dword_1D76A9C & 0x40) == 0)
-            break;
-        ffnx_trace("%s: 2 %d\n", __func__, v17);
-        switch (v17)
-        {
-        case 0:
-            ((void(*)(int))0x4B92A0)(2);
-            *(BYTE *)(a1 + 44) = 0;
-            break;
-        case 1:
-            ((void(*)(int))0x4B92A0)(2);
-            *(BYTE *)(a1 + 44) = 1;
-            break;
-        case 2:
-            ((void(*)(int))0x4B92A0)(2);
-            *(BYTE *)(a1 + 44) = 2;
-            break;
-        case 3: {
-            BYTE *v25 = *(BYTE **)(a1 + 36);
-            int sfx = 5;
-            if (strlen((const char *)v25))
-            {
-                for (;;)
-                {
-                    int v26 = (char)*v25++;
-                    if (!v26) break;
-                    if (v26 != *((uint8_t*(*)(int))ff8_externals.kernel_bin_get_section_sub_47EC70)(11))
-                    {
-                        sfx = 2;
-                        *(WORD *)(a1 + 16) = 6;
-                        break;
+        if ((dword_1D76A9C & 0x40) != 0) {
+            ffnx_trace("%s: left menu 2 %d\n", __func__, v17);
+            switch (v17) {
+            case 0:
+                ((void(*)(int))0x4B92A0)(2);
+                *(BYTE *)(a1 + 44) = 0;
+                break;
+            case 1:
+                ((void(*)(int))0x4B92A0)(2);
+                *(BYTE *)(a1 + 44) = 1;
+                break;
+            case 2:
+                ((void(*)(int))0x4B92A0)(2);
+                *(BYTE *)(a1 + 44) = 2;
+                break;
+            case 3: {
+                BYTE *v25 = *(BYTE **)(a1 + 36);
+                int sfx = 5;
+                if (strlen((const char *)v25)) {
+                    for (;;) {
+                        int v26 = (char)*v25++;
+                        if (!v26) break;
+                        if (v26 != *((uint8_t*(*)(int))ff8_externals.kernel_bin_get_section_sub_47EC70)(11)) {
+                            sfx = 2;
+                            *(WORD *)(a1 + 16) = 6;
+                            break;
+                        }
                     }
                 }
-            }
 
-            ((void(*)(int))0x4B92A0)(sfx);
-            break;
+                ((void(*)(int))0x4B92A0)(sfx);
+                break;
+            }
+            case 4: {
+                ((void(*)(int))0x4B92A0)(3);
+                int v24 = *(DWORD *)(a1 + 36);
+                if (*(BYTE *)v24) {
+                    *(BYTE *)(v24 + strlen((const char *)(v24 + 1))) = 0;
+                }
+                break;
+            }
+            case 5: {
+                ((void(*)(int))0x4B92A0)(2);
+                char *text = ((char *(*)(int, int, int, int))0x4BD630)(1, 5, *(uint16_t *)(*(DWORD *)(a1 + 32) + 2), 0);
+                strcpy(*(char **)(a1 + 36), text);
+                break;
+            }
+            }
         }
-        case 4: {
-            ((void(*)(int))0x4B92A0)(3);
-            int v24 = *(DWORD *)(a1 + 36);
-            if (*(BYTE *)v24)
-                *(BYTE *)(v24 + strlen((const char *)(v24 + 1))) = 0;
-            break;
-        }
-        case 5: {
-            ((void(*)(int))0x4B92A0)(2);
-            char *text = ((char *(*)(int, int, int, int))0x4BD630)(1, 5, *(uint16_t *)(*(DWORD *)(a1 + 32) + 2), 0);
-            strcpy(*(char **)(a1 + 36), text);
-            break;
-        }
-        }
-        if ((dword_1D76A9C & 0x800) != 0)
-        {
+        if ((dword_1D76A9C & 0x800) != 0) { // Start
             ((void(*)(int))0x4B92A0)(1);
             v17 = 3;
         }
         *(BYTE *)(a1 + 46) = v17;
         menu_name_controller_alter_structure((uint8_t *)a1);
-        if ((dword_1D76A9A & 0x2000) != 0)
-        {
+        if ((dword_1D76A9A & 0x2000) != 0) {
             ((void(*)(int))0x4B92A0)(2);
             *(WORD *)(a1 + 16) = 1;
         }
@@ -1419,8 +1392,7 @@ void menu_name_controller(int a1)
     case 7: {
         int v33 = *(DWORD *)(a1 + 40);
         *(DWORD *)(a1 + 40) = v33 - 256;
-        if (v33 - 256 < 0)
-        {
+        if (v33 - 256 < 0) {
             *(DWORD *)(a1 + 40) = 0;
             ((void(*)(int))0x4BE610)(a1);
             ((void(*)())0x4BDAC0)();
@@ -1434,137 +1406,83 @@ void menu_name_controller(int a1)
     BYTE *v36 = *(BYTE **)(a1 + 32), *v37 = *(BYTE **)(a1 + 36);
     int v38 = 0, v39 = (uint8_t)*v36, v40 = 0;
 
-    if (!*v36)
-    {
+    if (!*v36) {
         v38 = v39 - 1;
-    }
-    else
-    {
-        do
-        {
+    } else {
+        do {
             if (!*v37++) break;
             ++v38;
             ++v40;
-        }
-        while (v40 < v39);
-        if (v38 >= v39)
+        } while (v40 < v39);
+        if (v38 >= v39) {
             v38 = v39 - 1;
+        }
     }
     *(BYTE *)(a1 + 48) = v38;
 
     ((void(*)(DWORD))0x4BD690)(*(DWORD *)(a1 + 40));
 }
 
-__int16 *__cdecl menu_draw_text_sub_4C23C0(
+ff8_draw_menu_sprite_texture_infos *ff8_fonts_parse_and_render_menu_texts_3(
     int *a1,
-    DrawIconTextureInfosShort *previous_draw_text_value,
+    ff8_draw_menu_sprite_texture_infos *texture_infos,
     int x,
     int y,
-    unsigned __int8 *text,
-    int analog_related)
+    uint8_t *text_data,
+    int current_color)
 {
-    int xb; // edi
-    int v8; // ebp
-    DrawIconTextureInfosShort *previous_draw_text_value2; // esi
-    int text_character; // ebx
-    unsigned __int8 *text2; // eax
-    int icon_id; // ebx
-    int chara_width; // eax
-    int character; // ebx
-    __int16 v15; // ax
-    __int16 palID; // dx
-    int color; // eax
-    __int16 v18; // ax
-    int text_character2; // [esp-14h] [ebp-28h]
-    int v20; // [esp+8h] [ebp-Ch]
-    int v21; // [esp+Ch] [ebp-8h]
-    int v22; // [esp+10h] [ebp-4h]
-    
-    if ( !text )
-        return (__int16 *)previous_draw_text_value;
-    xb = x;
-    v8 = *a1;
-    v21 = word_227D230;
-    v22 = word_227CBAE;
-    v20 = *a1;
-    if ( y > 256 )
-        return (__int16 *)previous_draw_text_value;
-    if ( y < -8 )
-        return (__int16 *)previous_draw_text_value;
-    sub_49F3D0();
-    previous_draw_text_value2 = previous_draw_text_value;
-    while ( 1 )
-    {
-        while ( 1 )
-        {
-            while ( 1 )
-            {
-                text_character = *text;
-                text2 = ++text;
-                if ( text_character != 2 )
-                    break;
-                xb = x;
-                y += 13;
-            }
-            if ( text_character != 5 )
-            break;
-            previous_draw_text_value2->texID = 0x1000000;
-            previous_draw_text_value2->color = 0xE100041F;
-            sub_4A1CB0(v8);
-            text_character2 = *text++;
-            icon_id = sub_4A3F10(text_character2);
-            previous_draw_text_value2 = (DrawIconTextureInfosShort *)draw_icon_character_win_related_sub_4BBCD0(
-                (int)a1,
-                (DrawIconTextureInfos *)&previous_draw_text_value2->x,
-                icon_id,
-                xb,
-                y,
-                dword_22310AC[0]);
-                chara_width = get_chara_width_sub_4A5290(icon_id);
-                v8 = *a1;
-                xb += chara_width + 1;
-                v20 = *a1;
-            }
-            if ( text_character <= 24 || xb > v21 )
-            break;
-            if ( text_character < 32 )
-            {
-                text = text2 + 1;
-                character = *text2 + 224 * text_character - 0x1520;
-            }
-            else
-            {
-                character = text_character - 32;
-            }
-            if ( xb >= v22 )
-            {
-                previous_draw_text_value2->texID = 0x4000000;
-                v15 = 0x3812;
-                if ( (character & 1) != 0 )
-                v15 = 0x3852;                           // only in jp!
-                palID = v15 + ((analog_related & 7) << 7);// << 7 only in jap
-                color = dword_22310B0;
-                previous_draw_text_value2->palID = palID;
-                if ( (analog_related & 0xFFFFFFF8) == 0 )
-                color = dword_22310AC[0];
-                previous_draw_text_value2->color = color;
-                *(_DWORD *)&previous_draw_text_value2->w = 0xC000C;
-                *(_DWORD *)&previous_draw_text_value2->x = (unsigned __int16)xb | (y << 16);
-                LOBYTE(v18) = 0;
-                HIBYTE(v18) = (char)(character >> 1) / 21;// only in jp!
-                *(_WORD *)&previous_draw_text_value2->u = 12 * (((character >> 1) % 21) | v18);// only in jp!
-                v8 = fonts_sysoddeven_sub_4A0E70(v20, previous_draw_text_value2);
-                v20 = v8;
-                ++previous_draw_text_value2;
-            }
-            xb += get_character_width_sub_4A52B0(character);
-        }
-        previous_draw_text_value2->texID = 0x1000000;
-        previous_draw_text_value2->color = 0xE100041F;
-        sub_4A1CB0(v8);
-        sub_49F3D0();
-        return &previous_draw_text_value2->x;
+    if (text_data == nullptr || y > 256 || y < -8) {
+        return texture_infos;
     }
+
+    const int x_orig = x;
+    int min_x = *(int *)0x1D76AC6;
+    int max_x = *(int *)0x1D77148;
+
+    ((void(*)())ff8_externals.sub_49B080)();
+    for (;;) {
+        uint8_t current_byte = *text_data++;
+
+        if (current_byte == 2) { // new line
+            x = x_orig;
+            y += 13;
+        } else if (current_byte == 5) {
+            uint8_t next_byte = *text_data++;
+            texture_infos->command = 0x1000000;
+            texture_infos->inner.texID = 0xE100041F;
+            int icon_id = get_icon_id(next_byte);
+            texture_infos = ((ff8_draw_menu_sprite_texture_infos *(*)(int*,ff8_draw_menu_sprite_texture_infos*,int,uint16_t,uint16_t,uint32_t))ff8_externals.ff8_draw_icon_or_key1)(
+                a1,
+                (ff8_draw_menu_sprite_texture_infos *)&texture_infos->inner.color,
+                icon_id,
+                x,
+                y,
+                ff8_externals.dword_1D2B100[0]
+            );
+            x += uint8_t(((uint16_t(*)(void*,int))ff8_externals.sub_4B73F0)(((void*(*)())ff8_externals.get_icon_sp1_data)(), icon_id)) + 1;
+        } else if (current_byte > 24 && x < max_x) {
+            int character;
+            if (current_byte < 32) {
+                character = *text_data + 224 * current_byte - 0x1520;
+                text_data++;
+            } else {
+                character = current_byte - 32;
+            }
+            if (x >= min_x) {
+                fill_texture_infos_for_font(texture_infos, x, y, character, current_color, ff8_externals.dword_1D2B100, 0x4000000);
+                texture_infos = (ff8_draw_menu_sprite_texture_infos *)((char *)texture_infos + 20);
+            }
+            x += get_character_width(character);
+        } else {
+            break;
+        }
+    }
+    texture_infos->command = 0x1000000;
+    texture_infos->inner.texID = 0xE100041F;
+    ((void(*)())ff8_externals.sub_49B080)();
+
+    return (ff8_draw_menu_sprite_texture_infos *)&texture_infos->inner.color;
+}
 
 void fonts_init_jp()
 {
@@ -1607,9 +1525,8 @@ void fonts_init_jp()
     patch_code_dword(0x4E6990 + 0x45A + 5, 49); */
 
     // Menu simple text
-    replace_call(ff8_externals.sub_49C910 + 0xB, ff8_fonts_jp_render_simple_menus);
+    //replace_call(ff8_externals.sub_49C910 + 0xB, ff8_fonts_jp_render_simple_menus);
     replace_function(0x4BDD60, sub_4BDD60);
-    replace_function(0x4BDE30, menu_draw_text_sub_4C23C0);
     // Menu simple text with kernel.bin changes
     replace_call(ff8_externals.syfont_set_kernel_bin_pointers_sub_49F640 + 0xD2, ff8_fonts_jp_kernel_bin_get_section);
     replace_call(ff8_externals.sub_49C5F0 + 0xB, ff8_fonts_jp_render_kernel_menus);
@@ -1628,6 +1545,7 @@ void fonts_init_jp()
     replace_function(ff8_externals.font_text_size_calculation_sub_4A0D10, ff8_fonts_get_text_dimensions); // For text size calculation
     replace_function(ff8_externals.sub_4A1020, ff8_fonts_parse_and_render_menu_texts_1); // Menu texts and icons
     replace_function(ff8_externals.font_parse_and_render_menu_2_sub_4A1200, ff8_fonts_parse_and_render_menu_texts_2); // Menu texts
+    replace_function(0x4BDE30, ff8_fonts_parse_and_render_menu_texts_3); // Menu texts
     replace_function(ff8_externals.render_text_field_sub_4A1570, ff8_fonts_parse_and_render_field_texts); // Field
     replace_function(ff8_externals.parse_battle_texts1_sub_4A7250, ff8_fonts_parse_and_render_battle_texts_1); // Battle
     replace_function(ff8_externals.parse_and_render_battle_texts_hud_sub_4B0A90, ff8_fonts_parse_and_render_battle_texts_2); // Battle HUD
